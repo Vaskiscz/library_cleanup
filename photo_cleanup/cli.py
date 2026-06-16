@@ -227,31 +227,42 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
         ec.save()
 
     groups = find_duplicate_groups(records, cfg, embeddings=ec)
+    keepers = [r for g in groups for r in g.keepers]
     discards = [r for g in groups for r in g.discards]
+    members = keepers + discards   # every photo that belongs to a burst
 
     label = f"{since or '…'} → {until or '…'}" if (since or until) else "(whole library)"
     out = os.path.abspath(report_path)
     with open(out, "w") as fh:
         fh.write(render_dedup_html(groups, len(records), cfg, label))
     click.echo(f"scope {label}: {len(records)} photos, {len(groups)} bursts, "
-               f"{len(discards)} discard candidates")
+               f"{len(keepers)} suggested keepers, {len(discards)} discard candidates")
     click.echo(f"report: {out}")
 
     if not do_apply:
-        click.echo("Dry run — nothing tagged. Review the report; add --apply to tag discards.")
+        click.echo("Dry run — nothing tagged. Review the report; add --apply to tag.")
     else:
-        click.echo(f"Tagging {len(discards)} discards -> {apply_mod.KW_DUPLICATE} …")
+        # Dedup workflow: tag the WHOLE burst cleanup:duplicate, and Favorite the
+        # suggested keepers — so the Smart Album shows full bursts with picks
+        # pre-marked. You add Favorites; delete = tagged AND not Favorite.
+        click.echo(f"Tagging {len(members)} burst photos -> {apply_mod.KW_DUPLICATE}, "
+                   f"favoriting {len(keepers)} suggested keepers …")
 
         def prog(i, n):
             if i % 25 == 0 or i == n:
                 click.echo(f"  {i}/{n}")
         try:
-            res = apply_mod.add_keyword([r.uuid for r in discards], apply_mod.KW_DUPLICATE,
-                                        apply=True, progress=prog)
+            r1 = apply_mod.add_keyword([r.uuid for r in members], apply_mod.KW_DUPLICATE,
+                                       apply=True, progress=prog)
+            r2 = apply_mod.favorite([r.uuid for r in keepers], apply=True, progress=prog)
         except Exception as e:
             _hint_automation(e)
             sys.exit(1)
-        click.echo(f"  tagged {res.tagged}, already {res.skipped}, errors {res.errors}")
+        click.echo(f"  tagged {r1.tagged} (already {r1.skipped}), "
+                   f"favorited {r2.favorited} (already {r2.skipped}), "
+                   f"errors {r1.errors + r2.errors}")
+        click.echo("Review: Smart Album [Keyword is cleanup:duplicate]. Favorite any "
+                   "extra keepers. Then delete via [cleanup:duplicate AND Favorite is No].")
     if open_report:
         os.system(f'open "{out}"')
 

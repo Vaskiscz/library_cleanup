@@ -100,26 +100,37 @@ In the Smart Album (now only true discards): `⌘A` → Delete.
 
 Find near-duplicate bursts and keep the best, most diverse 1–4 per moment.
 
+Dedup uses a **different review model** than screenshots: the whole burst is
+tagged and the suggested keepers are **Favorited**, so you see each full burst
+with picks pre-marked and decide what (if anything) to add before deleting.
+
 ```sh
-# 1) Precompute embeddings once for the whole library (read-only; safe to run
-#    here or in Terminal). Long first pass; cached afterward (~/.cache/photo-cleanup/embeddings.npz).
+# 1) Precompute embeddings once for the whole library (read-only; safe here or in
+#    Terminal). Long first pass; cached afterward (~/.cache/photo-cleanup/embeddings.npz).
 uv run photo-cleanup embed
 
-# 2) Review duplicates in stages by date range (dry run -> HTML report, no changes):
+# 2) Review a date-range stage (dry run -> HTML report, no changes):
 uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --open
 
-# 3) In Photos: Favorite (♥) any discard you actually want to keep (rescue flag).
+# 3) (optional) snapshot pre-existing favorites so they aren't un-hearted later:
+uv run photo-cleanup fav-baseline --prefix cleanup:duplicate
 
-# 4) Tag the discards for this stage  ⚠️ run from Terminal
+# 4) Tag the whole burst + Favorite suggested keepers  ⚠️ run from Terminal
 uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --apply
-
-# 5) Rescue favorited keepers + delete the rest — SAME flow as screenshots
-#    (fav-baseline before reviewing, then rescue-plan / clear-tags / unfavorite),
-#    reviewing the `cleanup:duplicate` Smart Album.
 ```
 
+5. In Photos, make a Smart Album **[Keyword is `cleanup:duplicate`]**. Each burst
+   shows in full, suggested keepers already ♥. **Favorite any additional frames
+   you want to keep** (you have the whole burst for context).
+6. Make a Smart Album **[Keyword is `cleanup:duplicate`] AND [Photo is not
+   Favorite]** → that's the delete set → select all → delete.
+7. Clean up the survivors' tags/hearts with the rescue trio (un-tags kept,
+   un-favorites only the hearts the tool added, preserving your real favorites):
+   `rescue-plan --prefix cleanup:duplicate` → `clear-tags --apply` →
+   `unfavorite --apply`.
+
 `embed` and the dry-run `dedup` are read-only w.r.t. Photos; only `dedup --apply`
-writes (and like all write commands, must run from Terminal).
+(and the cleanup writes) touch Photos and must run from Terminal.
 
 ## 3. Bail out / revert
 ```sh

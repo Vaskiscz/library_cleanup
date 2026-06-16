@@ -158,8 +158,11 @@ def render_dedup_html(groups, total: int, cfg: Config, label: str = "") -> str:
 <title>Dedup review {_esc(label)}</title><style>{_CSS}</style></head><body>
 <h1>Near-duplicate review {_esc(label)}</h1>
 <p class="note"><b>Dry run.</b> On-device Apple Vision embeddings (distance ≤
-{cfg.embedding_max_distance}). Green = keep, red = propose discard
-(<code>cleanup:duplicate</code>). Nothing changed.</p>
+{cfg.embedding_max_distance}). Green = suggested keeper, red = near-duplicate.
+On <code>--apply</code>: the <b>whole burst</b> is tagged <code>cleanup:duplicate</code>
+and the green keepers are <b>Favorited</b>, so you review full bursts with picks
+pre-marked, add any Favorites you want, then delete
+<code>cleanup:duplicate AND not Favorite</code>. Nothing changed yet.</p>
 <div class="stats">
   <div class="stat"><b>{total}</b> photos in scope</div>
   <div class="stat"><b>{len(groups)}</b> bursts</div>
