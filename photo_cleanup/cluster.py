@@ -229,28 +229,38 @@ def leader_dedup(cluster: list[Record], cache, cfg: Config) -> list[DuplicateGro
     items = [r for r in cluster if cache.get(r.uuid) is not None]
     for r in items:
         measure_sharpness(r)
-    items.sort(key=lambda r: keeper_score(r, cfg), reverse=True)
+    # Process in TIME order so the radius can be relaxed for rapid-fire frames.
+    items.sort(key=lambda r: r.timestamp or 0)
 
-    R = cfg.embedding_max_distance
-    leaders: list[tuple[Record, list[Record]]] = []
+    base, relaxed, rapid = (cfg.embedding_max_distance,
+                            cfg.rapid_burst_radius, cfg.rapid_burst_seconds)
+    leaders: list[dict] = []  # {"repr": Record, "t": float, "members": [Record]}
     for r in items:
         rv = cache.get(r.uuid)
-        for leader, followers in leaders:
-            if distance(rv, cache.get(leader.uuid)) <= R:
-                followers.append(r)
-                break
+        rt = r.timestamp or 0.0
+        chosen, best_d = None, None
+        for L in leaders:
+            radius = relaxed if abs(rt - L["t"]) <= rapid else base
+            d = distance(rv, cache.get(L["repr"].uuid))
+            if d <= radius and (best_d is None or d < best_d):
+                chosen, best_d = L, d
+        if chosen is not None:
+            chosen["members"].append(r)
         else:
-            leaders.append((r, []))
+            leaders.append({"repr": r, "t": rt, "members": [r]})
 
     groups: list[DuplicateGroup] = []
-    for leader, followers in leaders:
-        if not followers:
+    for L in leaders:
+        members = L["members"]
+        if len(members) < 2:
             continue  # unique shot — kept, nothing to discard
-        keepers = [leader]
-        # never discard a user Favorite — promote any followers that are favorited
-        promoted = [d for d in followers if d.favorite]
-        discards = [d for d in followers if not d.favorite]
-        groups.append(DuplicateGroup(keepers=keepers + promoted, discards=discards))
+        # Keeper = best quality of the group; the rest are near-dup discards.
+        ranked = sorted(members, key=lambda r: keeper_score(r, cfg), reverse=True)
+        rest = ranked[1:]
+        # never discard a user Favorite — promote any favorited members
+        promoted = [d for d in rest if d.favorite]
+        discards = [d for d in rest if not d.favorite]
+        groups.append(DuplicateGroup(keepers=[ranked[0]] + promoted, discards=discards))
     return [g for g in groups if g.discards]
 
 

@@ -23,7 +23,12 @@ class Config:
     # --- near-duplicate confirmation within a cluster ---
     # Primary method: Apple Vision feature-print embeddings (content similarity,
     # robust to reframing/angle). L2 distance <= threshold => "same shot".
-    embedding_max_distance: float = 0.25   # calibrated on real wedding bursts
+    embedding_max_distance: float = 0.25   # base "same shot" radius (slow-paced)
+    # Rapid-fire bursts: frames shot within `rapid_burst_seconds` of each other
+    # are the same moment even at a larger embedding distance (busy scenes /
+    # shifting poses move the embedding more than a human reads as "different").
+    rapid_burst_seconds: float = 6.0
+    rapid_burst_radius: float = 0.45       # relaxed radius for rapid-fire frames
     keepers_per_group: int = 3             # (legacy/pHash path) fixed keepers
 
     # Adaptive keepers: burst size signals how much the moment mattered.
