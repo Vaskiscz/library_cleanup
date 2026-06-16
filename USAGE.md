@@ -18,9 +18,12 @@ A practical runbook for `photo-cleanup`. Commands assume the project lives at
 - **Photoshoot dedup** — finds near-duplicate bursts (multiple shots of the same
   moment) using on-device **Apple Vision feature-print embeddings** (content
   similarity, robust to reframing/angle), and keeps the best, most *diverse*
-  1–4 per burst (more shots in a burst → more keepers). Discards are tagged
-  `cleanup:duplicate`. Tunables in `Config`: `embedding_max_distance` (0.25),
-  `keeper_tiers`, `keepers_max`, `keeper_diversity_min`.
+  version of a moment (leader clustering): keepers end up mutually different,
+  and a frame is discarded only if a kept frame is within the radius. So a moment
+  shot 30 near-identical times keeps 1; a moment with 3 distinct versions keeps 3.
+  Discards are tagged `cleanup:duplicate`. The one knob in `Config`:
+  `embedding_max_distance` (0.25) — smaller = stricter "same shot". (`keeper_*`
+  fields apply only to the legacy perceptual-hash fallback.)
 
 Everything runs on-device. No uploads, no cloud APIs.
 
