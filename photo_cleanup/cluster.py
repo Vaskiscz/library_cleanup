@@ -216,19 +216,58 @@ def embedding_groups(cluster: list[Record], cache, cfg: Config) -> list[list[Rec
     return list(groups.values())
 
 
+def leader_dedup(cluster: list[Record], cache, cfg: Config) -> list[DuplicateGroup]:
+    """Leader clustering on embeddings: process photos best-quality first; each
+    becomes a 'leader' (keeper) unless it is within `embedding_max_distance` of
+    an existing leader, in which case it's a near-duplicate follower (discard).
+
+    Guarantees a photo is discarded ONLY if a KEPT photo is within the radius —
+    so every genuinely distinct sub-shot keeps its best frame (no chaining bug),
+    while runs of near-identical frames collapse to one keeper each."""
+    from .embedding import distance
+
+    items = [r for r in cluster if cache.get(r.uuid) is not None]
+    for r in items:
+        measure_sharpness(r)
+    items.sort(key=lambda r: keeper_score(r, cfg), reverse=True)
+
+    R = cfg.embedding_max_distance
+    leaders: list[tuple[Record, list[Record]]] = []
+    for r in items:
+        rv = cache.get(r.uuid)
+        for leader, followers in leaders:
+            if distance(rv, cache.get(leader.uuid)) <= R:
+                followers.append(r)
+                break
+        else:
+            leaders.append((r, []))
+
+    groups: list[DuplicateGroup] = []
+    for leader, followers in leaders:
+        if not followers:
+            continue  # unique shot — kept, nothing to discard
+        keepers = [leader]
+        # never discard a user Favorite — promote any followers that are favorited
+        promoted = [d for d in followers if d.favorite]
+        discards = [d for d in followers if not d.favorite]
+        groups.append(DuplicateGroup(keepers=keepers + promoted, discards=discards))
+    return [g for g in groups if g.discards]
+
+
 def find_duplicate_groups(records: list[Record], cfg: Config, embeddings=None) -> list[DuplicateGroup]:
     """Full near-duplicate pass -> only groups that actually have discards.
 
-    Uses Vision embeddings when an `embeddings` cache is provided (preferred);
-    otherwise falls back to the perceptual-hash grouping."""
+    Uses Vision-embedding leader clustering when an `embeddings` cache is
+    provided (preferred); otherwise falls back to perceptual-hash grouping."""
     out: list[DuplicateGroup] = []
     for cluster in time_gps_clusters(records, cfg):
         if len(cluster) < 2:
             continue
-        grouper = (lambda c: embedding_groups(c, embeddings, cfg)) if embeddings else \
-                  (lambda c: similar_groups(c, cfg))
-        for grp in grouper(cluster):
-            dg = select_keepers(grp, cfg, embeddings=embeddings)
-            if dg.discards:
-                out.append(dg)
+        if embeddings is not None:
+            out.extend(leader_dedup(cluster, embeddings, cfg))
+        else:
+            for grp in similar_groups(cluster, cfg):
+                dg = select_keepers(grp, cfg)
+                if dg.discards:
+                    out.append(dg)
     return out
