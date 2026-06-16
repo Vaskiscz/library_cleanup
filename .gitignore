@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Generated review reports
+*-report.html
+poc-*.html
+cleanup-report.html
+
+# Machine-specific launcher scripts (hardcoded absolute paths)
+*.command
+
+# One-off PoC / scratch scripts
+poc_*.py
+
+# macOS
+.DS_Store

@@ -1,0 +1,146 @@
+"""Self-contained local HTML report. Thumbnails are embedded as base64 so the
+file is a single artifact you open from disk (file://). Nothing is served or
+uploaded.
+"""
+
+from __future__ import annotations
+
+import base64
+import html
+import io
+import os
+from typing import Optional
+
+from .analyze import Findings
+from .cluster import DuplicateGroup
+from .model import Config, Record
+from .quality import keeper_score
+
+
+def _thumb_data_uri(rec: Record, px: int = 240) -> Optional[str]:
+    """Make a small JPEG thumbnail (prefer the smallest existing derivative)."""
+    try:
+        from PIL import Image
+    except Exception:
+        return None
+    candidates = list(rec.derivatives)
+    if rec.path:
+        candidates.append(rec.path)
+    for p in sorted(candidates, key=lambda x: _size(x)):  # smallest first = fastest
+        try:
+            with Image.open(p) as im:
+                im = im.convert("RGB")
+                im.thumbnail((px, px))
+                buf = io.BytesIO()
+                im.save(buf, format="JPEG", quality=70)
+            b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+            return f"data:image/jpeg;base64,{b64}"
+        except Exception:
+            continue
+    return None
+
+
+def _size(p: str) -> int:
+    try:
+        return os.path.getsize(p)
+    except OSError:
+        return 1 << 62  # missing files sort last
+
+
+def _esc(s: str) -> str:
+    return html.escape(s or "")
+
+
+def _card(rec: Record, cfg: Config, *, kind: str, subtitle: str = "") -> str:
+    uri = _thumb_data_uri(rec)
+    img = (f'<img src="{uri}" loading="lazy">' if uri
+           else '<div class="noimg">no preview</div>')
+    sharp = f"{rec.laplacian:.0f}" if rec.laplacian is not None else "–"
+    meta = (f"score {keeper_score(rec, cfg):+.2f} · focus {sharp} · "
+            f"{rec.width}×{rec.height}")
+    star = " ★" if rec.favorite else ""
+    return f"""
+    <figure class="card {kind}">
+      {img}
+      <figcaption>
+        <div class="fn">{_esc(rec.original_filename)}{star}</div>
+        <div class="sub">{_esc(subtitle)}</div>
+        <div class="meta">{_esc(meta)}</div>
+      </figcaption>
+    </figure>"""
+
+
+def _screenshot_section(f: Findings, cfg: Config) -> str:
+    if not f.work_screenshots:
+        return "<p class='empty'>No high-confidence work screenshots found.</p>"
+    cards = []
+    for rec, verdict in f.work_screenshots:
+        snippet = rec.detected_text.strip().replace("\n", " ")[:120]
+        sub = " · ".join(verdict.reasons)
+        if snippet:
+            sub += f" — “{snippet}…”"
+        cards.append(_card(rec, cfg, kind="discard", subtitle=sub))
+    return f'<div class="grid">{"".join(cards)}</div>'
+
+
+def _dup_section(f: Findings, cfg: Config) -> str:
+    if not f.duplicate_groups:
+        return "<p class='empty'>No near-duplicate groups found.</p>"
+    blocks = []
+    for i, g in enumerate(f.duplicate_groups, 1):
+        keep = "".join(_card(r, cfg, kind="keep", subtitle="KEEP") for r in g.keepers)
+        disc = "".join(_card(r, cfg, kind="discard", subtitle="discard") for r in g.discards)
+        blocks.append(f"""
+        <div class="group">
+          <h3>Group {i} — {g.size} shots · keep {len(g.keepers)} · discard {len(g.discards)}</h3>
+          <div class="grid">{keep}{disc}</div>
+        </div>""")
+    return "".join(blocks)
+
+
+_CSS = """
+:root { color-scheme: light dark; }
+body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 24px; }
+h1 { margin: 0 0 4px; } h2 { margin: 32px 0 8px; border-bottom: 1px solid #8884; padding-bottom: 4px; }
+.note { background: #2e7d3220; border-left: 3px solid #2e7d32; padding: 8px 12px; border-radius: 4px; }
+.stats { display: flex; gap: 24px; margin: 12px 0; flex-wrap: wrap; }
+.stat b { font-size: 22px; display: block; }
+.grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.group { margin: 16px 0; padding: 12px; border: 1px solid #8883; border-radius: 8px; }
+.card { width: 160px; margin: 0; border-radius: 6px; overflow: hidden; border: 2px solid transparent; background: #8881; }
+.card img, .card .noimg { width: 160px; height: 160px; object-fit: cover; display: block; }
+.noimg { display: flex; align-items: center; justify-content: center; color: #888; }
+.card.keep { border-color: #2e7d32; } .card.discard { border-color: #c62828; }
+figcaption { padding: 6px 8px; }
+.fn { font-weight: 600; font-size: 12px; word-break: break-all; }
+.sub { font-size: 11px; color: #c62828; } .card.keep .sub { color: #2e7d32; }
+.meta { font-size: 11px; color: #888; }
+.empty { color: #888; font-style: italic; }
+"""
+
+
+def render_html(f: Findings, cfg: Config) -> str:
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>Photo cleanup — review</title><style>{_CSS}</style></head><body>
+<h1>Photo cleanup — review</h1>
+<p class="note"><b>Dry run.</b> Nothing in your library has been changed. All
+analysis ran on-device — no uploads. Review below, then run with <code>--apply</code>
+to tag discards (<code>cleanup:*</code> keywords) and Favorite the keepers.</p>
+<div class="stats">
+  <div class="stat"><b>{f.total_scanned}</b> photos scanned</div>
+  <div class="stat"><b>{len(f.work_screenshots)}</b> work screenshots</div>
+  <div class="stat"><b>{len(f.duplicate_groups)}</b> duplicate groups</div>
+  <div class="stat"><b>{f.n_discards}</b> discard candidates</div>
+</div>
+<h2>Work screenshots → <code>cleanup:screenshot</code></h2>
+{_screenshot_section(f, cfg)}
+<h2>Near-duplicate photoshoots → keep best, discard rest</h2>
+{_dup_section(f, cfg)}
+</body></html>"""
+
+
+def write_report(f: Findings, cfg: Config, path: str) -> str:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w") as fh:
+        fh.write(render_html(f, cfg))
+    return os.path.abspath(path)

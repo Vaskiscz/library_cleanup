@@ -1,0 +1,21 @@
+[project]
+name = "photo-cleanup"
+version = "0.1.0"
+description = "On-device dedup & work-screenshot triage for Apple Photos"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.4.1",
+    "imagehash>=4.3.2",
+    "numpy>=2.4.6",
+    "osxphotos>=0.76.1",
+    "pillow>=12.2.0",
+    "scipy>=1.17.1",
+]
+
+[project.scripts]
+photo-cleanup = "photo_cleanup.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
