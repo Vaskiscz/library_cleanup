@@ -13,6 +13,10 @@ from typing import Callable, Iterable, Optional
 KEYWORD_PREFIX = "cleanup:"
 KW_SCREENSHOT = "cleanup:screenshot"
 KW_DUPLICATE = "cleanup:duplicate"
+# Permanent "reviewed & decided to keep" mark. Deliberately OUTSIDE the cleanup:
+# namespace so undo/clear-tags never remove it. Photos with this are excluded
+# from all future review passes.
+KW_REVIEWED = "reviewed:keep"
 
 
 @dataclass

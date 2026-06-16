@@ -27,8 +27,10 @@ class Findings:
 
 
 def analyze(records: list[Record], cfg: Config) -> Findings:
-    # Never auto-review the manually-curated Hidden album.
-    records = [r for r in records if not r.is_hidden]
+    from .apply import KW_REVIEWED
+    # Never auto-review the Hidden album, or anything already reviewed-and-kept.
+    records = [r for r in records
+               if not r.is_hidden and KW_REVIEWED not in (r.keywords or [])]
     f = Findings(total_scanned=len(records))
 
     # 1) work screenshots (high confidence only)

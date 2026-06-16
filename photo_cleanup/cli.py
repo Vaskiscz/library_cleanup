@@ -165,6 +165,14 @@ def _filter_by_date(records, since, until):
     return out
 
 
+def _active_records(cache, since, until):
+    """Load records for a scope, excluding the Hidden album and anything already
+    marked reviewed:keep (never re-review)."""
+    recs = _filter_by_date(load_records(cache), since, until)
+    return [r for r in recs
+            if not r.is_hidden and apply_mod.KW_REVIEWED not in (r.keywords or [])]
+
+
 def _cluster_candidates(records, cfg):
     """Photos that share a multi-shot time/GPS cluster — the only dedup candidates."""
     from .cluster import time_gps_clusters
@@ -184,7 +192,7 @@ def embed(cache, emb_cache, since, until):
     """Precompute & cache on-device Vision embeddings for dedup candidates.
     Read-only w.r.t. Photos (only writes the embedding cache). Safe to run here."""
     from .embedding import EmbeddingCache, embed_records
-    records = _filter_by_date(load_records(cache), since, until)
+    records = _active_records(cache, since, until)
     cfg = Config()
     cand = _cluster_candidates(records, cfg)
     ec = EmbeddingCache(emb_cache)
@@ -216,7 +224,7 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
     from .embedding import EmbeddingCache, embed_records
     from .report import render_dedup_html
 
-    records = _filter_by_date(load_records(cache), since, until)
+    records = _active_records(cache, since, until)
     cfg = Config()
     cand = _cluster_candidates(records, cfg)
     ec = EmbeddingCache(emb_cache)
@@ -377,6 +385,40 @@ def unfavorite(uuids_file, do_apply):
         sys.exit(1)
     verb = "un-favorited" if do_apply else "would un-favorite"
     click.echo(f"  {verb} {res.favorited}, already-not {res.skipped}, errors {res.errors}")
+
+
+@cli.command(name="mark-reviewed")
+@click.option("--uuids-file", default=RESCUE_FILE, show_default=True,
+              help="Mark the photos listed in this JSON file (e.g. finalize keepers).")
+@click.option("--since", default=None, help="Instead: mark every photo on/after YYYY-MM-DD.")
+@click.option("--until", default=None, help="...and on/before YYYY-MM-DD (lock a whole event).")
+@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--apply", "do_apply", is_flag=True, help="Actually write the reviewed:keep tag.")
+def mark_reviewed(uuids_file, since, until, cache, do_apply):
+    """Tag photos `reviewed:keep` — permanently excluded from future review.
+    Use --uuids-file for a finalize's keepers, or --since/--until to lock an event."""
+    import json
+    if since or until:
+        uuids = [r.uuid for r in _filter_by_date(load_records(cache), since, until)]
+        src = f"{since or '…'} → {until or '…'}"
+    else:
+        with open(uuids_file) as f:
+            uuids = json.load(f)
+        src = uuids_file
+    mode = "APPLY" if do_apply else "DRY RUN"
+    click.echo(f"[{mode}] marking {len(uuids)} photos {apply_mod.KW_REVIEWED} (from {src})")
+
+    def prog(i, n):
+        if i % 50 == 0 or i == n:
+            click.echo(f"  {i}/{n}")
+    try:
+        res = apply_mod.add_keyword(uuids, apply_mod.KW_REVIEWED,
+                                    apply=do_apply, progress=prog if do_apply else None)
+    except Exception as e:
+        _hint_automation(e)
+        sys.exit(1)
+    verb = "marked" if do_apply else "would mark"
+    click.echo(f"  {verb} {res.tagged}, already {res.skipped}, errors {res.errors}")
 
 
 def _hint_automation(e: Exception):

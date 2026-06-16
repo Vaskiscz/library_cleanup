@@ -123,10 +123,16 @@ uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --apply
    you want to keep** (you have the whole burst for context).
 6. Make a Smart Album **[Keyword is `cleanup:duplicate`] AND [Photo is not
    Favorite]** → that's the delete set → select all → delete.
-7. Clean up the survivors' tags/hearts with the rescue trio (un-tags kept,
-   un-favorites only the hearts the tool added, preserving your real favorites):
+7. Finalize the survivors (un-tag, un-favorite the tool's hearts, and **mark them
+   `reviewed:keep`** so they're never re-reviewed):
    `rescue-plan --prefix cleanup:duplicate` → `clear-tags --apply` →
-   `unfavorite --apply`.
+   `unfavorite --apply` → `mark-reviewed --apply`.
+8. (optional) Lock the whole event so nothing from it is ever reconsidered:
+   `mark-reviewed --since 2026-05-01 --until 2026-05-31 --apply`.
+
+**`reviewed:keep`** is a permanent keyword, excluded from every future `scan`/
+`dedup` pass (like the Hidden album). It lives outside the `cleanup:` namespace,
+so `undo`/`clear-tags` never remove it.
 
 `embed` and the dry-run `dedup` are read-only w.r.t. Photos; only `dedup --apply`
 (and the cleanup writes) touch Photos and must run from Terminal.
