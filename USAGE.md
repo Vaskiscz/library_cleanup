@@ -15,8 +15,13 @@ A practical runbook for `photo-cleanup`. Commands assume the project lives at
   dev/business text) and tags them `cleanup:screenshot` for you to review and
   delete. Private content is kept (WhatsApp/Instagram/Facebook, chats, memes,
   photos of people, the Hidden album).
-- **Photoshoot dedup** — *in progress* (scanner + clustering built; review
-  report and keeper-Favoriting not wired up yet).
+- **Photoshoot dedup** — finds near-duplicate bursts (multiple shots of the same
+  moment) using on-device **Apple Vision feature-print embeddings** (content
+  similarity, robust to reframing/angle), and keeps the best, most *diverse*
+  1–4 per burst (more shots in a burst → more keepers). Analysis is validated;
+  the CLI command + write-back (`cleanup:duplicate` on discards) is being wired
+  into the main flow. Tunables in `Config`: `embedding_max_distance` (0.25),
+  `keeper_tiers`, `keepers_max`, `keeper_diversity_min`.
 
 Everything runs on-device. No uploads, no cloud APIs.
 

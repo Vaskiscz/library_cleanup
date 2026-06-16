@@ -126,9 +126,20 @@ class DuplicateGroup:
         return len(self.keepers) + len(self.discards)
 
 
-def select_keepers(group: list[Record], cfg: Config) -> DuplicateGroup:
-    """Rank a similar group and keep the best 1..N; the rest are discards.
-    A singleton yields no discards (one-of-a-kind is always kept)."""
+def keepers_for_size(size: int, cfg: Config) -> int:
+    """Adaptive keeper count: bigger burst => you cared more => keep more."""
+    for max_size, n in cfg.keeper_tiers:
+        if size <= max_size:
+            return n
+    return cfg.keepers_max
+
+
+def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> DuplicateGroup:
+    """Keep the best, then add more keepers only if they are both high quality
+    AND visibly different from the ones already kept (diversity), up to an
+    adaptive cap based on burst size. A singleton yields no discards.
+
+    Diversity needs embeddings; without them it falls back to fixed top-N."""
     if len(group) < 2:
         return DuplicateGroup(keepers=list(group), discards=[])
 
@@ -136,10 +147,28 @@ def select_keepers(group: list[Record], cfg: Config) -> DuplicateGroup:
         measure_sharpness(r)  # fills rec.laplacian for ranking + report
 
     ranked = sorted(group, key=lambda r: keeper_score(r, cfg), reverse=True)
-    n_keep = max(1, min(cfg.keepers_per_group, len(ranked) - 1))
+    n_keep = min(keepers_for_size(len(group), cfg), len(ranked) - 1)
+    n_keep = max(1, n_keep)
+
+    if embeddings is None:
+        keepers = ranked[:n_keep]
+    else:
+        from .embedding import distance
+        keepers = [ranked[0]]                      # always keep the best
+        for cand in ranked[1:]:
+            if len(keepers) >= n_keep:
+                break
+            cv = embeddings.get(cand.uuid)
+            if cv is None:
+                continue
+            # only add if sufficiently different from every kept frame
+            if all(distance(cv, embeddings.get(k.uuid)) >= cfg.keeper_diversity_min
+                   for k in keepers if embeddings.get(k.uuid) is not None):
+                keepers.append(cand)
+
+    kept_ids = {r.uuid for r in keepers}
+    discards = [r for r in ranked if r.uuid not in kept_ids]
     # never discard a user Favorite — promote any favorites into the keeper set
-    keepers = ranked[:n_keep]
-    discards = ranked[n_keep:]
     promoted = [r for r in discards if r.favorite]
     if promoted:
         discards = [r for r in discards if not r.favorite]
@@ -147,14 +176,46 @@ def select_keepers(group: list[Record], cfg: Config) -> DuplicateGroup:
     return DuplicateGroup(keepers=keepers, discards=discards)
 
 
-def find_duplicate_groups(records: list[Record], cfg: Config) -> list[DuplicateGroup]:
-    """Full near-duplicate pass -> only groups that actually have discards."""
+def embedding_groups(cluster: list[Record], cache, cfg: Config) -> list[list[Record]]:
+    """Group by Apple Vision feature-print distance (content similarity). Photos
+    without a cached embedding fall through as singletons (kept)."""
+    from .embedding import distance
+
+    items = [r for r in cluster if cache.get(r.uuid) is not None]
+    n = len(items)
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i in range(n):
+        vi = cache.get(items[i].uuid)
+        for j in range(i + 1, n):
+            if distance(vi, cache.get(items[j].uuid)) <= cfg.embedding_max_distance:
+                parent[find(i)] = find(j)
+
+    groups: dict[int, list[Record]] = {}
+    for idx, r in enumerate(items):
+        groups.setdefault(find(idx), []).append(r)
+    return list(groups.values())
+
+
+def find_duplicate_groups(records: list[Record], cfg: Config, embeddings=None) -> list[DuplicateGroup]:
+    """Full near-duplicate pass -> only groups that actually have discards.
+
+    Uses Vision embeddings when an `embeddings` cache is provided (preferred);
+    otherwise falls back to the perceptual-hash grouping."""
     out: list[DuplicateGroup] = []
     for cluster in time_gps_clusters(records, cfg):
         if len(cluster) < 2:
             continue
-        for grp in similar_groups(cluster, cfg):
-            dg = select_keepers(grp, cfg)
+        grouper = (lambda c: embedding_groups(c, embeddings, cfg)) if embeddings else \
+                  (lambda c: similar_groups(c, cfg))
+        for grp in grouper(cluster):
+            dg = select_keepers(grp, cfg, embeddings=embeddings)
             if dg.discards:
                 out.append(dg)
     return out

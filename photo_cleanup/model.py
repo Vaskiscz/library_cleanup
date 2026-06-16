@@ -21,9 +21,21 @@ class Config:
     cluster_gps_meters: float = 50.0       # ...or location jumps more than this
 
     # --- near-duplicate confirmation within a cluster ---
-    phash_size: int = 16                   # perceptual hash resolution (16 -> 256-bit)
-    phash_max_distance: int = 12           # Hamming distance <= this => "same shot"
-    keepers_per_group: int = 3             # keep best 1..N of each similar group
+    # Primary method: Apple Vision feature-print embeddings (content similarity,
+    # robust to reframing/angle). L2 distance <= threshold => "same shot".
+    embedding_max_distance: float = 0.25   # calibrated on real wedding bursts
+    keepers_per_group: int = 3             # (legacy/pHash path) fixed keepers
+
+    # Adaptive keepers: burst size signals how much the moment mattered.
+    #   (max_burst_size, keepers) tiers, then keepers_max above the last tier.
+    keeper_tiers: tuple = ((3, 1), (9, 2), (19, 3))
+    keepers_max: int = 4
+    # A second keeper must be at least this far (embedding L2) from every already
+    # chosen keeper — ensures variety (different expression/pose), not near-dupes.
+    keeper_diversity_min: float = 0.12
+    # Legacy perceptual-hash fallback (pixel-layout; used only if no embeddings)
+    phash_size: int = 16
+    phash_max_distance: int = 12
 
     # --- work-screenshot classifier (CONTENT-BASED) ---
     # Decision reads the OCR text: work lexicon vs private lexicon (see lexicon.py).
