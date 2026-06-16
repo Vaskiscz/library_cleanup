@@ -112,10 +112,9 @@ uv run photo-cleanup embed
 # 2) Review a date-range stage (dry run -> HTML report, no changes):
 uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --open
 
-# 3) (optional) snapshot pre-existing favorites so they aren't un-hearted later:
-uv run photo-cleanup fav-baseline --prefix cleanup:duplicate
-
-# 4) Tag the whole burst + Favorite suggested keepers  ⚠️ run from Terminal
+# 3) Tag the whole burst + Favorite suggested keepers  ⚠️ run from Terminal
+#    (this AUTOMATICALLY snapshots your pre-existing favorites first, so step 7
+#     never un-hearts a genuine favorite).
 uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --apply
 ```
 

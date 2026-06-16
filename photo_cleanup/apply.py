@@ -155,6 +155,26 @@ def clear_keywords_for_uuids(
     return res
 
 
+def read_favorites(uuids, *, progress=None) -> list[str]:
+    """Return the subset of uuids currently Favorited (live read via photoscript).
+    Used to snapshot pre-existing favorites BEFORE the tool favorites keepers, so
+    they can be preserved when un-favoriting later. Needs Photos automation only."""
+    uuids = list(uuids)
+    lib = _library()
+    fav = []
+    for i, uuid in enumerate(uuids, 1):
+        photo = _get_photo(lib, uuid)
+        if photo is not None:
+            try:
+                if photo.favorite:
+                    fav.append(uuid)
+            except Exception:
+                pass
+        if progress:
+            progress(i, len(uuids))
+    return fav
+
+
 def unfavorite_uuids(
     uuids: Iterable[str],
     *,

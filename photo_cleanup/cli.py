@@ -252,6 +252,15 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
             if i % 25 == 0 or i == n:
                 click.echo(f"  {i}/{n}")
         try:
+            # Snapshot pre-existing favorites among the burst photos BEFORE we
+            # favorite any keeper, so the later un-favorite step preserves them.
+            import json
+            baseline = apply_mod.read_favorites([r.uuid for r in members])
+            with open(FAV_BASELINE_FILE, "w") as f:
+                json.dump(baseline, f)
+            click.echo(f"  baseline: {len(baseline)} pre-existing favorite(s) recorded "
+                       f"(preserved when un-favoriting later) -> {FAV_BASELINE_FILE}")
+
             r1 = apply_mod.add_keyword([r.uuid for r in members], apply_mod.KW_DUPLICATE,
                                        apply=True, progress=prog)
             r2 = apply_mod.favorite([r.uuid for r in keepers], apply=True, progress=prog)
