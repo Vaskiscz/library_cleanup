@@ -154,17 +154,30 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         keepers = ranked[:n_keep]
     else:
         from .embedding import distance
-        keepers = [ranked[0]]                      # always keep the best
-        for cand in ranked[1:]:
-            if len(keepers) >= n_keep:
+        # Quality gate: only consider the "nicer" frames (>= median score) so we
+        # never keep a blurry outlier just because it's visually different.
+        scores = sorted(keeper_score(r, cfg) for r in ranked)
+        median = scores[len(scores) // 2]
+        eligible = [r for r in ranked if keeper_score(r, cfg) >= median] or ranked
+
+        # Farthest-point selection: seed with the best quality frame, then keep
+        # adding the frame MOST different from those already chosen — but only
+        # while it clears the diversity floor. Spreads keepers across the range
+        # of expressions/poses; a near-identical burst yields just one keeper.
+        keepers = [ranked[0]]
+        while len(keepers) < n_keep:
+            best_c, best_d = None, -1.0
+            for c in eligible:
+                cv = embeddings.get(c.uuid)
+                if cv is None or c in keepers:
+                    continue
+                dmin = min(distance(cv, embeddings.get(k.uuid)) for k in keepers
+                           if embeddings.get(k.uuid) is not None)
+                if dmin > best_d:
+                    best_d, best_c = dmin, c
+            if best_c is None or best_d < cfg.keeper_diversity_min:
                 break
-            cv = embeddings.get(cand.uuid)
-            if cv is None:
-                continue
-            # only add if sufficiently different from every kept frame
-            if all(distance(cv, embeddings.get(k.uuid)) >= cfg.keeper_diversity_min
-                   for k in keepers if embeddings.get(k.uuid) is not None):
-                keepers.append(cand)
+            keepers.append(best_c)
 
     kept_ids = {r.uuid for r in keepers}
     discards = [r for r in ranked if r.uuid not in kept_ids]
