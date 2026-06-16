@@ -144,6 +144,118 @@ def undo(do_apply, prefix):
     click.echo(f"  {verb} {res.tagged} photos (errors {res.errors}).")
 
 
+DEFAULT_EMB_CACHE = os.path.expanduser("~/.cache/photo-cleanup/embeddings.npz")
+DEFAULT_DEDUP_REPORT = os.path.abspath("./dedup-report.html")
+
+
+def _filter_by_date(records, since, until):
+    """Keep records whose local date is within [since, until] (YYYY-MM-DD, inclusive)."""
+    from datetime import datetime
+    if not since and not until:
+        return records
+    lo = datetime.strptime(since, "%Y-%m-%d").date() if since else None
+    hi = datetime.strptime(until, "%Y-%m-%d").date() if until else None
+    out = []
+    for r in records:
+        if r.timestamp is None:
+            continue
+        d = datetime.fromtimestamp(r.timestamp).date()
+        if (lo is None or d >= lo) and (hi is None or d <= hi):
+            out.append(r)
+    return out
+
+
+def _cluster_candidates(records, cfg):
+    """Photos that share a multi-shot time/GPS cluster — the only dedup candidates."""
+    from .cluster import time_gps_clusters
+    cand = []
+    for c in time_gps_clusters(records, cfg):
+        if len(c) >= 2:
+            cand.extend(c)
+    return cand
+
+
+@cli.command()
+@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--emb-cache", default=DEFAULT_EMB_CACHE, show_default=True)
+@click.option("--since", default=None, help="Only photos on/after YYYY-MM-DD.")
+@click.option("--until", default=None, help="Only photos on/before YYYY-MM-DD.")
+def embed(cache, emb_cache, since, until):
+    """Precompute & cache on-device Vision embeddings for dedup candidates.
+    Read-only w.r.t. Photos (only writes the embedding cache). Safe to run here."""
+    from .embedding import EmbeddingCache, embed_records
+    records = _filter_by_date(load_records(cache), since, until)
+    cfg = Config()
+    cand = _cluster_candidates(records, cfg)
+    ec = EmbeddingCache(emb_cache)
+    have = sum(1 for r in cand if r.uuid in ec)
+    click.echo(f"{len(cand)} dedup candidates in scope; {have} already embedded.")
+
+    def prog(i, n):
+        if i % 100 == 0 or i == n:
+            click.echo(f"  embedding {i}/{n}")
+
+    n = embed_records(cand, ec, progress=prog)
+    ec.save()
+    click.echo(f"computed {n} new embeddings; cache now holds {len(ec)} -> {emb_cache}")
+
+
+@cli.command()
+@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--emb-cache", default=DEFAULT_EMB_CACHE, show_default=True)
+@click.option("--since", default=None, help="Only photos on/after YYYY-MM-DD.")
+@click.option("--until", default=None, help="Only photos on/before YYYY-MM-DD.")
+@click.option("--report", "report_path", default=DEFAULT_DEDUP_REPORT, show_default=True)
+@click.option("--apply", "do_apply", is_flag=True,
+              help="Tag discards cleanup:duplicate (default: dry run + report only).")
+@click.option("--open", "open_report", is_flag=True)
+def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
+    """Find near-duplicate bursts in scope and (dry-run) report keep/discard.
+    Embeds any missing candidates on the fly. Use --since/--until to stage."""
+    from .cluster import find_duplicate_groups
+    from .embedding import EmbeddingCache, embed_records
+    from .report import render_dedup_html
+
+    records = _filter_by_date(load_records(cache), since, until)
+    cfg = Config()
+    cand = _cluster_candidates(records, cfg)
+    ec = EmbeddingCache(emb_cache)
+    missing = sum(1 for r in cand if r.uuid not in ec)
+    if missing:
+        click.echo(f"embedding {missing} candidates not yet cached…")
+        embed_records(cand, ec, progress=lambda i, n: None)
+        ec.save()
+
+    groups = find_duplicate_groups(records, cfg, embeddings=ec)
+    discards = [r for g in groups for r in g.discards]
+
+    label = f"{since or '…'} → {until or '…'}" if (since or until) else "(whole library)"
+    out = os.path.abspath(report_path)
+    with open(out, "w") as fh:
+        fh.write(render_dedup_html(groups, len(records), cfg, label))
+    click.echo(f"scope {label}: {len(records)} photos, {len(groups)} bursts, "
+               f"{len(discards)} discard candidates")
+    click.echo(f"report: {out}")
+
+    if not do_apply:
+        click.echo("Dry run — nothing tagged. Review the report; add --apply to tag discards.")
+    else:
+        click.echo(f"Tagging {len(discards)} discards -> {apply_mod.KW_DUPLICATE} …")
+
+        def prog(i, n):
+            if i % 25 == 0 or i == n:
+                click.echo(f"  {i}/{n}")
+        try:
+            res = apply_mod.add_keyword([r.uuid for r in discards], apply_mod.KW_DUPLICATE,
+                                        apply=True, progress=prog)
+        except Exception as e:
+            _hint_automation(e)
+            sys.exit(1)
+        click.echo(f"  tagged {res.tagged}, already {res.skipped}, errors {res.errors}")
+    if open_report:
+        os.system(f'open "{out}"')
+
+
 RESCUE_FILE = "/tmp/photo_cleanup_rescue.json"          # tagged favorites -> un-tag
 UNFAV_FILE = "/tmp/photo_cleanup_unfavorite.json"       # newly favorited -> un-favorite
 FAV_BASELINE_FILE = "/tmp/photo_cleanup_fav_baseline.json"  # pre-existing favorites

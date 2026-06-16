@@ -18,9 +18,8 @@ A practical runbook for `photo-cleanup`. Commands assume the project lives at
 - **Photoshoot dedup** — finds near-duplicate bursts (multiple shots of the same
   moment) using on-device **Apple Vision feature-print embeddings** (content
   similarity, robust to reframing/angle), and keeps the best, most *diverse*
-  1–4 per burst (more shots in a burst → more keepers). Analysis is validated;
-  the CLI command + write-back (`cleanup:duplicate` on discards) is being wired
-  into the main flow. Tunables in `Config`: `embedding_max_distance` (0.25),
+  1–4 per burst (more shots in a burst → more keepers). Discards are tagged
+  `cleanup:duplicate`. Tunables in `Config`: `embedding_max_distance` (0.25),
   `keeper_tiers`, `keepers_max`, `keeper_diversity_min`.
 
 Everything runs on-device. No uploads, no cloud APIs.
@@ -94,6 +93,31 @@ In the Smart Album (now only true discards): `⌘A` → Delete.
 
 ---
 
+## 2b. Photoshoot dedup workflow (staged)
+
+Find near-duplicate bursts and keep the best, most diverse 1–4 per moment.
+
+```sh
+# 1) Precompute embeddings once for the whole library (read-only; safe to run
+#    here or in Terminal). Long first pass; cached afterward (~/.cache/photo-cleanup/embeddings.npz).
+uv run photo-cleanup embed
+
+# 2) Review duplicates in stages by date range (dry run -> HTML report, no changes):
+uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --open
+
+# 3) In Photos: Favorite (♥) any discard you actually want to keep (rescue flag).
+
+# 4) Tag the discards for this stage  ⚠️ run from Terminal
+uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --apply
+
+# 5) Rescue favorited keepers + delete the rest — SAME flow as screenshots
+#    (fav-baseline before reviewing, then rescue-plan / clear-tags / unfavorite),
+#    reviewing the `cleanup:duplicate` Smart Album.
+```
+
+`embed` and the dry-run `dedup` are read-only w.r.t. Photos; only `dedup --apply`
+writes (and like all write commands, must run from Terminal).
+
 ## 3. Bail out / revert
 ```sh
 uv run photo-cleanup undo --apply      # ⚠️ Terminal; removes ALL cleanup:* keywords
@@ -125,6 +149,8 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | Command | Reads library | Writes Photos | Purpose |
 |---|---|---|---|
 | `scan` | yes | no | analysis + HTML report |
+| `embed` | yes | no | precompute Vision embeddings for dedup |
+| `dedup` | yes | only with `--apply` | near-dup report; tag discards `cleanup:duplicate` |
 | `apply` | uses cache | yes | tag work screenshots `cleanup:screenshot` |
 | `fav-baseline` | yes | no | snapshot pre-existing favorites |
 | `rescue-plan` | yes | no | compute keepers to un-tag / un-favorite |

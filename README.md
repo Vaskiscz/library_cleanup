@@ -70,7 +70,7 @@ The read path (`scan`, `rescue-plan`, `fav-baseline`) works anywhere with Full D
 
 - [x] Stage 1 — read-only scan + analysis + HTML review report
 - [x] Stage 2 — `apply`/`undo` write-back, plus `fav-baseline`/`rescue-plan`/`clear-tags`/`unfavorite` review-and-rescue workflow
-- [~] Photoshoot dedup — on-device Vision-embedding burst detection with adaptive, diversity-aware keepers (engine validated; CLI command + `cleanup:duplicate` write-back being wired into the main flow)
+- [x] Photoshoot dedup — `embed` (Vision-embedding precompute) + `dedup` (staged near-duplicate report; `--apply` tags discards `cleanup:duplicate`), with adaptive, diversity-aware keepers
 
 ## Layout
 

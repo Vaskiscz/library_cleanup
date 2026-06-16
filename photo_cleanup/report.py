@@ -139,6 +139,36 @@ to tag discards (<code>cleanup:*</code> keywords) and Favorite the keepers.</p>
 </body></html>"""
 
 
+def render_dedup_html(groups, total: int, cfg: Config, label: str = "") -> str:
+    """Standalone near-duplicate review report (used by the `dedup` command)."""
+    groups = sorted(groups, key=lambda g: g.size, reverse=True)
+    discard = sum(len(g.discards) for g in groups)
+    blocks = []
+    for i, g in enumerate(groups, 1):
+        keep = "".join(_card(r, cfg, kind="keep", subtitle="KEEP")
+                       for r in sorted(g.keepers, key=lambda r: r.timestamp or 0))
+        disc = "".join(_card(r, cfg, kind="discard", subtitle="discard")
+                       for r in sorted(g.discards, key=lambda r: r.timestamp or 0))
+        blocks.append(
+            f"<div class='group'><h3>Burst {i} — {g.size} shots · "
+            f"keep {len(g.keepers)} · discard {len(g.discards)}</h3>"
+            f"<div class='grid'>{keep}{disc}</div></div>")
+    body = "".join(blocks) if blocks else "<p class='empty'>No near-duplicate bursts found.</p>"
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>Dedup review {_esc(label)}</title><style>{_CSS}</style></head><body>
+<h1>Near-duplicate review {_esc(label)}</h1>
+<p class="note"><b>Dry run.</b> On-device Apple Vision embeddings (distance ≤
+{cfg.embedding_max_distance}). Green = keep, red = propose discard
+(<code>cleanup:duplicate</code>). Nothing changed.</p>
+<div class="stats">
+  <div class="stat"><b>{total}</b> photos in scope</div>
+  <div class="stat"><b>{len(groups)}</b> bursts</div>
+  <div class="stat"><b>{discard}</b> proposed discards</div>
+  <div class="stat"><b>{total - discard}</b> would remain</div>
+</div>
+{body}</body></html>"""
+
+
 def write_report(f: Findings, cfg: Config, path: str) -> str:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w") as fh:

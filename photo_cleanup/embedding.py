@@ -39,6 +39,21 @@ def distance(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.linalg.norm(a - b))
 
 
+def embed_records(records, cache, progress=None) -> int:
+    """Compute & cache feature prints for any records not already cached.
+    Reads image files (no Photos automation needed). Returns count computed."""
+    from .quality import _best_image_path
+
+    todo = [r for r in records if r.uuid not in cache]
+    for i, r in enumerate(todo, 1):
+        p = _best_image_path(r)
+        if p:
+            cache.compute(r.uuid, p)
+        if progress:
+            progress(i, len(todo))
+    return len(todo)
+
+
 class EmbeddingCache:
     """Caches feature-print vectors by uuid on disk (npz) so re-runs are instant."""
 
