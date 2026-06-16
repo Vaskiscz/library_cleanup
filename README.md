@@ -8,6 +8,8 @@ Built for two jobs:
 
 **Guiding rule: when in doubt, keep.** A one-of-a-kind photo is *never* flagged. The tool only proposes removing something that has a better near-duplicate, or a high-confidence work screenshot.
 
+📖 **[USAGE.md](USAGE.md) — exact step-by-step runbook** (setup, the full tag → review → rescue → delete sequence, tuning, troubleshooting).
+
 ## Everything stays on your Mac
 
 No network, no cloud APIs, no uploads, no telemetry. Specifically:
