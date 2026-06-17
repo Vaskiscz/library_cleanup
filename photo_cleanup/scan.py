@@ -93,11 +93,13 @@ def scan_library(
     dbpath: Optional[str] = None,
     images_only: bool = True,
     exclude_hidden: bool = True,
+    exclude_shared: bool = True,
 ) -> list[Record]:
     """Open the Photos library and return Records. dbpath=None => system library.
 
-    Photos in the Hidden album are excluded by default — that album is curated
-    manually and must never be auto-reviewed.
+    Excluded by default: the Hidden album (curated manually) and iCloud Shared
+    Album assets (a separate namespace, not the user's main library — they don't
+    appear in main-library Smart Albums and must not be tagged/deleted here).
     """
     import osxphotos  # imported lazily so --help etc. work without the library
 
@@ -107,6 +109,8 @@ def scan_library(
         if images_only and not _safe(lambda: photo.isphoto, True):
             continue
         if exclude_hidden and _safe(lambda: photo.hidden, False):
+            continue
+        if exclude_shared and _safe(lambda: photo.shared, False):
             continue
         records.append(photo_to_record(photo))
     return records
