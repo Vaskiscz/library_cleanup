@@ -137,6 +137,25 @@ so `undo`/`clear-tags` never remove it.
 `embed` and the dry-run `dedup` are read-only w.r.t. Photos; only `dedup --apply`
 (and the cleanup writes) touch Photos and must run from Terminal.
 
+## 2c. Learning engine (keeper suggestions improve over time)
+
+The tool learns which frame to keep from *your* choices. Each `dedup --apply`
+logs the burst (every member's Apple feature vector + the suggested keepers).
+After you finish an iteration (reviewed + deleted), run:
+
+```sh
+uv run photo-cleanup learn
+```
+
+It compares suggestions vs what you actually kept (kept = still in the library;
+discarded = deleted) and trains a small on-device model over Apple's aesthetic
+sub-scores **plus `VNDetectFaceCaptureQuality`** (eyes-open / smile / sharp face
+— the "small details" that decide a burst). Future `dedup` suggestions use it.
+
+The model is **anchored to the proven heuristic** and only nudged by your data,
+so a noisy iteration can't make it worse. It sharpens as you accumulate more
+iterations — especially the cases where you override a suggestion.
+
 ## 3. Bail out / revert
 ```sh
 uv run photo-cleanup undo --apply      # ⚠️ Terminal; removes ALL cleanup:* keywords
@@ -170,6 +189,7 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | `scan` | yes | no | analysis + HTML report |
 | `embed` | yes | no | precompute Vision embeddings for dedup |
 | `dedup` | yes | only with `--apply` | near-dup report; tag discards `cleanup:duplicate` |
+| `learn` | yes | no | train the keeper model from your past keep/discard choices |
 | `apply` | uses cache | yes | tag work screenshots `cleanup:screenshot` |
 | `fav-baseline` | yes | no | snapshot pre-existing favorites |
 | `rescue-plan` | yes | no | compute keepers to un-tag / un-favorite |

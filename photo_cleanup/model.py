@@ -116,6 +116,9 @@ class Record:
     score_noise: float = 0.0
     score_low_light: float = 0.0
 
+    # full Apple aesthetic sub-score vector (features for the learning engine)
+    features: dict = field(default_factory=dict)
+
     # paths to existing thumbnails/previews (avoid decoding originals for display)
     derivatives: list[str] = field(default_factory=list)
 

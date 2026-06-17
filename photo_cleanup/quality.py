@@ -77,8 +77,18 @@ def measure_sharpness(rec: Record) -> Optional[float]:
 
 
 def keeper_score(rec: Record, cfg: Config) -> float:
-    """Higher = better keeper. Combines Apple's judgment, measured sharpness,
-    resolution, and whether the user already favorited it."""
+    """Higher = better keeper. Uses the LEARNED model when available (weights
+    trained from the user's own keep/discard choices), else the hand-tuned
+    heuristic below."""
+    if rec.features:
+        from .feedback import model_score
+        feats = dict(rec.features)
+        if rec.laplacian is not None:
+            feats["laplacian_norm"] = min(rec.laplacian / 200.0, 2.0)
+        learned = model_score(feats)
+        if learned is not None:
+            return learned + (1.0 if rec.favorite else 0.0)
+
     s = 0.0
     s += rec.score_overall * 2.0
     s += rec.score_focus * 1.5

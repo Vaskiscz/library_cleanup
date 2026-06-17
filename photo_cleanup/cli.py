@@ -234,6 +234,10 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
         embed_records(cand, ec, progress=lambda i, n: None)
         ec.save()
 
+    # Give the learned keeper model its face-quality feature for these candidates.
+    from .feedback import inject_face_quality
+    inject_face_quality(cand)
+
     groups = find_duplicate_groups(records, cfg, embeddings=ec)
     keepers = [r for g in groups for r in g.keepers]
     discards = [r for g in groups for r in g.discards]
@@ -281,6 +285,10 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
         click.echo(f"  tagged {r1.tagged} (already {r1.skipped}), "
                    f"favorited {r2.favorited} (already {r2.skipped}), "
                    f"errors {r1.errors + r2.errors}")
+        # Record this iteration so the learning engine can train from your
+        # eventual keep/discard decisions (even after you delete the discards).
+        from .feedback import log_apply
+        log_apply(groups, since, until)
         click.echo("Review: Smart Album [Keyword is cleanup:duplicate]. Favorite any "
                    "extra keepers. Then delete via [cleanup:duplicate AND Favorite is No].")
     if open_report:
@@ -422,6 +430,25 @@ def mark_reviewed(uuids_file, since, until, cache, do_apply):
         sys.exit(1)
     verb = "marked" if do_apply else "would mark"
     click.echo(f"  {verb} {res.tagged}, already {res.skipped}, errors {res.errors}")
+
+
+@cli.command()
+def learn():
+    """Train the keeper model from your keep/discard choices in past iterations.
+    Read-only: reads feedback logs + the current library; updates the local model."""
+    import osxphotos
+    from .feedback import learn_and_save
+    click.echo("Reading library to see which suggestions you kept vs discarded…")
+    db = osxphotos.PhotosDB()
+    present = {p.uuid for p in db.photos()}
+    m = learn_and_save(present)
+    if not m.get("pairs"):
+        click.echo("No training pairs yet — run a dedup --apply iteration first.")
+        return
+    click.echo(f"Trained on {m['pairs']} keep>discard pairs from {m['bursts']} bursts "
+               f"({m['kept']} kept).")
+    click.echo(f"Model now reproduces your choices on {m['accuracy']*100:.1f}% of pairs. "
+               f"Future dedup suggestions will use it.")
 
 
 def _hint_automation(e: Exception):

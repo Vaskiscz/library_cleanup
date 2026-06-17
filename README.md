@@ -71,6 +71,8 @@ The read path (`scan`, `rescue-plan`, `fav-baseline`) works anywhere with Full D
 - [x] Stage 1 — read-only scan + analysis + HTML review report
 - [x] Stage 2 — `apply`/`undo` write-back, plus `fav-baseline`/`rescue-plan`/`clear-tags`/`unfavorite` review-and-rescue workflow
 - [x] Photoshoot dedup — `embed` (Vision-embedding precompute) + `dedup` (staged near-duplicate report; `--apply` tags discards `cleanup:duplicate`), with adaptive, diversity-aware keepers
+- [x] `reviewed:keep` — permanent "don't re-review" lock (per-keeper or per-event), excluded from all passes
+- [x] Learning engine (`learn`) — trains an on-device keeper model from your keep/discard choices over Apple's aesthetic sub-scores + `VNDetectFaceCaptureQuality`; anchored to the heuristic, improves each iteration
 
 ## Layout
 

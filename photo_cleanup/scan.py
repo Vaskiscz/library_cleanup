@@ -56,7 +56,10 @@ def _extract_score(score) -> dict:
 def photo_to_record(photo) -> Record:
     si = _safe(lambda: photo.search_info, None)
     ts = _safe(lambda: photo.date.timestamp(), None)
-    scores = _extract_score(_safe(lambda: photo.score, None))
+    score_obj = _safe(lambda: photo.score, None)
+    scores = _extract_score(score_obj)
+    from .feedback import features_from_scoreinfo
+    feats = _safe(lambda: features_from_scoreinfo(score_obj, None), {}) or {}
 
     labels = _safe(lambda: list(si.labels), []) if si else []
     media_types = _safe(lambda: list(si.media_types), []) if si else []
@@ -80,6 +83,7 @@ def photo_to_record(photo) -> Record:
         detected_text=_extract_text(si),
         labels=[str(x).lower() for x in (labels or [])],
         media_types=[str(x).lower() for x in (media_types or [])],
+        features=feats,
         derivatives=_safe(lambda: list(photo.path_derivatives), []) or [],
         **scores,
     )
