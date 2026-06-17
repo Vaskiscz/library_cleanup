@@ -262,8 +262,11 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
         try:
             # Snapshot pre-existing favorites among the burst photos BEFORE we
             # favorite any keeper, so the later un-favorite step preserves them.
+            # Read from the (freshly scanned) cache — instant vs per-photo Photos
+            # reads, which matters for large scopes. Rescan before --apply if the
+            # favorite state may have changed since the last scan.
             import json
-            baseline = apply_mod.read_favorites([r.uuid for r in members])
+            baseline = [r.uuid for r in members if r.favorite]
             with open(FAV_BASELINE_FILE, "w") as f:
                 json.dump(baseline, f)
             click.echo(f"  baseline: {len(baseline)} pre-existing favorite(s) recorded "
