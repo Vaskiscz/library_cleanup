@@ -123,10 +123,10 @@ uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --apply
    you want to keep** (you have the whole burst for context).
 6. Make a Smart Album **[Keyword is `cleanup:duplicate`] AND [Photo is not
    Favorite]** → that's the delete set → select all → delete.
-7. Finalize the survivors (un-tag, un-favorite the tool's hearts, and **mark them
-   `reviewed:keep`** so they're never re-reviewed):
-   `rescue-plan --prefix cleanup:duplicate` → `clear-tags --apply` →
-   `unfavorite --apply` → `mark-reviewed --apply`.
+7. Finalize the survivors in one shot (un-tag, un-favorite the tool's hearts,
+   mark them `reviewed:keep`):
+   `rescue-plan --prefix cleanup:duplicate` (read-only) → `finalize --apply`
+   (⚠️ Terminal; does all three writes in a single Photos session).
 8. (optional) Lock the whole event so nothing from it is ever reconsidered:
    `mark-reviewed --since 2026-05-01 --until 2026-05-31 --apply`.
 
@@ -234,6 +234,7 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | `fav-baseline` | yes | no | snapshot pre-existing favorites |
 | `rescue-plan` | yes | no | compute keepers to un-tag / un-favorite |
 | `clear-tags` | no | yes | remove `cleanup:*` from rescued uuids |
+| `finalize` | no | yes | one-shot: clear-tags + unfavorite + mark-reviewed |
 | `unfavorite` | no | yes | un-favorite the rescue-only hearts |
 | `undo` | yes | yes | remove all `cleanup:*` keywords |
 

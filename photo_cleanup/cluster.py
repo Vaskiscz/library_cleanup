@@ -146,7 +146,8 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
     for r in group:
         measure_sharpness(r)  # fills rec.laplacian for ranking + report
 
-    ranked = sorted(group, key=lambda r: keeper_score(r, cfg), reverse=True)
+    sc = {r.uuid: keeper_score(r, cfg) for r in group}   # compute once per photo
+    ranked = sorted(group, key=lambda r: sc[r.uuid], reverse=True)
     n_keep = min(keepers_for_size(len(group), cfg), len(ranked) - 1)
     n_keep = max(1, n_keep)
 
@@ -157,9 +158,9 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         # Quality gate: drop only the worst ~30% so a blurry/accidental outlier
         # isn't kept just for being "different", while still letting genuinely
         # distinct-but-slightly-softer moments (e.g. a candid) qualify.
-        scores = sorted(keeper_score(r, cfg) for r in ranked)
+        scores = sorted(sc.values())
         qfloor = scores[int(len(scores) * 0.3)]
-        eligible = [r for r in ranked if keeper_score(r, cfg) >= qfloor] or ranked
+        eligible = [r for r in ranked if sc[r.uuid] >= qfloor] or ranked
 
         # Farthest-point selection: seed with the best quality frame, then keep
         # adding the frame MOST different from those already chosen — but only
@@ -188,81 +189,6 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         discards = [r for r in discards if not r.favorite]
         keepers = keepers + promoted
     return DuplicateGroup(keepers=keepers, discards=discards)
-
-
-def embedding_groups(cluster: list[Record], cache, cfg: Config) -> list[list[Record]]:
-    """Group by Apple Vision feature-print distance (content similarity). Photos
-    without a cached embedding fall through as singletons (kept)."""
-    from .embedding import distance
-
-    items = [r for r in cluster if cache.get(r.uuid) is not None]
-    n = len(items)
-    parent = list(range(n))
-
-    def find(i):
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    for i in range(n):
-        vi = cache.get(items[i].uuid)
-        for j in range(i + 1, n):
-            if distance(vi, cache.get(items[j].uuid)) <= cfg.embedding_max_distance:
-                parent[find(i)] = find(j)
-
-    groups: dict[int, list[Record]] = {}
-    for idx, r in enumerate(items):
-        groups.setdefault(find(idx), []).append(r)
-    return list(groups.values())
-
-
-def leader_dedup(cluster: list[Record], cache, cfg: Config) -> list[DuplicateGroup]:
-    """Leader clustering on embeddings: process photos best-quality first; each
-    becomes a 'leader' (keeper) unless it is within `embedding_max_distance` of
-    an existing leader, in which case it's a near-duplicate follower (discard).
-
-    Guarantees a photo is discarded ONLY if a KEPT photo is within the radius —
-    so every genuinely distinct sub-shot keeps its best frame (no chaining bug),
-    while runs of near-identical frames collapse to one keeper each."""
-    from .embedding import distance
-
-    items = [r for r in cluster if cache.get(r.uuid) is not None]
-    for r in items:
-        measure_sharpness(r)
-    # Process in TIME order so the radius can be relaxed for rapid-fire frames.
-    items.sort(key=lambda r: r.timestamp or 0)
-
-    base, relaxed, rapid = (cfg.embedding_max_distance,
-                            cfg.rapid_burst_radius, cfg.rapid_burst_seconds)
-    leaders: list[dict] = []  # {"repr": Record, "t": float, "members": [Record]}
-    for r in items:
-        rv = cache.get(r.uuid)
-        rt = r.timestamp or 0.0
-        chosen, best_d = None, None
-        for L in leaders:
-            radius = relaxed if abs(rt - L["t"]) <= rapid else base
-            d = distance(rv, cache.get(L["repr"].uuid))
-            if d <= radius and (best_d is None or d < best_d):
-                chosen, best_d = L, d
-        if chosen is not None:
-            chosen["members"].append(r)
-        else:
-            leaders.append({"repr": r, "t": rt, "members": [r]})
-
-    groups: list[DuplicateGroup] = []
-    for L in leaders:
-        members = L["members"]
-        if len(members) < 2:
-            continue  # unique shot — kept, nothing to discard
-        # Keeper = best quality of the group; the rest are near-dup discards.
-        ranked = sorted(members, key=lambda r: keeper_score(r, cfg), reverse=True)
-        rest = ranked[1:]
-        # never discard a user Favorite — promote any favorited members
-        promoted = [d for d in rest if d.favorite]
-        discards = [d for d in rest if not d.favorite]
-        groups.append(DuplicateGroup(keepers=[ranked[0]] + promoted, discards=discards))
-    return [g for g in groups if g.discards]
 
 
 def find_duplicate_groups(records: list[Record], cfg: Config, embeddings=None) -> list[DuplicateGroup]:

@@ -58,6 +58,24 @@ def _get_photo(lib, uuid):
         return None
 
 
+def _photos_by_uuid(lib, uuids, chunk: int = 200) -> dict:
+    """Fetch all photos in a few batched queries instead of one Apple-event per
+    uuid — the dominant cost on large write batches. Returns {uuid: Photo}."""
+    out = {}
+    uuids = list(uuids)
+    for i in range(0, len(uuids), chunk):
+        batch = uuids[i:i + chunk]
+        try:
+            for p in lib.photos(uuid=batch):
+                out[p.uuid] = p
+        except Exception:
+            for u in batch:                 # fall back to per-photo for this chunk
+                p = _get_photo(lib, u)
+                if p is not None:
+                    out[u] = p
+    return out
+
+
 def add_keyword(
     uuids: Iterable[str],
     keyword: str,
@@ -73,8 +91,9 @@ def add_keyword(
         return res
 
     lib = _library()
+    photos = _photos_by_uuid(lib, uuids)
     for i, uuid in enumerate(uuids, 1):
-        photo = _get_photo(lib, uuid)
+        photo = photos.get(uuid)
         if photo is None:
             res.errors += 1
         else:
@@ -106,8 +125,9 @@ def favorite(
         return res
 
     lib = _library()
+    photos = _photos_by_uuid(lib, uuids)
     for i, uuid in enumerate(uuids, 1):
-        photo = _get_photo(lib, uuid)
+        photo = photos.get(uuid)
         if photo is None:
             res.errors += 1
         else:
@@ -141,8 +161,9 @@ def clear_keywords_for_uuids(
         return res
 
     lib = _library()
+    photos = _photos_by_uuid(lib, uuids)
     for i, uuid in enumerate(uuids, 1):
-        photo = _get_photo(lib, uuid)
+        photo = photos.get(uuid)
         if photo is None:
             res.errors += 1
         else:
@@ -167,9 +188,10 @@ def read_favorites(uuids, *, progress=None) -> list[str]:
     they can be preserved when un-favoriting later. Needs Photos automation only."""
     uuids = list(uuids)
     lib = _library()
+    photos = _photos_by_uuid(lib, uuids)
     fav = []
     for i, uuid in enumerate(uuids, 1):
-        photo = _get_photo(lib, uuid)
+        photo = photos.get(uuid)
         if photo is not None:
             try:
                 if photo.favorite:
@@ -195,8 +217,9 @@ def unfavorite_uuids(
         return res
 
     lib = _library()
+    photos = _photos_by_uuid(lib, uuids)
     for i, uuid in enumerate(uuids, 1):
-        photo = _get_photo(lib, uuid)
+        photo = photos.get(uuid)
         if photo is None:
             res.errors += 1
         else:

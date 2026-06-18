@@ -22,17 +22,7 @@ class Config:
     cluster_gap_seconds: float = 600.0     # new session when time gap > 10 min
     cluster_gps_meters: float = 150.0      # ...or location moves > 150 m
 
-    # --- near-duplicate confirmation within a cluster ---
-    # Primary method: Apple Vision feature-print embeddings (content similarity,
-    # robust to reframing/angle). L2 distance <= threshold => "same shot".
-    embedding_max_distance: float = 0.25   # base "same shot" radius (slow-paced)
-    # Rapid-fire bursts: frames shot within `rapid_burst_seconds` of each other
-    # are the same moment even at a larger embedding distance (busy scenes /
-    # shifting poses move the embedding more than a human reads as "different").
-    rapid_burst_seconds: float = 6.0
-    rapid_burst_radius: float = 0.45       # relaxed radius for rapid-fire frames
-    keepers_per_group: int = 3             # (legacy/pHash path) fixed keepers
-
+    # --- near-duplicate keeper selection (Apple Vision feature-print embeddings) ---
     # Adaptive keepers: a bigger photoshoot signals it mattered more, so allow
     # more keepers — (max_session_size, keepers) tiers, then keepers_max above.
     # The diversity floor still gates: a uniform shoot keeps few even if large.
@@ -98,9 +88,6 @@ class Config:
     # --- video cleanup ---
     video_dup_distance: float = 0.30       # poster-frame L2 <= this => same-scene take
     large_video_mb: float = 200.0          # videos >= this are "reconsider" candidates
-
-    # --- quality / keeper ranking (blur is only a tiebreaker, never a delete reason) ---
-    laplacian_blur_floor: float = 40.0     # below this variance => visibly soft
 
     def to_dict(self) -> dict:
         return asdict(self)

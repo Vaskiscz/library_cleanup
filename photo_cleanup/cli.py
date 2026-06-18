@@ -613,6 +613,47 @@ def learn():
         click.echo("Expired: no flagged history yet — run an expired --apply iteration first.")
 
 
+@cli.command()
+@click.option("--rescue-file", default=RESCUE_FILE, show_default=True,
+              help="uuids to keep (un-tag + mark reviewed) — from rescue-plan.")
+@click.option("--unfav-file", default=UNFAV_FILE, show_default=True,
+              help="uuids to un-favorite (the hearts added this activity).")
+@click.option("--prefix", default=apply_mod.KEYWORD_PREFIX, show_default=True)
+@click.option("--mark-reviewed/--no-mark-reviewed", default=True,
+              help="Tag the kept survivors reviewed:keep (default on).")
+@click.option("--apply", "do_apply", is_flag=True)
+def finalize(rescue_file, unfav_file, prefix, mark_reviewed, do_apply):
+    """One-shot finalize after a review: un-tag the kept survivors, un-favorite the
+    activity hearts (baseline preserved), and mark them reviewed:keep — in a single
+    Photos session. Write-only (run from Terminal); pair with `rescue-plan` first."""
+    import json
+    rescue = json.load(open(rescue_file))
+    unfav = json.load(open(unfav_file)) if __import__("os").path.exists(unfav_file) else []
+    mode = "APPLY" if do_apply else "DRY RUN"
+    click.echo(f"[{mode}] finalize: un-tag {len(rescue)} ({prefix}*), un-favorite "
+               f"{len(unfav)}, mark-reviewed {len(rescue) if mark_reviewed else 0}")
+
+    def prog(i, n):
+        if i % 50 == 0 or i == n:
+            click.echo(f"  {i}/{n}")
+    try:
+        r1 = apply_mod.clear_keywords_for_uuids(rescue, prefix, apply=do_apply,
+                                                progress=prog if do_apply else None)
+        r2 = apply_mod.unfavorite_uuids(unfav, apply=do_apply, progress=prog if do_apply else None)
+        r3 = apply_mod.ApplyResult()
+        if mark_reviewed:
+            r3 = apply_mod.add_keyword(rescue, apply_mod.KW_REVIEWED, apply=do_apply,
+                                       progress=prog if do_apply else None)
+    except Exception as e:
+        _hint_automation(e)
+        sys.exit(1)
+    if do_apply:
+        click.echo(f"  un-tagged {r1.tagged}, un-favorited {r2.favorited}, "
+                   f"marked-reviewed {r3.tagged}, errors {r1.errors + r2.errors + r3.errors}")
+    else:
+        click.echo("  dry run — add --apply to write.")
+
+
 def _hint_automation(e: Exception):
     click.echo(f"\nERROR writing to Photos: {e}\n", err=True)
     click.echo(
