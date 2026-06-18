@@ -77,7 +77,18 @@ class Config:
     )
 
     # --- expired single-purpose utility photos (receipts/wifi/parking/...) ---
-    expired_min_age_years: float = 2.0     # only flag photos older than this
+    # Per-type minimum age (years): a wifi password is useless in weeks; a
+    # receipt may matter for tax/warranty ~2y; ID photos are kept deliberately.
+    expired_min_age_years: float = 1.0     # fallback for generic doc+text utility
+    expired_age_by_type: dict = field(default_factory=lambda: {
+        "wifi": 0.25,             # ~3 months
+        "parking/boarding": 0.1,  # ~5 weeks (useless after the trip)
+        "ticket/order": 0.5,      # ~6 months (after the event/order)
+        "qr/barcode": 0.5,
+        "receipt": 2.0,           # tax / warranty window
+        "business card": 3.0,     # contacts linger a while
+        "ID document": 5.0,       # usually kept on purpose — rarely flag
+    })
 
     # --- quality / keeper ranking (blur is only a tiebreaker, never a delete reason) ---
     laplacian_blur_floor: float = 40.0     # below this variance => visibly soft

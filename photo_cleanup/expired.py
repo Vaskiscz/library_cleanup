@@ -36,6 +36,15 @@ WEAK_UTILITY_LABELS = {
     "printed page", "spreadsheet", "form",
 }
 
+# Utility words grouped by type (drives the per-type age threshold).
+WIFI_WORDS = {"wifi", "wi-fi", "ssid", "password", "heslo", "network", "síť",
+              "router", "hotspot", "login"}
+RECEIPT_WORDS = {"receipt", "účtenka", "uctenka", "invoice", "faktura", "total",
+                 "celkem", "subtotal", "tax", "vat", "dph", "change", "cash", "amount"}
+TRAVEL_WORDS = {"parking", "parkoviště", "parkovani", "parkování", "garage", "boarding"}
+ORDER_WORDS = {"ticket", "lístek", "vstupenka", "confirmation", "potvrzení",
+               "objednávka", "otp", "verification", "voucher"}
+
 # OCR words (EN + CZ) typical of throwaway utility shots (weight 1).
 UTILITY_WORDS = {
     # wifi / network
@@ -58,6 +67,26 @@ class ExpiredVerdict:
     is_expired: bool
     reasons: list[str]
     age_years: float = 0.0
+    kind: str = ""          # detected utility type (drives the age threshold)
+
+
+def _utility_type(labels: set, words: set) -> Optional[str]:
+    """Classify the utility kind (most specific first); None if no signal."""
+    if "identity document" in labels:
+        return "ID document"
+    if "business card" in labels:
+        return "business card"
+    if "receipt" in labels or (words & RECEIPT_WORDS):
+        return "receipt"
+    if words & WIFI_WORDS:
+        return "wifi"
+    if words & TRAVEL_WORDS:
+        return "parking/boarding"
+    if words & ORDER_WORDS:
+        return "ticket/order"
+    if "qr code" in labels or "barcode" in labels:
+        return "qr/barcode"
+    return None   # generic doc + utility text, no specific kind
 
 
 def classify_expired(rec: Record, cfg: Config, now: Optional[float] = None) -> ExpiredVerdict:
@@ -65,11 +94,8 @@ def classify_expired(rec: Record, cfg: Config, now: Optional[float] = None) -> E
         return ExpiredVerdict(False, [])
     now = now if now is not None else time.time()
     age = (now - rec.timestamp) / YEAR_SECONDS
-    if age < cfg.expired_min_age_years:
-        return ExpiredVerdict(False, [f"too recent ({age:.1f}y)"], age)
 
     labels = set(rec.labels)
-
     # Memory guard: people/pets/food/scenery/art are kept regardless.
     keep_hits = labels.intersection(cfg.keep_labels)
     if keep_hits:
@@ -79,16 +105,22 @@ def classify_expired(rec: Record, cfg: Config, now: Optional[float] = None) -> E
     weak = labels.intersection(WEAK_UTILITY_LABELS)
     words = _tokens(rec.detected_text).intersection(UTILITY_WORDS)
 
-    # Flag when: a specific utility label is present; OR clear utility text
-    # (2+ words); OR a broad label corroborated by at least one utility word.
-    is_expired = bool(strong) or len(words) >= 2 or (bool(weak) and len(words) >= 1)
+    # Evidence: a specific utility label; OR clear utility text (2+ words); OR a
+    # broad label corroborated by at least one utility word.
+    has_signal = bool(strong) or len(words) >= 2 or (bool(weak) and len(words) >= 1)
+    if not has_signal:
+        return ExpiredVerdict(False, [], age)
 
-    reasons = [f"age {age:.1f}y"]
+    kind = _utility_type(labels, words) or "generic"
+    threshold = cfg.expired_age_by_type.get(kind, cfg.expired_min_age_years)
+    if age < threshold:
+        return ExpiredVerdict(False, [f"{kind}: too recent ({age:.1f}y < {threshold}y)"], age, kind)
+
+    reasons = [f"{kind} · age {age:.1f}y (≥{threshold}y)"]
     if strong:
-        reasons.append(f"utility-label: {', '.join(sorted(strong))}")
-    elif weak and is_expired:
+        reasons.append(f"label: {', '.join(sorted(strong))}")
+    elif weak:
         reasons.append(f"label+text: {', '.join(sorted(weak))}")
     if words:
-        reasons.append(f"utility-words: {', '.join(sorted(list(words)[:6]))}")
-
-    return ExpiredVerdict(is_expired, reasons, age)
+        reasons.append(f"words: {', '.join(sorted(list(words)[:6]))}")
+    return ExpiredVerdict(True, reasons, age, kind)

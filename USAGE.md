@@ -162,14 +162,15 @@ Flag aged utility shots that had a use at the time but not years later. Same
 review model as screenshots (tag candidates → Favorite to rescue → delete rest).
 
 ```sh
-uv run photo-cleanup expired --open                 # dry-run report (default: older than 2y)
-uv run photo-cleanup expired --min-age-years 3 --open
+uv run photo-cleanup expired --open                 # dry-run report
 uv run photo-cleanup expired --apply                # ⚠️ Terminal — tag cleanup:expired
 ```
 
-Only flags photos with a specific utility label (receipt/QR/barcode/ID) or real
-utility text (wifi/password/receipt/parking/…); anything with people/pets/food/
-scenery is never flagged. Review the `cleanup:expired` Smart Album, ♥ to keep,
+Age is **per type** (`Config.expired_age_by_type`) — wifi ~3 months,
+parking/boarding ~5 weeks, tickets/orders ~6 months, receipts 2 years, ID photos
+5 years (kept on purpose). Only flags photos with a specific utility label
+(receipt/QR/barcode/ID) or real utility text (wifi/password/receipt/parking/…);
+anything with people/pets/food/scenery is never flagged. Review the `cleanup:expired` Smart Album, ♥ to keep,
 delete `[cleanup:expired AND Favorite is No]`, then finalize/lock as usual.
 
 ## 3. Bail out / revert
