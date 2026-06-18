@@ -594,8 +594,12 @@ def learn():
 
     m = learn_and_save(present)
     if m.get("pairs"):
+        base = m.get("baseline_accuracy")
+        lift = f" (heuristic alone {base*100:.1f}%)" if base is not None else ""
         click.echo(f"Dedup keeper model: trained on {m['pairs']} keep>discard pairs from "
-                   f"{m['bursts']} bursts; reproduces your choices on {m['accuracy']*100:.1f}%.")
+                   f"{m['bursts']} bursts; reproduces your choices on {m['accuracy']*100:.1f}%"
+                   f"{lift}. Within-shoot choice is largely subjective, so the model "
+                   f"stays anchored to the heuristic and only nudges.")
     else:
         click.echo("Dedup: no keeper pairs yet — run a dedup --apply iteration first.")
 

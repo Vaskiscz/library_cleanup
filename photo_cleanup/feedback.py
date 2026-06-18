@@ -194,7 +194,7 @@ class KeeperModel:
 # ---- training (pairwise logistic preference) ------------------------------
 
 def train(model: KeeperModel, pairs: list[tuple[dict, dict]],
-          epochs: int = 300, lr: float = 0.05, l2: float = 0.15) -> dict:
+          epochs: int = 300, lr: float = 0.05, l2: float = 1.5) -> dict:
     """Each pair is (kept_features, discarded_features); learn score(kept)>score(disc).
 
     Regularized TOWARD the heuristic seed (not zero) so a noisy/contaminated
@@ -356,7 +356,10 @@ def gather_training(present_uuids: set, dbpath=None) -> tuple[list, set, dict]:
 def learn_and_save(present_uuids: set, dbpath=None) -> dict:
     bursts, kept, store = gather_training(present_uuids, dbpath)
     pairs = pairs_from_bursts(bursts, kept, store)
-    model = KeeperModel.load() or KeeperModel()
+    # Always retrain from the heuristic seed on ALL accumulated feedback, so
+    # `learn` is idempotent — re-running can't compound the same data into
+    # ever-larger weights (which it did before, blowing weights up to ±30).
+    model = KeeperModel()
     metrics = train(model, pairs)
     if pairs:
         model.save()
