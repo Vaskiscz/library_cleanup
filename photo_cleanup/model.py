@@ -33,10 +33,11 @@ class Config:
     rapid_burst_radius: float = 0.45       # relaxed radius for rapid-fire frames
     keepers_per_group: int = 3             # (legacy/pHash path) fixed keepers
 
-    # Adaptive keepers: burst size signals how much the moment mattered.
-    #   (max_burst_size, keepers) tiers, then keepers_max above the last tier.
-    keeper_tiers: tuple = ((3, 1), (9, 2), (19, 3))
-    keepers_max: int = 4
+    # Adaptive keepers: a bigger photoshoot signals it mattered more, so allow
+    # more keepers — (max_session_size, keepers) tiers, then keepers_max above.
+    # The diversity floor still gates: a uniform shoot keeps few even if large.
+    keeper_tiers: tuple = ((3, 1), (9, 3), (19, 5), (39, 8))
+    keepers_max: int = 10
     # A second keeper must be at least this far (embedding L2) from every already
     # chosen keeper — ensures variety (different expression/pose), not near-dupes.
     # Calibrated by eye on real bursts: ~0.15-0.24 still looks identical; ~0.28+
