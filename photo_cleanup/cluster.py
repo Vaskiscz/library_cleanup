@@ -154,11 +154,12 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         keepers = ranked[:n_keep]
     else:
         from .embedding import distance
-        # Quality gate: only consider the "nicer" frames (>= median score) so we
-        # never keep a blurry outlier just because it's visually different.
+        # Quality gate: drop only the worst ~30% so a blurry/accidental outlier
+        # isn't kept just for being "different", while still letting genuinely
+        # distinct-but-slightly-softer moments (e.g. a candid) qualify.
         scores = sorted(keeper_score(r, cfg) for r in ranked)
-        median = scores[len(scores) // 2]
-        eligible = [r for r in ranked if keeper_score(r, cfg) >= median] or ranked
+        qfloor = scores[int(len(scores) * 0.3)]
+        eligible = [r for r in ranked if keeper_score(r, cfg) >= qfloor] or ranked
 
         # Farthest-point selection: seed with the best quality frame, then keep
         # adding the frame MOST different from those already chosen — but only
@@ -274,7 +275,11 @@ def find_duplicate_groups(records: list[Record], cfg: Config, embeddings=None) -
         if len(cluster) < 2:
             continue
         if embeddings is not None:
-            out.extend(leader_dedup(cluster, embeddings, cfg))
+            # Treat the whole session as one group; keep the best, most-diverse
+            # 1-4 (farthest-point, adaptive cap), discard the rest of the shoot.
+            dg = select_keepers(cluster, cfg, embeddings=embeddings)
+            if dg.discards:
+                out.append(dg)
         else:
             for grp in similar_groups(cluster, cfg):
                 dg = select_keepers(grp, cfg)

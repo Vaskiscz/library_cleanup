@@ -157,8 +157,9 @@ def render_dedup_html(groups, total: int, cfg: Config, label: str = "") -> str:
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <title>Dedup review {_esc(label)}</title><style>{_CSS}</style></head><body>
 <h1>Near-duplicate review {_esc(label)}</h1>
-<p class="note"><b>Dry run.</b> On-device Apple Vision embeddings (distance ≤
-{cfg.embedding_max_distance}). Green = suggested keeper, red = near-duplicate.
+<p class="note"><b>Dry run.</b> On-device Apple Vision embeddings. Each group is a
+whole photoshoot/session (same place, one visit); the most-diverse best ~1–4 are
+kept, the rest of the shoot discarded. Green = suggested keeper, red = discard.
 On <code>--apply</code>: the <b>whole burst</b> is tagged <code>cleanup:duplicate</code>
 and the green keepers are <b>Favorited</b>, so you review full bursts with picks
 pre-marked, add any Favorites you want, then delete

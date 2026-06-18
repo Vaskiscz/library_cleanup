@@ -165,12 +165,12 @@ def _filter_by_date(records, since, until):
     return out
 
 
-def _active_records(cache, since, until):
-    """Load records for a scope, excluding the Hidden album and anything already
-    marked reviewed:keep (never re-review)."""
+def _active_records(cache, since, until, include_reviewed=False):
+    """Load records for a scope, excluding the Hidden album and (unless
+    include_reviewed) anything already marked reviewed:keep."""
     recs = _filter_by_date(load_records(cache), since, until)
-    return [r for r in recs
-            if not r.is_hidden and apply_mod.KW_REVIEWED not in (r.keywords or [])]
+    return [r for r in recs if not r.is_hidden
+            and (include_reviewed or apply_mod.KW_REVIEWED not in (r.keywords or []))]
 
 
 def _cluster_candidates(records, cfg):
@@ -216,15 +216,18 @@ def embed(cache, emb_cache, since, until):
 @click.option("--report", "report_path", default=DEFAULT_DEDUP_REPORT, show_default=True)
 @click.option("--apply", "do_apply", is_flag=True,
               help="Tag discards cleanup:duplicate (default: dry run + report only).")
+@click.option("--include-reviewed", is_flag=True,
+              help="Re-examine photos already marked reviewed:keep (e.g. to re-dedup "
+                   "an event processed under older, stricter settings).")
 @click.option("--open", "open_report", is_flag=True)
-def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
-    """Find near-duplicate bursts in scope and (dry-run) report keep/discard.
+def dedup(cache, emb_cache, since, until, report_path, do_apply, include_reviewed, open_report):
+    """Find near-duplicate photoshoots in scope and (dry-run) report keep/discard.
     Embeds any missing candidates on the fly. Use --since/--until to stage."""
     from .cluster import find_duplicate_groups
     from .embedding import EmbeddingCache, embed_records
     from .report import render_dedup_html
 
-    records = _active_records(cache, since, until)
+    records = _active_records(cache, since, until, include_reviewed=include_reviewed)
     cfg = Config()
     cand = _cluster_candidates(records, cfg)
     ec = EmbeddingCache(emb_cache)

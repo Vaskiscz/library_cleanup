@@ -16,9 +16,11 @@ class Config:
     """Tunable thresholds. Defaults lean conservative — the guiding rule is
     *when in doubt, keep*. Singletons (one-of-a-kind photos) are never flagged."""
 
-    # --- clustering (group shots from the same moment/place) ---
-    cluster_gap_seconds: float = 90.0      # new cluster when time gap exceeds this
-    cluster_gps_meters: float = 50.0       # ...or location jumps more than this
+    # --- clustering: group a whole PHOTOSHOOT/session (same place, one visit) ---
+    # Coarse on purpose: a photoshoot spans minutes with pauses, so small gaps
+    # must NOT split it into separate bursts (that left ~15 keepers per shoot).
+    cluster_gap_seconds: float = 600.0     # new session when time gap > 10 min
+    cluster_gps_meters: float = 150.0      # ...or location moves > 150 m
 
     # --- near-duplicate confirmation within a cluster ---
     # Primary method: Apple Vision feature-print embeddings (content similarity,
