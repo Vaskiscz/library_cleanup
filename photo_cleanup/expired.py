@@ -112,6 +112,13 @@ def classify_expired(rec: Record, cfg: Config, now: Optional[float] = None) -> E
         return ExpiredVerdict(False, [], age)
 
     kind = _utility_type(labels, words) or "generic"
+
+    # Learned correction: if past iterations show you keep this type too often,
+    # stop flagging it.
+    from .feedback import expired_suppressed_kinds
+    if kind in expired_suppressed_kinds():
+        return ExpiredVerdict(False, [f"{kind}: learned-keep (you usually keep these)"], age, kind)
+
     threshold = cfg.expired_age_by_type.get(kind, cfg.expired_min_age_years)
     if age < threshold:
         return ExpiredVerdict(False, [f"{kind}: too recent ({age:.1f}y < {threshold}y)"], age, kind)

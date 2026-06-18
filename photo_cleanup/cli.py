@@ -346,6 +346,8 @@ def expired(cache, since, until, min_age_years, report_path, do_apply, open_repo
         except Exception as e:
             _hint_automation(e)
             sys.exit(1)
+        from .feedback import log_expired
+        log_expired(flagged, since, until)   # for learning from your corrections
         click.echo(f"  tagged {res.tagged} (already {res.skipped}), errors {res.errors}")
         click.echo("Review: Smart Album [Keyword is cleanup:expired]. Favorite any to keep, "
                    "then delete via [cleanup:expired AND Favorite is No].")
@@ -495,18 +497,26 @@ def learn():
     """Train the keeper model from your keep/discard choices in past iterations.
     Read-only: reads feedback logs + the current library; updates the local model."""
     import osxphotos
-    from .feedback import learn_and_save
+    from .feedback import learn_and_save, learn_expired
     click.echo("Reading library to see which suggestions you kept vs discarded…")
     db = osxphotos.PhotosDB()
     present = {p.uuid for p in db.photos()}
+
     m = learn_and_save(present)
-    if not m.get("pairs"):
-        click.echo("No training pairs yet — run a dedup --apply iteration first.")
-        return
-    click.echo(f"Trained on {m['pairs']} keep>discard pairs from {m['bursts']} bursts "
-               f"({m['kept']} kept).")
-    click.echo(f"Model now reproduces your choices on {m['accuracy']*100:.1f}% of pairs. "
-               f"Future dedup suggestions will use it.")
+    if m.get("pairs"):
+        click.echo(f"Dedup keeper model: trained on {m['pairs']} keep>discard pairs from "
+                   f"{m['bursts']} bursts; reproduces your choices on {m['accuracy']*100:.1f}%.")
+    else:
+        click.echo("Dedup: no keeper pairs yet — run a dedup --apply iteration first.")
+
+    e = learn_expired(present)
+    if e["types"]:
+        rates = ", ".join(f"{k} {e['keep_rate'][k]*100:.0f}%kept" for k in sorted(e["types"]))
+        click.echo(f"Expired layer: per-type keep-rates — {rates}")
+        if e["suppressed"]:
+            click.echo(f"  learned to STOP flagging (you keep these): {', '.join(e['suppressed'])}")
+    else:
+        click.echo("Expired: no flagged history yet — run an expired --apply iteration first.")
 
 
 def _hint_automation(e: Exception):

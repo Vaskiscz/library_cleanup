@@ -241,6 +241,62 @@ def pairs_from_bursts(bursts: list[dict], kept: set, store: dict,
 
 # ---- scoring hook used by keeper_score ------------------------------------
 
+EXPIRED_CORRECTIONS = os.path.expanduser("~/.cache/photo-cleanup/expired_corrections.json")
+
+
+def log_expired(flagged, since, until) -> str:
+    """Record an `expired --apply` iteration: each flagged photo's uuid + the
+    utility type that triggered it. Correctness is recovered at learn time from
+    which flagged photos the user deleted (correct) vs kept (false positive)."""
+    items = [{"uuid": r.uuid, "kind": v.kind} for r, v in flagged]
+    os.makedirs(FEEDBACK_DIR, exist_ok=True)
+    path = os.path.join(FEEDBACK_DIR, f"expired_{since or 'x'}_{until or 'x'}.json")
+    with open(path, "w") as f:
+        json.dump({"expired": items}, f)
+    return path
+
+
+def learn_expired(present_uuids: set) -> dict:
+    """For every logged expired flag, outcome = deleted (correct) if the photo is
+    gone, or kept (false positive) if it's still there. Learn per-type keep-rate;
+    a type the user keeps too often gets suppressed from future flagging."""
+    import glob
+    from collections import defaultdict
+    kept = defaultdict(int)
+    total = defaultdict(int)
+    for fp in glob.glob(os.path.join(FEEDBACK_DIR, "expired_*.json")):
+        try:
+            d = json.load(open(fp))
+        except Exception:
+            continue
+        for it in d.get("expired", []):
+            k = it.get("kind", "generic")
+            total[k] += 1
+            if it["uuid"] in present_uuids:   # survived review => false positive
+                kept[k] += 1
+    rates = {k: kept[k] / total[k] for k in total}
+    # Suppress a type only with enough evidence and a clear majority kept.
+    suppressed = sorted(k for k in total if total[k] >= 5 and rates[k] >= 0.6)
+    os.makedirs(os.path.dirname(EXPIRED_CORRECTIONS), exist_ok=True)
+    json.dump({"keep_rate": rates, "totals": dict(total), "suppressed": suppressed},
+              open(EXPIRED_CORRECTIONS, "w"))
+    return {"types": dict(total), "keep_rate": rates, "suppressed": suppressed}
+
+
+_expired_suppressed = None
+
+
+def expired_suppressed_kinds() -> set:
+    """Types the learning loop found you systematically keep — stop flagging them."""
+    global _expired_suppressed
+    if _expired_suppressed is None:
+        try:
+            _expired_suppressed = set(json.load(open(EXPIRED_CORRECTIONS)).get("suppressed", []))
+        except Exception:
+            _expired_suppressed = set()
+    return _expired_suppressed
+
+
 def log_apply(groups, since, until) -> str:
     """Record a dedup --apply iteration so it can be learned from later (even
     after the user deletes discards): per burst, every member's features + the
