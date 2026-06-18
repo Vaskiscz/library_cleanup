@@ -323,8 +323,13 @@ def gather_training(present_uuids: set, dbpath=None) -> tuple[list, set, dict]:
       missing members were discarded by the user.
     """
     import glob
-    bursts, kept, store, need = [], set(), {}, set()
+    # Start from the persisted store so a photo's features survive its deletion
+    # (otherwise re-running learn after a cleanup loses the discards' features).
+    store = load_feature_store()
+    bursts, kept, need = [], set(), set()
     for fp in sorted(glob.glob(os.path.join(FEEDBACK_DIR, "*.json"))):
+        if os.path.basename(fp).startswith("expired_"):
+            continue  # expired logs are handled separately (learn_expired)
         try:
             d = json.load(open(fp))
         except Exception:
@@ -339,11 +344,12 @@ def gather_training(present_uuids: set, dbpath=None) -> tuple[list, set, dict]:
             if not labels:
                 kept |= (set(mems) & present_uuids)
                 for m in b["members"]:
-                    if m.get("features"):
+                    if m.get("features") and m["uuid"] not in store:
                         store[m["uuid"]] = m["features"]
     missing = [u for u in need if u not in store]
     if missing:
         store.update(build_feature_store(missing, dbpath))
+    save_feature_store(store)   # persist so future deletes don't lose features
     return bursts, kept, store
 
 
