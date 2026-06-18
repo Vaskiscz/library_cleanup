@@ -329,33 +329,39 @@ def gather_training(present_uuids: set, dbpath=None) -> tuple[list, set, dict]:
       missing members were discarded by the user.
     """
     import glob
-    # Start from the persisted store so a photo's features survive its deletion
-    # (otherwise re-running learn after a cleanup loses the discards' features).
+    # Start from the persisted store so a photo's features survive its deletion.
     store = load_feature_store()
-    bursts, kept, need = [], set(), set()
-    for fp in sorted(glob.glob(os.path.join(FEEDBACK_DIR, "*.json"))):
-        if os.path.basename(fp).startswith("expired_"):
-            continue  # expired logs are handled separately (learn_expired)
+    bursts, kept, need, seen = [], set(), set(), set()
+    # Process logs NEWEST-first; a photo re-reviewed in a newer log supersedes its
+    # appearance in older logs (so re-deduping an event doesn't double-count it,
+    # and the latest grouping/outcome wins).
+    files = sorted((f for f in glob.glob(os.path.join(FEEDBACK_DIR, "*.json"))
+                    if not os.path.basename(f).startswith("expired_")),
+                   key=os.path.getmtime, reverse=True)
+    for fp in files:
         try:
             d = json.load(open(fp))
         except Exception:
             continue
         labels = "kept" in d
-        if labels:
-            kept |= set(d["kept"])
+        log_kept = set(d.get("kept", []))
         for b in d.get("bursts", []):
-            mems = b["members"] if labels else [m["uuid"] for m in b["members"]]
-            bursts.append({"members": mems})
-            need |= set(mems)
-            if not labels:
-                kept |= (set(mems) & present_uuids)
+            raw = b["members"] if labels else [m["uuid"] for m in b["members"]]
+            if not labels:   # stash features regardless (for older logs' photos too)
                 for m in b["members"]:
                     if m.get("features") and m["uuid"] not in store:
                         store[m["uuid"]] = m["features"]
+            fresh = [u for u in raw if u not in seen]   # not covered by a newer log
+            seen.update(raw)
+            if len(fresh) < 2:
+                continue
+            bursts.append({"members": fresh})
+            need |= set(fresh)
+            kept |= (set(fresh) & (log_kept if labels else present_uuids))
     missing = [u for u in need if u not in store]
     if missing:
         store.update(build_feature_store(missing, dbpath))
-    save_feature_store(store)   # persist so future deletes don't lose features
+    save_feature_store(store)
     return bursts, kept, store
 
 
