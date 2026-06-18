@@ -40,9 +40,11 @@ class Config:
     keepers_max: int = 10
     # A second keeper must be at least this far (embedding L2) from every already
     # chosen keeper — ensures variety (different expression/pose), not near-dupes.
-    # Calibrated by eye on real bursts: ~0.15-0.24 still looks identical; ~0.28+
-    # reads as a genuinely different shot. Below this, the burst collapses to 1.
-    keeper_diversity_min: float = 0.25
+    # Calibrated by eye: ~0.15-0.24 still looks near-identical; ~0.28+ reads as a
+    # genuinely different shot. Set at 0.30 so a keeper must be CLEARLY different
+    # (and good — see the quality gate) to be added; the cap is only reached when
+    # that many truly qualify, never padded.
+    keeper_diversity_min: float = 0.30
     # Legacy perceptual-hash fallback (pixel-layout; used only if no embeddings)
     phash_size: int = 16
     phash_max_distance: int = 12
