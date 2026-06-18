@@ -181,11 +181,16 @@ uv run photo-cleanup videos --large-mb 300 --open   # custom oversized threshold
 uv run photo-cleanup videos --apply                 # ⚠️ Terminal — tag
 ```
 
-Two checks: **near-duplicate takes** (several videos of the same thing shot close
-together — poster-frame embeddings; keeps the largest = longest take) → tagged
-`cleanup:video`; and **oversized videos** (≥200 MB by default) worth a deliberate
-keep/drop decision → tagged `cleanup:large`. Excludes Hidden/Shared/`reviewed:keep`.
-Review the Smart Albums, ♥ to keep, delete the rest — same flow as the others.
+Both checks share one tag, `cleanup:video`, with a favorite-driven review:
+- **Near-duplicate takes** (same thing shot close together — poster-frame
+  embeddings): the best **size/quality ratio** take is Favorited (♥ = keep); the
+  extra takes stay un-♥ (delete candidates).
+- **Oversized videos** (≥200 MB, `--large-mb`): **all Favorited** (kept by
+  default) — you un-♥ the ones you decide to drop.
+
+Then in Smart Album **[Keyword is `cleanup:video`]**, delete
+**[`cleanup:video` AND Favorite is No]**. Finalize/lock as usual (un-♥ baseline
+preserved). Excludes Hidden/Shared/`reviewed:keep`.
 
 ## 3. Bail out / revert
 ```sh
@@ -221,7 +226,7 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | `embed` | yes | no | precompute Vision embeddings for dedup |
 | `dedup` | yes | only with `--apply` | near-dup report; tag discards `cleanup:duplicate` |
 | `expired` | yes | only with `--apply` | flag aged single-purpose photos `cleanup:expired` |
-| `videos` | yes | only with `--apply` | near-dup video takes `cleanup:video` + oversized `cleanup:large` |
+| `videos` | yes | only with `--apply` | near-dup takes + oversized videos → `cleanup:video` (keepers/large favorited) |
 | `learn` | yes | no | train the keeper model from your past keep/discard choices |
 | `apply` | uses cache | yes | tag work screenshots `cleanup:screenshot` |
 | `fav-baseline` | yes | no | snapshot pre-existing favorites |

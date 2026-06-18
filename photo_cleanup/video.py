@@ -33,9 +33,21 @@ def video_size(rec: Record) -> int:
         return 0
 
 
+def quality_per_byte(rec: Record) -> float:
+    """Size-to-quality ratio: pixels (resolution) per byte. Higher = better value
+    — keeps a crisp-but-lean take over a bloated one of the same scene."""
+    size = video_size(rec)
+    pixels = (rec.width or 0) * (rec.height or 0)
+    if size <= 0:
+        return 0.0
+    if pixels <= 0:        # no resolution metadata — fall back to favoring smaller
+        return 1.0 / size
+    return pixels / size
+
+
 def duplicate_takes(records: list[Record], cache, cfg: Config) -> list[DuplicateGroup]:
     """Group same-scene video takes within a time/GPS cluster (by poster-frame
-    embedding); keeper = largest file, the rest are extra takes."""
+    embedding); keeper = best size-to-quality ratio, the rest are extra takes."""
     from .embedding import distance
     out: list[DuplicateGroup] = []
     for cluster in time_gps_clusters(records, cfg):
@@ -64,7 +76,7 @@ def duplicate_takes(records: list[Record], cache, cfg: Config) -> list[Duplicate
         for grp in groups.values():
             if len(grp) < 2:
                 continue
-            keeper = max(grp, key=video_size)
+            keeper = max(grp, key=quality_per_byte)
             discards = [r for r in grp if r.uuid != keeper.uuid]
             # never discard a favorite
             promoted = [d for d in discards if d.favorite]

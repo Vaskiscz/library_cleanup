@@ -226,7 +226,7 @@ def render_videos_html(dup_groups, larges, total: int, cfg: Config, label: str =
     dup_body = "".join(dup_blocks) if dup_blocks else \
         "<p class='empty'>No near-duplicate video takes found.</p>"
 
-    large_cards = "".join(_video_card(lv.rec, "discard", lv.size, "large — reconsider")
+    large_cards = "".join(_video_card(lv.rec, "keep", lv.size, "large — ♥ kept; un-♥ to drop")
                           for lv in larges)
     reclaim_large = sum(lv.size for lv in larges)
     large_body = f"<div class='grid'>{large_cards}</div>" if larges else \
@@ -236,19 +236,20 @@ def render_videos_html(dup_groups, larges, total: int, cfg: Config, label: str =
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <title>Video cleanup {_esc(label)}</title><style>{_CSS}</style></head><body>
 <h1>Video cleanup {_esc(label)}</h1>
-<p class="note"><b>Dry run.</b> On-device (poster-frame embeddings + file size).
-Near-duplicate takes → <code>cleanup:video</code> (keep the largest); oversized
-videos → <code>cleanup:large</code> to reconsider. Favorite (♥) to keep, delete
-the rest. Nothing changed.</p>
+<p class="note"><b>Dry run.</b> On-device (poster-frame embeddings + size).
+Everything here is tagged <code>cleanup:video</code> on apply. <b>Favorited (♥) =
+keep:</b> the best size/quality take in each group, and ALL large videos (un-♥
+the ones you decide to drop). Extra takes stay un-♥ = delete candidates.
+Delete <code>cleanup:video AND not Favorite</code>. Nothing changed yet.</p>
 <div class="stats">
   <div class="stat"><b>{total}</b> videos in scope</div>
   <div class="stat"><b>{len(dup_groups)}</b> take groups</div>
   <div class="stat"><b>{reclaim_dup/gb:.1f} GB</b> in extra takes</div>
   <div class="stat"><b>{len(larges)}</b> oversized · {reclaim_large/gb:.1f} GB</div>
 </div>
-<h2>Near-duplicate takes → <code>cleanup:video</code></h2>
+<h2>Near-duplicate takes (keep best ratio ♥, drop extra takes)</h2>
 {dup_body}
-<h2>Oversized videos (≥{cfg.large_video_mb:.0f} MB) → <code>cleanup:large</code></h2>
+<h2>Oversized videos ≥{cfg.large_video_mb:.0f} MB (all ♥ — un-♥ to drop)</h2>
 {large_body}
 </body></html>"""
 

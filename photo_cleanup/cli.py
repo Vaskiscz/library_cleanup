@@ -406,24 +406,38 @@ def videos(since, until, large_mb, emb_cache, report_path, do_apply, open_report
                f"({len(dup_discards)} extra takes) · {len(larges)} oversized")
     click.echo(f"report: {out}")
 
+    # Unified review model: everything tagged cleanup:video. Favorited = keep —
+    # dup-group keepers (best size/quality ratio) and ALL large videos (you
+    # un-favorite the large ones you decide to drop). Delete = tagged AND not fav.
+    dup_members = [r for g in dup_groups for r in (g.keepers + g.discards)]
+    dup_keepers = [r for g in dup_groups for r in g.keepers]
+    large_recs = [lv.rec for lv in larges]
+    to_tag = {r.uuid for r in dup_members} | {r.uuid for r in large_recs}
+    to_fav = {r.uuid for r in dup_keepers} | {r.uuid for r in large_recs}
+
     if not do_apply:
         click.echo("Dry run — nothing tagged. Review the report; add --apply to tag.")
     else:
+        import json
+        baseline = sorted({r.uuid for r in (dup_members + large_recs) if r.favorite})
+        with open(FAV_BASELINE_FILE, "w") as f:
+            json.dump(baseline, f)
+        click.echo(f"  baseline: {len(baseline)} pre-existing favorite(s) recorded")
+
         def prog(i, n):
             if i % 25 == 0 or i == n:
                 click.echo(f"  {i}/{n}")
         try:
-            r1 = apply_mod.add_keyword([r.uuid for r in dup_discards], apply_mod.KW_VIDEO,
-                                       apply=True, progress=prog)
-            r2 = apply_mod.add_keyword([lv.rec.uuid for lv in larges], apply_mod.KW_LARGE,
-                                       apply=True, progress=prog)
+            t = apply_mod.add_keyword(sorted(to_tag), apply_mod.KW_VIDEO, apply=True, progress=prog)
+            fav = apply_mod.favorite(sorted(to_fav), apply=True, progress=prog)
         except Exception as e:
             _hint_automation(e)
             sys.exit(1)
-        click.echo(f"  tagged extra-takes {r1.tagged} (cleanup:video), "
-                   f"oversized {r2.tagged} (cleanup:large), errors {r1.errors + r2.errors}")
-        click.echo("Review the cleanup:video / cleanup:large Smart Albums; ♥ to keep, "
-                   "delete the rest.")
+        click.echo(f"  tagged {t.tagged} cleanup:video, favorited {fav.favorited} keepers"
+                   f"+large (already {fav.skipped}), errors {t.errors + fav.errors}")
+        click.echo("Review Smart Album [Keyword is cleanup:video]: extra takes are un-♥ "
+                   "(delete candidates); keepers + large videos are ♥. Un-♥ any large one "
+                   "you want to drop, then delete [cleanup:video AND Favorite is No].")
     if open_report:
         _os.system(f'open "{out}"')
 
