@@ -76,6 +76,9 @@ class Config:
         "drawing", "art", "sticker", "emoji",
     )
 
+    # --- expired single-purpose utility photos (receipts/wifi/parking/...) ---
+    expired_min_age_years: float = 2.0     # only flag photos older than this
+
     # --- quality / keeper ranking (blur is only a tiebreaker, never a delete reason) ---
     laplacian_blur_floor: float = 40.0     # below this variance => visibly soft
 

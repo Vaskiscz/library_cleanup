@@ -156,6 +156,22 @@ The model is **anchored to the proven heuristic** and only nudged by your data,
 so a noisy iteration can't make it worse. It sharpens as you accumulate more
 iterations — especially the cases where you override a suggestion.
 
+## 2d. Expired single-purpose photos (receipts/wifi/parking…)
+
+Flag aged utility shots that had a use at the time but not years later. Same
+review model as screenshots (tag candidates → Favorite to rescue → delete rest).
+
+```sh
+uv run photo-cleanup expired --open                 # dry-run report (default: older than 2y)
+uv run photo-cleanup expired --min-age-years 3 --open
+uv run photo-cleanup expired --apply                # ⚠️ Terminal — tag cleanup:expired
+```
+
+Only flags photos with a specific utility label (receipt/QR/barcode/ID) or real
+utility text (wifi/password/receipt/parking/…); anything with people/pets/food/
+scenery is never flagged. Review the `cleanup:expired` Smart Album, ♥ to keep,
+delete `[cleanup:expired AND Favorite is No]`, then finalize/lock as usual.
+
 ## 3. Bail out / revert
 ```sh
 uv run photo-cleanup undo --apply      # ⚠️ Terminal; removes ALL cleanup:* keywords
@@ -189,6 +205,7 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | `scan` | yes | no | analysis + HTML report |
 | `embed` | yes | no | precompute Vision embeddings for dedup |
 | `dedup` | yes | only with `--apply` | near-dup report; tag discards `cleanup:duplicate` |
+| `expired` | yes | only with `--apply` | flag aged single-purpose photos `cleanup:expired` |
 | `learn` | yes | no | train the keeper model from your past keep/discard choices |
 | `apply` | uses cache | yes | tag work screenshots `cleanup:screenshot` |
 | `fav-baseline` | yes | no | snapshot pre-existing favorites |

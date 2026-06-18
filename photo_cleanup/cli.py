@@ -295,6 +295,64 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, open_report):
         os.system(f'open "{out}"')
 
 
+DEFAULT_EXPIRED_REPORT = os.path.abspath("./expired-report.html")
+
+
+@cli.command()
+@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--since", default=None, help="Only photos on/after YYYY-MM-DD.")
+@click.option("--until", default=None, help="Only photos on/before YYYY-MM-DD.")
+@click.option("--min-age-years", type=float, default=None,
+              help="Override: only flag photos older than this (default 2).")
+@click.option("--report", "report_path", default=DEFAULT_EXPIRED_REPORT, show_default=True)
+@click.option("--apply", "do_apply", is_flag=True,
+              help="Tag flagged photos cleanup:expired (default: dry run + report).")
+@click.option("--open", "open_report", is_flag=True)
+def expired(cache, since, until, min_age_years, report_path, do_apply, open_report):
+    """Flag aged single-purpose utility photos (receipts/wifi/parking/tickets…).
+    Review model = same as screenshots: tag candidates, Favorite to rescue, delete rest."""
+    from .expired import classify_expired
+    from .report import render_expired_html
+
+    cfg = Config()
+    if min_age_years is not None:
+        cfg.expired_min_age_years = min_age_years
+    records = _active_records(cache, since, until)
+    flagged = []
+    for rec in records:
+        v = classify_expired(rec, cfg)
+        if v.is_expired:
+            flagged.append((rec, v))
+
+    label = f"{since or '…'} → {until or '…'}" if (since or until) else "(whole library)"
+    out = os.path.abspath(report_path)
+    with open(out, "w") as fh:
+        fh.write(render_expired_html(flagged, len(records), cfg, label))
+    click.echo(f"scope {label}: {len(records)} photos, {len(flagged)} flagged expired "
+               f"(age ≥ {cfg.expired_min_age_years}y)")
+    click.echo(f"report: {out}")
+
+    if not do_apply:
+        click.echo("Dry run — nothing tagged. Review the report; add --apply to tag.")
+    else:
+        click.echo(f"Tagging {len(flagged)} -> {apply_mod.KW_EXPIRED} …")
+
+        def prog(i, n):
+            if i % 25 == 0 or i == n:
+                click.echo(f"  {i}/{n}")
+        try:
+            res = apply_mod.add_keyword([r.uuid for r, _ in flagged], apply_mod.KW_EXPIRED,
+                                        apply=True, progress=prog)
+        except Exception as e:
+            _hint_automation(e)
+            sys.exit(1)
+        click.echo(f"  tagged {res.tagged} (already {res.skipped}), errors {res.errors}")
+        click.echo("Review: Smart Album [Keyword is cleanup:expired]. Favorite any to keep, "
+                   "then delete via [cleanup:expired AND Favorite is No].")
+    if open_report:
+        os.system(f'open "{out}"')
+
+
 RESCUE_FILE = "/tmp/photo_cleanup_rescue.json"          # tagged favorites -> un-tag
 UNFAV_FILE = "/tmp/photo_cleanup_unfavorite.json"       # newly favorited -> un-favorite
 FAV_BASELINE_FILE = "/tmp/photo_cleanup_fav_baseline.json"  # pre-existing favorites

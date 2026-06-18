@@ -172,6 +172,32 @@ pre-marked, add any Favorites you want, then delete
 {body}</body></html>"""
 
 
+def render_expired_html(items, total: int, cfg: Config, label: str = "") -> str:
+    """Flat grid of flagged expired-utility photos (each with its reason)."""
+    cards = []
+    for rec, verdict in items:
+        snippet = (rec.detected_text or "").strip().replace("\n", " ")[:90]
+        sub = " · ".join(verdict.reasons)
+        if snippet:
+            sub += f" — “{snippet}…”"
+        cards.append(_card(rec, cfg, kind="discard", subtitle=sub))
+    body = f'<div class="grid">{"".join(cards)}</div>' if cards else \
+        "<p class='empty'>No expired-utility photos found.</p>"
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>Expired-utility review {_esc(label)}</title><style>{_CSS}</style></head><body>
+<h1>Expired single-purpose photos {_esc(label)}</h1>
+<p class="note"><b>Dry run.</b> On-device only (Apple OCR + labels + age ≥
+{cfg.expired_min_age_years}y). These look like utility shots (receipts, wifi,
+parking, tickets…) past their usefulness. On <code>--apply</code> they're tagged
+<code>cleanup:expired</code>; review, Favorite (♥) anything to keep, then delete
+the rest. Photos with people/pets/food/scenery are never flagged. Nothing changed.</p>
+<div class="stats">
+  <div class="stat"><b>{total}</b> photos in scope</div>
+  <div class="stat"><b>{len(items)}</b> flagged expired</div>
+</div>
+{body}</body></html>"""
+
+
 def write_report(f: Findings, cfg: Config, path: str) -> str:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w") as fh:
