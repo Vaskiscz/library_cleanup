@@ -53,9 +53,11 @@ def scan(dbpath, cache, rescan, report_path, limit, open_report):
         records = records[:limit]
         click.echo(f"  (limited to {len(records)} for this run)")
 
-    click.echo("Analyzing (screenshots + near-duplicates)… this decodes thumbnails, may take a bit.")
+    click.echo("Analyzing (screenshots + near-duplicates)…")
     cfg = Config()
-    findings = analyze(records, cfg)
+    from .embedding import EmbeddingCache
+    # Dedup uses already-cached embeddings (run `embed`/`dedup` for full coverage).
+    findings = analyze(records, cfg, embeddings=EmbeddingCache(DEFAULT_EMB_CACHE))
 
     out = write_report(findings, cfg, report_path)
     dt = time.time() - t0
@@ -226,10 +228,9 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, include_reviewe
     cfg = Config()
     cand = _cluster_candidates(records, cfg)
     ec = EmbeddingCache(emb_cache)
-    missing = sum(1 for r in cand if r.uuid not in ec)
-    if missing:
-        click.echo(f"embedding {missing} candidates not yet cached…")
-        embed_records(cand, ec, progress=lambda i, n: None)
+    n_new = embed_records(cand, ec)
+    if n_new:
+        click.echo(f"embedded {n_new} new/changed candidates…")
         ec.save()
 
     # Give the learned keeper model its face-quality feature for these candidates.
@@ -385,10 +386,9 @@ def videos(since, until, large_mb, emb_cache, report_path, do_apply, open_report
             and r.path and _os.path.exists(r.path)]
 
     ec = EmbeddingCache(emb_cache)
-    missing = sum(1 for r in recs if r.uuid not in ec)
-    if missing:
-        click.echo(f"  embedding {missing} video poster frames…")
-        embed_records(recs, ec)
+    n_new = embed_records(recs, ec)
+    if n_new:
+        click.echo(f"  embedded {n_new} new/changed video poster frames…")
         ec.save()
 
     dup_groups = duplicate_takes(recs, ec, cfg)

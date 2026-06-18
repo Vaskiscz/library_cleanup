@@ -40,15 +40,17 @@ def distance(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def embed_records(records, cache, progress=None) -> int:
-    """Compute & cache feature prints for any records not already cached.
-    Reads image files (no Photos automation needed). Returns count computed."""
+    """Compute & cache feature prints for records missing or stale (source image
+    edited since cached). Reads image files only. Returns count computed."""
     from .quality import _best_image_path
 
-    todo = [r for r in records if r.uuid not in cache]
-    for i, r in enumerate(todo, 1):
+    todo = []
+    for r in records:
         p = _best_image_path(r)
-        if p:
-            cache.compute(r.uuid, p)
+        if p and not cache.is_fresh(r.uuid, p):
+            todo.append((r, p))
+    for i, (r, p) in enumerate(todo, 1):
+        cache.compute(r.uuid, p)
         if progress:
             progress(i, len(todo))
     return len(todo)
@@ -60,9 +62,15 @@ class EmbeddingCache:
     def __init__(self, path: str):
         self.path = path
         self._vecs: dict[str, np.ndarray] = {}
+        self._mt: dict[str, float] = {}     # uuid -> source image mtime
         if os.path.exists(path):
             with np.load(path, allow_pickle=False) as data:
                 self._vecs = {k: data[k] for k in data.files}
+        if os.path.exists(path + ".mt.json"):
+            try:
+                self._mt = json.load(open(path + ".mt.json"))
+            except Exception:
+                self._mt = {}
 
     def get(self, uuid: str) -> Optional[np.ndarray]:
         return self._vecs.get(uuid)
@@ -70,20 +78,36 @@ class EmbeddingCache:
     def __contains__(self, uuid: str) -> bool:
         return uuid in self._vecs
 
+    def is_fresh(self, uuid: str, image_path: str) -> bool:
+        """Cached AND the source image hasn't changed since (catches edits)."""
+        if uuid not in self._vecs:
+            return False
+        if uuid not in self._mt:
+            return True   # legacy entry (pre-mtime) — accept; avoids mass re-embed
+        try:
+            return self._mt[uuid] == os.path.getmtime(image_path)
+        except OSError:
+            return True   # can't stat (e.g. not on disk) — don't force a recompute
+
     def compute(self, uuid: str, image_path: str) -> Optional[np.ndarray]:
-        if uuid in self._vecs:
+        if image_path and self.is_fresh(uuid, image_path):
             return self._vecs[uuid]
         try:
-            v = _vector_for_path(image_path)
+            v = _vector_for_path(image_path) if image_path else None
         except Exception:
             v = None
         if v is not None:
             self._vecs[uuid] = v
+            try:
+                self._mt[uuid] = os.path.getmtime(image_path)
+            except OSError:
+                pass
         return v
 
     def save(self) -> None:
         os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
         np.savez_compressed(self.path, **self._vecs)
+        json.dump(self._mt, open(self.path + ".mt.json", "w"))
 
     def __len__(self) -> int:
         return len(self._vecs)

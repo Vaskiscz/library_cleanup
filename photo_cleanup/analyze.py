@@ -26,7 +26,7 @@ class Findings:
         return sum(len(g.keepers) for g in self.duplicate_groups)
 
 
-def analyze(records: list[Record], cfg: Config) -> Findings:
+def analyze(records: list[Record], cfg: Config, embeddings=None) -> Findings:
     from .apply import KW_REVIEWED
     # Never auto-review the Hidden album, or anything already reviewed-and-kept.
     records = [r for r in records
@@ -39,7 +39,7 @@ def analyze(records: list[Record], cfg: Config) -> Findings:
         if verdict.is_work:
             f.work_screenshots.append((rec, verdict))
 
-    # 2) near-duplicate photoshoots — exclude screenshots from this pass
+    # 2) near-duplicate photoshoots (only if embeddings are available)
     photos = [r for r in records if not (r.is_screenshot or "screenshot" in r.media_types)]
-    f.duplicate_groups = find_duplicate_groups(photos, cfg)
+    f.duplicate_groups = find_duplicate_groups(photos, cfg, embeddings=embeddings)
     return f

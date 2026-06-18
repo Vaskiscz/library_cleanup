@@ -24,15 +24,6 @@ def _best_image_path(rec: Record) -> Optional[str]:
     return rec.path
 
 
-def _fast_image_path(rec: Record) -> Optional[str]:
-    """Smallest available image — enough for pHash (it downscales anyway) and
-    much faster across a whole library."""
-    candidates = [p for p in rec.derivatives if _file_size(p) > 0]
-    if candidates:
-        return min(candidates, key=_file_size)
-    return rec.path
-
-
 def _file_size(p: str) -> int:
     import os
     try:

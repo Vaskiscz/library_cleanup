@@ -35,9 +35,6 @@ class Config:
     # (and good — see the quality gate) to be added; the cap is only reached when
     # that many truly qualify, never padded.
     keeper_diversity_min: float = 0.30
-    # Legacy perceptual-hash fallback (pixel-layout; used only if no embeddings)
-    phash_size: int = 16
-    phash_max_distance: int = 12
 
     # --- work-screenshot classifier (CONTENT-BASED) ---
     # Decision reads the OCR text: work lexicon vs private lexicon (see lexicon.py).
@@ -137,7 +134,6 @@ class Record:
     derivatives: list[str] = field(default_factory=list)
 
     # --- filled in by later pipeline stages ---
-    phash: Optional[str] = None             # hex perceptual hash
     laplacian: Optional[float] = None       # measured sharpness (None if not computed)
 
     def aspect(self) -> float:

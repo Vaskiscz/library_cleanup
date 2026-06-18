@@ -105,10 +105,10 @@ def build_feature_store(uuids, dbpath: Optional[str] = None, sharpness=None,
     for i, p in enumerate(targets, 1):
         try:
             f = features_from_scoreinfo(p.score, sharpness.get(p.uuid))
-            if p.uuid not in face_cache:
-                path = _largest_path(p)
-                face_cache[p.uuid] = face_capture_quality(path) if path else 0.0
-            f["face_capture_quality"] = face_cache[p.uuid]
+            path = _largest_path(p)
+            if path and not _face_fresh(face_cache, p.uuid, path):
+                _face_set(face_cache, p.uuid, path)
+            f["face_capture_quality"] = _face_quality_of(face_cache.get(p.uuid))
             store[p.uuid] = f
         except Exception:
             pass
@@ -119,20 +119,49 @@ def build_feature_store(uuids, dbpath: Optional[str] = None, sharpness=None,
     return store
 
 
+# Face-quality cache entries are [quality, source_mtime] so an edited photo is
+# recomputed. Legacy entries are bare floats — accepted as-is (no edit check).
+def _face_quality_of(entry) -> float:
+    if isinstance(entry, list):
+        return float(entry[0])
+    return float(entry) if entry is not None else 0.0
+
+
+def _face_fresh(cache: dict, uuid: str, path: str) -> bool:
+    e = cache.get(uuid)
+    if e is None:
+        return False
+    if not isinstance(e, list):
+        return True   # legacy float entry — use it, don't force a recompute
+    try:
+        return e[1] == os.path.getmtime(path)
+    except OSError:
+        return True
+
+
+def _face_set(cache: dict, uuid: str, path: str) -> None:
+    try:
+        mt = os.path.getmtime(path)
+    except OSError:
+        mt = None
+    cache[uuid] = [face_capture_quality(path), mt]
+
+
 def inject_face_quality(records, progress=None) -> None:
-    """Ensure each record's features include face_capture_quality (cached on
-    disk). Called before dedup so the learned model can use it for suggestions."""
+    """Ensure each record's features include face_capture_quality (cached by
+    uuid+mtime, so edited photos are recomputed). Called before dedup so the
+    learned model can use it for suggestions."""
     from .quality import _best_image_path
     face_cache = json.load(open(FACE_CACHE)) if os.path.exists(FACE_CACHE) else {}
-    todo = [r for r in records if r.uuid not in face_cache]
-    for i, r in enumerate(todo, 1):
-        p = _best_image_path(r)
-        face_cache[r.uuid] = face_capture_quality(p) if p else 0.0
+    todo = [(r, _best_image_path(r)) for r in records]
+    todo = [(r, p) for r, p in todo if p and not _face_fresh(face_cache, r.uuid, p)]
+    for i, (r, p) in enumerate(todo, 1):
+        _face_set(face_cache, r.uuid, p)
         if progress:
             progress(i, len(todo))
     for r in records:
         if isinstance(r.features, dict):
-            r.features["face_capture_quality"] = face_cache.get(r.uuid, 0.0)
+            r.features["face_capture_quality"] = _face_quality_of(face_cache.get(r.uuid))
     if todo:
         os.makedirs(os.path.dirname(FACE_CACHE), exist_ok=True)
         json.dump(face_cache, open(FACE_CACHE, "w"))

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from .model import Config, Record
-from .quality import keeper_score, measure_sharpness, _fast_image_path
+from .quality import keeper_score, measure_sharpness
 
 
 # ---- geo / time clustering -------------------------------------------------
@@ -54,64 +54,6 @@ def time_gps_clusters(records: list[Record], cfg: Config) -> list[list[Record]]:
     if cur:
         clusters.append(cur)
     return clusters
-
-
-# ---- perceptual-hash near-duplicate confirmation ---------------------------
-
-def compute_phash(rec: Record, cfg: Config) -> Optional[str]:
-    if rec.phash is not None:
-        return rec.phash
-    p = _fast_image_path(rec)
-    if not p:
-        return None
-    try:
-        import imagehash
-        from PIL import Image
-        with Image.open(p) as im:
-            rec.phash = str(imagehash.phash(im, hash_size=cfg.phash_size))
-    except Exception:
-        rec.phash = None
-    return rec.phash
-
-
-def _hamming(h1: str, h2: str) -> Optional[int]:
-    try:
-        import imagehash
-        return imagehash.hex_to_hash(h1) - imagehash.hex_to_hash(h2)
-    except Exception:
-        return None
-
-
-def similar_groups(cluster: list[Record], cfg: Config) -> list[list[Record]]:
-    """Within one time/place cluster, union photos whose perceptual hashes are
-    close. Photos without a usable hash stay as singletons (kept)."""
-    hashed = []
-    for r in cluster:
-        if compute_phash(r, cfg) is not None:
-            hashed.append(r)
-
-    n = len(hashed)
-    parent = list(range(n))
-
-    def find(i):
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    def union(i, j):
-        parent[find(i)] = find(j)
-
-    for i in range(n):
-        for j in range(i + 1, n):
-            d = _hamming(hashed[i].phash, hashed[j].phash)
-            if d is not None and d <= cfg.phash_max_distance:
-                union(i, j)
-
-    groups: dict[int, list[Record]] = {}
-    for idx, r in enumerate(hashed):
-        groups.setdefault(find(idx), []).append(r)
-    return list(groups.values())
 
 
 # ---- keeper selection ------------------------------------------------------
@@ -194,21 +136,17 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
 def find_duplicate_groups(records: list[Record], cfg: Config, embeddings=None) -> list[DuplicateGroup]:
     """Full near-duplicate pass -> only groups that actually have discards.
 
-    Uses Vision-embedding leader clustering when an `embeddings` cache is
-    provided (preferred); otherwise falls back to perceptual-hash grouping."""
+    Requires a Vision-embedding cache (the only similarity method). Without one
+    (embeddings is None) there's nothing to compare on, so no groups are returned."""
+    if embeddings is None:
+        return []
     out: list[DuplicateGroup] = []
     for cluster in time_gps_clusters(records, cfg):
         if len(cluster) < 2:
             continue
-        if embeddings is not None:
-            # Treat the whole session as one group; keep the best, most-diverse
-            # 1-4 (farthest-point, adaptive cap), discard the rest of the shoot.
-            dg = select_keepers(cluster, cfg, embeddings=embeddings)
-            if dg.discards:
-                out.append(dg)
-        else:
-            for grp in similar_groups(cluster, cfg):
-                dg = select_keepers(grp, cfg)
-                if dg.discards:
-                    out.append(dg)
+        # Treat the whole session as one group; keep the best, most-diverse 1-N
+        # (farthest-point, adaptive cap), discard the rest of the shoot.
+        dg = select_keepers(cluster, cfg, embeddings=embeddings)
+        if dg.discards:
+            out.append(dg)
     return out
