@@ -194,11 +194,15 @@ class KeeperModel:
 # ---- training (pairwise logistic preference) ------------------------------
 
 def train(model: KeeperModel, pairs: list[tuple[dict, dict]],
-          epochs: int = 300, lr: float = 0.05, l2: float = 1.5) -> dict:
+          epochs: int = 300, lr: float = 0.05, reg: float = 0.5,
+          conf_scale: float = 2500.0, max_weight: float = 8.0) -> dict:
     """Each pair is (kept_features, discarded_features); learn score(kept)>score(disc).
 
-    Regularized TOWARD the heuristic seed (not zero) so a noisy/contaminated
-    iteration can only nudge the sensible defaults, never flip them."""
+    Philosophy: NEVER lurch on one review. Always retrain from the heuristic seed
+    and regularize toward it; the data's pull is scaled by CONFIDENCE = how much
+    total evidence has accumulated (N/(N+conf_scale)). So a single review only
+    nudges, but a preference repeated across many reviews accumulates more pairs,
+    raises confidence, and earns a bigger (still weight-clipped) shift."""
     if not pairs:
         return {"pairs": 0, "accuracy": None}
     X = np.array([vec(k) - vec(d) for k, d in pairs])  # want w·X > 0
@@ -207,16 +211,18 @@ def train(model: KeeperModel, pairs: list[tuple[dict, dict]],
     Xs = X / sd
     w0 = model.weights * sd               # heuristic seed, standardized space
     base_acc = float((X @ model.weights > 0).mean())
+    confidence = len(pairs) / (len(pairs) + conf_scale)   # 0..1, grows with evidence
     w = w0.copy()
     for _ in range(epochs):
         z = Xs @ w
         g = 1.0 / (1.0 + np.exp(z))        # sigmoid(-z)
-        grad = -(Xs * g[:, None]).mean(0) + l2 * (w - w0)   # pull toward seed
+        grad = -confidence * (Xs * g[:, None]).mean(0) + reg * (w - w0)
         w -= lr * grad
-    model.weights = w / sd
+    model.weights = np.clip(w / sd, -max_weight, max_weight)
     acc = float((X @ model.weights > 0).mean())
     model.trained_pairs += len(pairs)
-    return {"pairs": len(pairs), "accuracy": acc, "baseline_accuracy": base_acc}
+    return {"pairs": len(pairs), "accuracy": acc, "baseline_accuracy": base_acc,
+            "confidence": confidence}
 
 
 def pairs_from_bursts(bursts: list[dict], kept: set, store: dict,
