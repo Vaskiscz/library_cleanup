@@ -15,15 +15,15 @@ A practical runbook for `photo-cleanup`. Commands assume the project lives at
   dev/business text) and tags them `cleanup:screenshot` for you to review and
   delete. Private content is kept (WhatsApp/Instagram/Facebook, chats, memes,
   photos of people, the Hidden album).
-- **Photoshoot dedup** — finds near-duplicate bursts (multiple shots of the same
-  moment) using on-device **Apple Vision feature-print embeddings** (content
-  similarity, robust to reframing/angle), and keeps the best, most *diverse*
-  version of a moment (leader clustering): keepers end up mutually different,
-  and a frame is discarded only if a kept frame is within the radius. So a moment
-  shot 30 near-identical times keeps 1; a moment with 3 distinct versions keeps 3.
-  Discards are tagged `cleanup:duplicate`. The one knob in `Config`:
-  `embedding_max_distance` (0.25) — smaller = stricter "same shot". (`keeper_*`
-  fields apply only to the legacy perceptual-hash fallback.)
+- **Photoshoot dedup** — groups a whole **session** (same place, one visit:
+  ≤10 min gaps / ≤150 m) and keeps the best, most *diverse* **1–4** shots of it
+  (on-device Apple Vision embeddings + farthest-point selection), discarding the
+  rest of the shoot. So a 40-shot photoshoot at one spot collapses to ~4 varied
+  keepers (the view, the couple, each person…), not 15. Discards →
+  `cleanup:duplicate`. Knobs in `Config`: `cluster_gap_seconds`/`cluster_gps_meters`
+  (session size), `keeper_tiers`/`keepers_max` (how many to keep),
+  `keeper_diversity_min` (how different keepers must be). Favorites are never
+  discarded. `dedup --include-reviewed` re-examines `reviewed:keep` photos.
 
 Everything runs on-device. No uploads, no cloud APIs.
 
