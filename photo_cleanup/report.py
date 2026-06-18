@@ -198,6 +198,61 @@ the rest. Photos with people/pets/food/scenery are never flagged. Nothing change
 {body}</body></html>"""
 
 
+def _video_card(rec: Record, kind: str, size: int, sub: str) -> str:
+    uri = _thumb_data_uri(rec)
+    img = (f'<img src="{uri}" loading="lazy">' if uri
+           else '<div class="noimg">video</div>')
+    mb = size / (1024 * 1024)
+    return f"""<figure class="card {kind}">{img}<figcaption>
+      <div class="fn">{_esc(rec.original_filename)}</div>
+      <div class="sub">{_esc(sub)}</div>
+      <div class="meta">{mb:.0f} MB</div></figcaption></figure>"""
+
+
+def render_videos_html(dup_groups, larges, total: int, cfg: Config, label: str = "") -> str:
+    from .video import video_size
+    dup_blocks = []
+    reclaim_dup = 0
+    for i, g in enumerate(dup_groups, 1):
+        keep = "".join(_video_card(r, "keep", video_size(r), "KEEP (largest take)")
+                       for r in g.keepers)
+        disc = ""
+        for r in g.discards:
+            reclaim_dup += video_size(r)
+            disc += _video_card(r, "discard", video_size(r), "extra take")
+        dup_blocks.append(f"<div class='group'><h3>Take group {i} — {g.size} videos · "
+                          f"keep {len(g.keepers)} · discard {len(g.discards)}</h3>"
+                          f"<div class='grid'>{keep}{disc}</div></div>")
+    dup_body = "".join(dup_blocks) if dup_blocks else \
+        "<p class='empty'>No near-duplicate video takes found.</p>"
+
+    large_cards = "".join(_video_card(lv.rec, "discard", lv.size, "large — reconsider")
+                          for lv in larges)
+    reclaim_large = sum(lv.size for lv in larges)
+    large_body = f"<div class='grid'>{large_cards}</div>" if larges else \
+        "<p class='empty'>No oversized videos.</p>"
+
+    gb = 1024 ** 3
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>Video cleanup {_esc(label)}</title><style>{_CSS}</style></head><body>
+<h1>Video cleanup {_esc(label)}</h1>
+<p class="note"><b>Dry run.</b> On-device (poster-frame embeddings + file size).
+Near-duplicate takes → <code>cleanup:video</code> (keep the largest); oversized
+videos → <code>cleanup:large</code> to reconsider. Favorite (♥) to keep, delete
+the rest. Nothing changed.</p>
+<div class="stats">
+  <div class="stat"><b>{total}</b> videos in scope</div>
+  <div class="stat"><b>{len(dup_groups)}</b> take groups</div>
+  <div class="stat"><b>{reclaim_dup/gb:.1f} GB</b> in extra takes</div>
+  <div class="stat"><b>{len(larges)}</b> oversized · {reclaim_large/gb:.1f} GB</div>
+</div>
+<h2>Near-duplicate takes → <code>cleanup:video</code></h2>
+{dup_body}
+<h2>Oversized videos (≥{cfg.large_video_mb:.0f} MB) → <code>cleanup:large</code></h2>
+{large_body}
+</body></html>"""
+
+
 def write_report(f: Findings, cfg: Config, path: str) -> str:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w") as fh:

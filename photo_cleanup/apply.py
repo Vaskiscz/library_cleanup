@@ -14,6 +14,8 @@ KEYWORD_PREFIX = "cleanup:"
 KW_SCREENSHOT = "cleanup:screenshot"
 KW_DUPLICATE = "cleanup:duplicate"
 KW_EXPIRED = "cleanup:expired"
+KW_VIDEO = "cleanup:video"        # near-duplicate video take (extra take)
+KW_LARGE = "cleanup:large"        # oversized video — reconsider keeping
 # Permanent "reviewed & decided to keep" mark. Deliberately OUTSIDE the cleanup:
 # namespace so undo/clear-tags never remove it. Photos with this are excluded
 # from all future review passes.

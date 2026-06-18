@@ -355,6 +355,79 @@ def expired(cache, since, until, min_age_years, report_path, do_apply, open_repo
         os.system(f'open "{out}"')
 
 
+DEFAULT_VIDEO_REPORT = os.path.abspath("./videos-report.html")
+
+
+@cli.command()
+@click.option("--since", default=None, help="Only videos on/after YYYY-MM-DD.")
+@click.option("--until", default=None, help="Only videos on/before YYYY-MM-DD.")
+@click.option("--large-mb", type=float, default=None, help="Oversized threshold (default 200).")
+@click.option("--emb-cache", default=DEFAULT_EMB_CACHE, show_default=True)
+@click.option("--report", "report_path", default=DEFAULT_VIDEO_REPORT, show_default=True)
+@click.option("--apply", "do_apply", is_flag=True,
+              help="Tag near-dup takes cleanup:video + oversized cleanup:large.")
+@click.option("--open", "open_report", is_flag=True)
+def videos(since, until, large_mb, emb_cache, report_path, do_apply, open_report):
+    """Find near-duplicate video takes (keep the largest) and oversized videos.
+    Apple Photos does neither. Same review/rescue/delete flow as the rest."""
+    import os as _os
+    from .scan import scan_library
+    from .embedding import EmbeddingCache, embed_records
+    from .video import duplicate_takes, large_videos, video_size
+    from .report import render_videos_html
+
+    cfg = Config()
+    if large_mb is not None:
+        cfg.large_video_mb = large_mb
+
+    click.echo("Scanning videos…")
+    recs = scan_library(movies_only=True)                      # excludes hidden + shared
+    recs = _filter_by_date(recs, since, until)
+    recs = [r for r in recs if apply_mod.KW_REVIEWED not in (r.keywords or [])
+            and r.path and _os.path.exists(r.path)]
+
+    ec = EmbeddingCache(emb_cache)
+    missing = sum(1 for r in recs if r.uuid not in ec)
+    if missing:
+        click.echo(f"  embedding {missing} video poster frames…")
+        embed_records(recs, ec)
+        ec.save()
+
+    dup_groups = duplicate_takes(recs, ec, cfg)
+    larges = large_videos(recs, cfg)
+    dup_discards = [r for g in dup_groups for r in g.discards]
+
+    label = f"{since or '…'} → {until or '…'}" if (since or until) else "(whole library)"
+    out = _os.path.abspath(report_path)
+    with open(out, "w") as fh:
+        fh.write(render_videos_html(dup_groups, larges, len(recs), cfg, label))
+    gb = 1024 ** 3
+    click.echo(f"scope {label}: {len(recs)} videos · {len(dup_groups)} take-groups "
+               f"({len(dup_discards)} extra takes) · {len(larges)} oversized")
+    click.echo(f"report: {out}")
+
+    if not do_apply:
+        click.echo("Dry run — nothing tagged. Review the report; add --apply to tag.")
+    else:
+        def prog(i, n):
+            if i % 25 == 0 or i == n:
+                click.echo(f"  {i}/{n}")
+        try:
+            r1 = apply_mod.add_keyword([r.uuid for r in dup_discards], apply_mod.KW_VIDEO,
+                                       apply=True, progress=prog)
+            r2 = apply_mod.add_keyword([lv.rec.uuid for lv in larges], apply_mod.KW_LARGE,
+                                       apply=True, progress=prog)
+        except Exception as e:
+            _hint_automation(e)
+            sys.exit(1)
+        click.echo(f"  tagged extra-takes {r1.tagged} (cleanup:video), "
+                   f"oversized {r2.tagged} (cleanup:large), errors {r1.errors + r2.errors}")
+        click.echo("Review the cleanup:video / cleanup:large Smart Albums; ♥ to keep, "
+                   "delete the rest.")
+    if open_report:
+        _os.system(f'open "{out}"')
+
+
 RESCUE_FILE = "/tmp/photo_cleanup_rescue.json"          # tagged favorites -> un-tag
 UNFAV_FILE = "/tmp/photo_cleanup_unfavorite.json"       # newly favorited -> un-favorite
 FAV_BASELINE_FILE = "/tmp/photo_cleanup_fav_baseline.json"  # pre-existing favorites

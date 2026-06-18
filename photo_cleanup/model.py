@@ -90,6 +90,10 @@ class Config:
         "ID document": 5.0,       # usually kept on purpose — rarely flag
     })
 
+    # --- video cleanup ---
+    video_dup_distance: float = 0.30       # poster-frame L2 <= this => same-scene take
+    large_video_mb: float = 200.0          # videos >= this are "reconsider" candidates
+
     # --- quality / keeper ranking (blur is only a tiebreaker, never a delete reason) ---
     laplacian_blur_floor: float = 40.0     # below this variance => visibly soft
 

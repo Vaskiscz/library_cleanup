@@ -94,18 +94,25 @@ def scan_library(
     images_only: bool = True,
     exclude_hidden: bool = True,
     exclude_shared: bool = True,
+    movies_only: bool = False,
 ) -> list[Record]:
     """Open the Photos library and return Records. dbpath=None => system library.
 
     Excluded by default: the Hidden album (curated manually) and iCloud Shared
     Album assets (a separate namespace, not the user's main library — they don't
     appear in main-library Smart Albums and must not be tagged/deleted here).
+    Set movies_only=True to scan videos instead of photos.
     """
     import osxphotos  # imported lazily so --help etc. work without the library
 
     db = osxphotos.PhotosDB(dbpath) if dbpath else osxphotos.PhotosDB()
+    if movies_only:
+        photos_iter = db.photos(images=False, movies=True)
+        images_only = False
+    else:
+        photos_iter = db.photos()
     records: list[Record] = []
-    for photo in db.photos():
+    for photo in photos_iter:
         if images_only and not _safe(lambda: photo.isphoto, True):
             continue
         if exclude_hidden and _safe(lambda: photo.hidden, False):

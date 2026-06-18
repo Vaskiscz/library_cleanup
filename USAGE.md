@@ -173,6 +173,20 @@ parking/boarding ~5 weeks, tickets/orders ~6 months, receipts 2 years, ID photos
 anything with people/pets/food/scenery is never flagged. Review the `cleanup:expired` Smart Album, ♥ to keep,
 delete `[cleanup:expired AND Favorite is No]`, then finalize/lock as usual.
 
+## 2e. Video cleanup (Apple does none of this)
+
+```sh
+uv run photo-cleanup videos --open                  # dry-run report
+uv run photo-cleanup videos --large-mb 300 --open   # custom oversized threshold
+uv run photo-cleanup videos --apply                 # ⚠️ Terminal — tag
+```
+
+Two checks: **near-duplicate takes** (several videos of the same thing shot close
+together — poster-frame embeddings; keeps the largest = longest take) → tagged
+`cleanup:video`; and **oversized videos** (≥200 MB by default) worth a deliberate
+keep/drop decision → tagged `cleanup:large`. Excludes Hidden/Shared/`reviewed:keep`.
+Review the Smart Albums, ♥ to keep, delete the rest — same flow as the others.
+
 ## 3. Bail out / revert
 ```sh
 uv run photo-cleanup undo --apply      # ⚠️ Terminal; removes ALL cleanup:* keywords
@@ -207,6 +221,7 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | `embed` | yes | no | precompute Vision embeddings for dedup |
 | `dedup` | yes | only with `--apply` | near-dup report; tag discards `cleanup:duplicate` |
 | `expired` | yes | only with `--apply` | flag aged single-purpose photos `cleanup:expired` |
+| `videos` | yes | only with `--apply` | near-dup video takes `cleanup:video` + oversized `cleanup:large` |
 | `learn` | yes | no | train the keeper model from your past keep/discard choices |
 | `apply` | uses cache | yes | tag work screenshots `cleanup:screenshot` |
 | `fav-baseline` | yes | no | snapshot pre-existing favorites |

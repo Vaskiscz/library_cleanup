@@ -72,6 +72,7 @@ The read path (`scan`, `rescue-plan`, `fav-baseline`) works anywhere with Full D
 - [x] Stage 2 — `apply`/`undo` write-back, plus `fav-baseline`/`rescue-plan`/`clear-tags`/`unfavorite` review-and-rescue workflow
 - [x] Photoshoot dedup — `embed` (Vision-embedding precompute) + `dedup` (staged near-duplicate report; `--apply` tags discards `cleanup:duplicate`), with adaptive, diversity-aware keepers
 - [x] `reviewed:keep` — permanent "don't re-review" lock (per-keeper or per-event), excluded from all passes
+- [x] Video cleanup (`videos`) — near-duplicate takes (poster-frame embeddings, keep largest) `cleanup:video` + oversized videos `cleanup:large`; Apple Photos does neither
 - [x] Expired-utility layer (`expired`) — flags aged single-purpose photos (receipts/wifi/parking/tickets) via Apple labels + OCR + age; tags `cleanup:expired`
 - [x] Learning engine (`learn`) — trains an on-device keeper model from your keep/discard choices over Apple's aesthetic sub-scores + `VNDetectFaceCaptureQuality`; anchored to the heuristic, improves each iteration
 
