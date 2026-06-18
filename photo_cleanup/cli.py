@@ -15,7 +15,7 @@ from . import apply as apply_mod
 from .analyze import analyze
 from .model import Config
 from .report import write_report
-from .scan import load_records, save_records, scan_library
+from .scan import ensure_records, load_records, save_records, scan_library
 
 DEFAULT_CACHE = os.path.expanduser("~/.cache/photo-cleanup/records.json")
 DEFAULT_REPORT = os.path.abspath("./cleanup-report.html")
@@ -37,18 +37,17 @@ def scan(dbpath, cache, rescan, report_path, limit, open_report):
     """Read-only scan + analysis. Produces a local HTML review report."""
     t0 = time.time()
 
-    if rescan or not os.path.exists(cache):
-        click.echo("Reading Photos library (read-only)…")
-        try:
-            records = scan_library(dbpath)
-        except Exception as e:
-            _hint_permission(e)
-            sys.exit(1)
-        save_records(records, cache)
-        click.echo(f"  cached {len(records)} photos -> {cache}")
-    else:
-        records = load_records(cache)
-        click.echo(f"Loaded {len(records)} photos from cache ({cache}). Use --rescan to refresh.")
+    from .scan import cache_is_fresh
+    fresh = cache_is_fresh(cache, dbpath)
+    if rescan or not fresh:
+        click.echo("Reading Photos library (cache stale or --rescan)…")
+    try:
+        records = ensure_records(cache, dbpath, force=rescan)
+    except Exception as e:
+        _hint_permission(e)
+        sys.exit(1)
+    if not rescan and fresh:
+        click.echo(f"Loaded {len(records)} photos from fresh cache. Use --rescan to force.")
 
     if limit:
         records = records[:limit]
@@ -75,11 +74,7 @@ def scan(dbpath, cache, rescan, report_path, limit, open_report):
 
 
 def _load_or_scan(cache, dbpath, rescan):
-    if rescan or not os.path.exists(cache):
-        records = scan_library(dbpath)
-        save_records(records, cache)
-        return records
-    return load_records(cache)
+    return ensure_records(cache, dbpath, force=rescan)
 
 
 @cli.command()
@@ -168,7 +163,7 @@ def _filter_by_date(records, since, until):
 def _active_records(cache, since, until, include_reviewed=False):
     """Load records for a scope, excluding the Hidden album and (unless
     include_reviewed) anything already marked reviewed:keep."""
-    recs = _filter_by_date(load_records(cache), since, until)
+    recs = _filter_by_date(ensure_records(cache), since, until)
     return [r for r in recs if not r.is_hidden
             and (include_reviewed or apply_mod.KW_REVIEWED not in (r.keywords or []))]
 
@@ -560,7 +555,7 @@ def mark_reviewed(uuids_file, since, until, cache, do_apply):
     Use --uuids-file for a finalize's keepers, or --since/--until to lock an event."""
     import json
     if since or until:
-        uuids = [r.uuid for r in _filter_by_date(load_records(cache), since, until)]
+        uuids = [r.uuid for r in _filter_by_date(ensure_records(cache), since, until)]
         src = f"{since or '…'} → {until or '…'}"
     else:
         with open(uuids_file) as f:

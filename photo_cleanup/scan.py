@@ -125,14 +125,53 @@ def scan_library(
     return records
 
 
-# ---- cache -----------------------------------------------------------------
+# ---- cache (staleness-aware) -----------------------------------------------
 
-def save_records(records: Iterable[Record], path: str) -> None:
+def _db_mtime(dbpath: Optional[str] = None) -> Optional[float]:
+    """Newest mtime of the Photos SQLite + its WAL/SHM — changes on any
+    edit/favorite/delete, so we can tell if the cache is out of date."""
+    lib = dbpath or os.path.expanduser("~/Pictures/Photos Library.photoslibrary")
+    dbdir = os.path.join(lib, "database")
+    try:
+        ms = [os.path.getmtime(os.path.join(dbdir, f)) for f in os.listdir(dbdir)
+              if f.startswith("Photos.sqlite")]
+        return max(ms) if ms else None
+    except OSError:
+        return None
+
+
+def save_records(records: Iterable[Record], path: str, dbpath: Optional[str] = None) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    recs = list(records)
     with open(path, "w") as f:
-        json.dump([r.to_dict() for r in records], f)
+        json.dump([r.to_dict() for r in recs], f)
+    with open(path + ".meta.json", "w") as f:
+        json.dump({"count": len(recs), "lib_mtime": _db_mtime(dbpath)}, f)
 
 
 def load_records(path: str) -> list[Record]:
     with open(path) as f:
         return [Record.from_dict(d) for d in json.load(f)]
+
+
+def cache_is_fresh(path: str, dbpath: Optional[str] = None) -> bool:
+    """True if the cache exists and the library hasn't changed since it was built."""
+    meta_path = path + ".meta.json"
+    if not (os.path.exists(path) and os.path.exists(meta_path)):
+        return False
+    try:
+        meta = json.load(open(meta_path))
+    except Exception:
+        return False
+    lm = _db_mtime(dbpath)
+    return meta.get("lib_mtime") is not None and lm is not None and lm <= meta["lib_mtime"]
+
+
+def ensure_records(path: str, dbpath: Optional[str] = None, force: bool = False) -> list[Record]:
+    """Return Records, rescanning ONLY if forced or the cache is stale (library
+    changed since last scan). Avoids redundant full rescans and stale data."""
+    if not force and cache_is_fresh(path, dbpath):
+        return load_records(path)
+    records = scan_library(dbpath)
+    save_records(records, path, dbpath)
+    return records

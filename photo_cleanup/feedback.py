@@ -214,7 +214,7 @@ def train(model: KeeperModel, pairs: list[tuple[dict, dict]],
     confidence = len(pairs) / (len(pairs) + conf_scale)   # 0..1, grows with evidence
     w = w0.copy()
     for _ in range(epochs):
-        z = Xs @ w
+        z = np.clip(Xs @ w, -30.0, 30.0)   # clip for numerical stability
         g = 1.0 / (1.0 + np.exp(z))        # sigmoid(-z)
         grad = -confidence * (Xs * g[:, None]).mean(0) + reg * (w - w0)
         w -= lr * grad

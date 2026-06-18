@@ -27,6 +27,14 @@ The only "cloud" anywhere near this is *your existing* iCloud Photos sync. This 
 uv sync
 ```
 
+## Tests
+
+Pure-logic unit tests (no Photos library needed):
+
+```sh
+uv run pytest -q
+```
+
 ## Usage (stage 1 — read-only)
 
 ```sh
