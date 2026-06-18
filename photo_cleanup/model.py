@@ -121,6 +121,10 @@ class Record:
     in_burst: bool
     favorite: bool
     keywords: list[str] = field(default_factory=list)
+    # metadata richness (device/AirDrop originals keep these; messaging re-encodes
+    # strip them — used to prefer the true original among duplicate videos)
+    camera_make: str = ""
+    camera_model: str = ""
 
     # Apple's on-device intelligence (no decoding, no network)
     detected_text: str = ""                 # Apple Vision OCR text

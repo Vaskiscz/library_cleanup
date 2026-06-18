@@ -183,7 +183,9 @@ uv run photo-cleanup videos --apply                 # ⚠️ Terminal — tag
 
 Both checks share one tag, `cleanup:video`, with a favorite-driven review:
 - **Near-duplicate takes** (same thing shot close together — poster-frame
-  embeddings): the best **size/quality ratio** take is Favorited (♥ = keep); the
+  embeddings): the keeper is the take with the **most original metadata** (GPS +
+  camera EXIF → prefers the device/AirDrop original over a metadata-stripped
+  messaging copy), tie-broken by best **size/quality ratio**. The keeper is ♥;
   extra takes stay un-♥ (delete candidates).
 - **Oversized videos** (≥200 MB, `--large-mb`): **all Favorited** (kept by
   default) — you un-♥ the ones you decide to drop.

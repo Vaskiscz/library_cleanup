@@ -80,6 +80,8 @@ def photo_to_record(photo) -> Record:
         in_burst=bool(_safe(lambda: photo.burst, False)),
         favorite=bool(_safe(lambda: photo.favorite, False)),
         keywords=_safe(lambda: list(photo.keywords), []) or [],
+        camera_make=_safe(lambda: photo.exif_info.camera_make, "") or "",
+        camera_model=_safe(lambda: photo.exif_info.camera_model, "") or "",
         detected_text=_extract_text(si),
         labels=[str(x).lower() for x in (labels or [])],
         media_types=[str(x).lower() for x in (media_types or [])],

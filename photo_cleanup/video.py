@@ -33,6 +33,20 @@ def video_size(rec: Record) -> int:
         return 0
 
 
+def metadata_richness(rec: Record) -> int:
+    """How much original metadata survives — device/AirDrop originals keep GPS +
+    camera EXIF; messaging-app re-encodes strip them. Higher = more likely the
+    true original (preferred as the keeper)."""
+    score = 0
+    if rec.latitude is not None and rec.longitude is not None:
+        score += 2          # GPS is the strongest signal (stripped by messaging)
+    if rec.camera_make:
+        score += 1
+    if rec.camera_model:
+        score += 1
+    return score
+
+
 def quality_per_byte(rec: Record) -> float:
     """Size-to-quality ratio: pixels (resolution) per byte. Higher = better value
     — keeps a crisp-but-lean take over a bloated one of the same scene."""
@@ -76,7 +90,9 @@ def duplicate_takes(records: list[Record], cache, cfg: Config) -> list[Duplicate
         for grp in groups.values():
             if len(grp) < 2:
                 continue
-            keeper = max(grp, key=quality_per_byte)
+            # Keeper: most original metadata first (the true device/AirDrop
+            # original over a stripped messaging copy), then best size/quality.
+            keeper = max(grp, key=lambda r: (metadata_richness(r), quality_per_byte(r)))
             discards = [r for r in grp if r.uuid != keeper.uuid]
             # never discard a favorite
             promoted = [d for d in discards if d.favorite]
