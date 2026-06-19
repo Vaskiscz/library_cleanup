@@ -128,16 +128,16 @@ function catCard(c) {
   const sub = c.grouped
     ? `across ${fmtN(s ? s.groups : 0)} ${c.setword}`
     : "flagged to remove";
-  const count = has ? `${fmtN(s.items)} <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span>` : "—";
+  const right = has
+    ? `<div class="count">${fmtN(s.items)} <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
+       <div class="save">Save up to ${fmtGB(s.reclaimable_bytes)}</div>
+       <div class="desc">${sub}</div>`
+    : `<div class="none">none identified</div>`;
   return `
     <button class="cat ${on ? "on" : ""} ${has ? "" : "disabled"}" data-cat="${c.id}" ${has ? "" : "disabled"}>
       <span class="check">${icon("i-check")}</span>
       <span class="body"><div class="name">${c.name}</div><div class="desc">${c.desc}</div></span>
-      <span class="right">
-        <div class="count">${count}</div>
-        <div class="${has ? "save" : ""}">${has ? "Save up to " + fmtGB(s.reclaimable_bytes) : ""}</div>
-        ${has ? `<div class="desc">${sub}</div>` : `<span class="soon">None found</span>`}
-      </span>
+      <span class="right">${right}</span>
     </button>`;
 }
 
