@@ -14,8 +14,12 @@ KC="$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
 KCPW="${LC_KEYCHAIN_PW:-libraryclean}"
 APP="build/photocleanup/macos/app/Library Cleanup.app"
 ENT="build/photocleanup/macos/app/Entitlements.plist"
-VOL="Library Cleanup 0.1.0"
-DMG="dist/Library Cleanup-0.1.0.dmg"
+
+echo "[0/4] Bumping patch version ..."
+VERSION="$(python3 scripts/bump-version.py)"
+echo "  -> v$VERSION"
+VOL="Library Cleanup $VERSION"
+DMG="dist/Library Cleanup-$VERSION.dmg"
 
 security unlock-keychain -p "$KCPW" "$KC"
 
