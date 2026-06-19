@@ -64,6 +64,11 @@ button { font-family: inherit; cursor: pointer; }
 .hero h1 { font-size: 25px; font-weight: var(--pc-weight-semibold); letter-spacing: -.02em; margin: 0 0 10px; }
 .hero p.sub { font-size: 15px; color: var(--pc-text-secondary); max-width: 440px; margin: 0 0 26px; line-height: 1.5; }
 .hero .past { font-size: var(--pc-text-sm); color: var(--pc-text-tertiary); margin-top: 16px; }
+.errbox { max-width: 460px; margin: 0 0 24px; padding: 14px 16px; text-align: left;
+  background: var(--pc-warn-tint); border: 1px solid var(--pc-warn); border-radius: var(--pc-radius-md); }
+.errbox .errttl { font-weight: var(--pc-weight-semibold); color: var(--pc-warn); margin-bottom: 5px; }
+.errbox .errmsg { font-size: var(--pc-text-sm); color: var(--pc-text-secondary); line-height: 1.45; }
+.errbox .errrow { margin-top: 12px; }
 .foot-note {
   border-top: 1px solid var(--pc-separator); background: var(--pc-surface-2);
   padding: 13px var(--pc-sp-5); display: flex; align-items: center; justify-content: center; gap: 8px;

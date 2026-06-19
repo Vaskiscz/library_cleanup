@@ -50,6 +50,12 @@ def test_analyze_summary(client):
     assert summary["expired"]["items"] == 0  # stub records aren't expired
 
 
+def test_diagnostics_endpoint(client):
+    r = client.get("/api/diagnostics")
+    assert r.status_code == 200
+    assert "log_path" in r.json() and "library-cleanup.log" in r.json()["log_path"]
+
+
 def test_analyze_rejects_bad_layer(client):
     assert client.post("/api/analyze", json={"layers": ["bogus"]}).status_code == 400
 

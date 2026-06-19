@@ -12,10 +12,16 @@ HOST, PORT = "127.0.0.1", 8765
 
 def _serve():
     """Run uvicorn in this (daemon) thread, serving the local API + UI."""
-    import uvicorn
+    from photocleanup.diagnostics import log_failure, setup_logging
+    setup_logging()
+    try:
+        import uvicorn
 
-    from photocleanup.server import create_app
-    uvicorn.run(create_app(), host=HOST, port=PORT, log_level="warning")
+        from photocleanup.server import create_app
+        uvicorn.run(create_app(), host=HOST, port=PORT, log_level="warning")
+    except BaseException as e:  # noqa: BLE001
+        log_failure("server startup", e)
+        raise
 
 
 class PhotoCleanup(toga.App):

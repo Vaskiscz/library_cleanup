@@ -98,7 +98,9 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                                         excluded=_store().reviewed_uuids(), progress=cb)
                 job.update({"status": "done", "summary": res["summary"], "message": "Done"})
             except Exception as e:  # noqa: BLE001
-                job.update({"status": "error", "error": str(e)})
+                from .diagnostics import LOG_PATH, log_failure
+                log_failure("analyze", e)
+                job.update({"status": "error", "error": str(e), "log": LOG_PATH})
 
         threading.Thread(target=run, daemon=True).start()
         return {"started": True}
@@ -162,6 +164,23 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         items go to Recently Deleted). Pass dry_run to only resolve/count."""
         from .delete import delete_assets
         return delete_assets(body.uuids, dry_run=body.dry_run)
+
+    @app.get("/api/diagnostics")
+    def diagnostics():
+        from .diagnostics import LOG_PATH, library_access_ok
+        ok, detail = library_access_ok()
+        return {"log_path": LOG_PATH, "log_exists": os.path.exists(LOG_PATH),
+                "library_readable": ok, "detail": detail}
+
+    @app.post("/api/open-log")
+    def open_log():
+        """Reveal the diagnostic log in Finder so it's easy to share."""
+        import subprocess
+        from .diagnostics import LOG_PATH
+        if os.path.exists(LOG_PATH):
+            subprocess.run(["open", "-R", LOG_PATH], check=False)
+            return {"opened": True, "path": LOG_PATH}
+        return {"opened": False, "path": LOG_PATH}
 
     @app.post("/api/learn")
     def learn():

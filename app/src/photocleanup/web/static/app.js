@@ -46,6 +46,8 @@ const state = {
   phase: "idle",            // idle | scanning | results
   libStatus: "unknown",     // unknown | connected | error  (drives the status dot)
   version: "",              // app version, shown in the home footer
+  errorMsg: "",             // last analyze failure (shown on the home screen)
+  errorLog: "",             // path to the diagnostic log for that failure
   lib: null,                // {photos, videos}
   cardSize: 116,            // review preview size (px), slider + cmd+wheel
   summary: null,            // {layer: {groups, items, removable, reclaimable_bytes}}
@@ -93,12 +95,23 @@ function renderHome() {
   if (state.phase === "idle") {
     const past = state.summary
       ? "" : `<div class="past">Everything stays on your Mac.</div>`;
+    const err = state.libStatus === "error" ? `
+        <div class="errbox">
+          <div class="errttl">Couldn't read your photo library</div>
+          <div class="errmsg">Library Cleanup needs <b>Full Disk Access</b>. Open
+            System Settings ▸ Privacy &amp; Security ▸ <b>Full Disk Access</b>, enable
+            <b>Library Cleanup</b>, then click Analyze again.</div>
+          <div class="errrow">
+            <button class="btn-secondary sm" id="openlog">Open log to send the developer</button>
+          </div>
+        </div>` : "";
     body = `
       <div class="scroll"><div class="home"><div class="hero">
         <svg class="appicon" viewBox="0 0 1024 1024"><use href="#appicon"/></svg>
         <h1>Tidy your photo library</h1>
         <p class="sub">We scan on your Mac, pre-pick the best of every burst and flag clutter.
           You just review the suggestions and confirm.</p>
+        ${err}
         <button class="btn btn-primary" id="analyze">Analyze my library</button>
         ${past}
       </div></div></div>
@@ -158,6 +171,7 @@ function resultsBar() {
 
 function bindHome() {
   const a = $("#analyze"); if (a) a.onclick = startAnalyze;
+  const ol = $("#openlog"); if (ol) ol.onclick = () => api.post("/api/open-log").catch(() => {});
   const c = $("#cancel"); if (c) c.onclick = () => { state.cancelled = true; state.phase = "idle"; render(); };
   const rs = $("#rescan"); if (rs) rs.onclick = () => { state.phase = "idle"; render(); };
   const rv = $("#review"); if (rv) rv.onclick = enterReview;
@@ -196,10 +210,9 @@ async function pollProgress() {
     state.phase = "results"; render();
   } else if (p.status === "error") {
     state.libStatus = "error";
+    state.errorMsg = p.error || "Something went wrong.";
+    state.errorLog = p.log || "";
     state.phase = "idle"; render();
-    alert("Analysis failed: " + (p.error || "unknown") +
-      "\n\nIf this mentions permission, grant Full Disk Access to Library Cleanup in " +
-      "System Settings ▸ Privacy & Security, then try again.");
   } else {
     setTimeout(pollProgress, 400);
   }
