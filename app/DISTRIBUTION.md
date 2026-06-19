@@ -5,7 +5,11 @@ fine, but because Apple hasn't notarized it, macOS Gatekeeper warns on first
 open and a recipient has to allow it once. Everything still runs **on-device** —
 nothing is uploaded.
 
-Artifact: `dist/Library Cleanup-<version>.dmg`.
+Artifact: `dist/Library Cleanup-<version>.dmg` (~45 MB).
+
+**Requirements for recipients:** an **Apple Silicon** Mac (the build is arm64
+only) on a recent macOS, plus the two permissions below (Full Disk Access is
+mandatory — the app can't read the library without it).
 
 ---
 
