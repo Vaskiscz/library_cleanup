@@ -212,9 +212,17 @@ class Engine:
         `progress(message, done, total)` is called throughout so the UI can show
         the access request, library connection, and counted/total processing.
         """
+        from photo_cleanup.cluster import find_duplicate_groups, time_gps_clusters
+        from photo_cleanup.embedding import EmbeddingCache, embed_records
+        from photo_cleanup.expired import classify_expired
+        from photo_cleanup.feedback import inject_face_quality
+        from photo_cleanup.screenshots import classify_screenshot
+        from photo_cleanup.video import duplicate_takes
+
         layers = [l for l in (layers or ALL_LAYERS) if l in ALL_LAYERS]
         excluded = excluded or set()
         self._candidates = {}
+        photo_layers = [l for l in layers if l in ("dedup", "screenshots", "expired")]
 
         def emit(msg, done=None, total=None):
             if progress:
@@ -228,44 +236,59 @@ class Engine:
         except Exception:
             pass
 
-        photos = []
-        if any(l in layers for l in ("dedup", "screenshots", "expired")):
-            emit("Connecting to your photo library…")
-            photos = self.load_records(since, until, excluded=excluded)
-            emit(f"Found {len(photos):,} photos to review", 0, len(photos) or None)
+        # 2) connect + load the scope
+        emit("Connecting to your photo library…")
+        photos = self.load_records(since, until, excluded=excluded) if photo_layers else []
+        videos = self.load_videos(since, until, excluded=excluded) if "videos" in layers else []
+        total = len(photos) + len(videos)
+        done = 0
+        emit(f"Found {len(photos):,} photos and {len(videos):,} videos", done, total or None)
+
+        # dedup candidates (photos in a multi-shot time/GPS cluster)
+        ec = EmbeddingCache(self.emb_cache)
+        cand = set()
+        if "dedup" in layers:
+            for c in time_gps_clusters(photos, self.cfg):
+                if len(c) >= 2:
+                    cand.update(r.uuid for r in c)
+
+        # 3) ONE pass over every photo: embed dedup candidates + classify.
+        #    `done/total` advances per file, so the bar tracks files analyzed.
+        shots, exp, cand_recs = [], [], []
+        for rec in photos:
+            if rec.uuid in cand:
+                embed_records([rec], ec)
+                cand_recs.append(rec)
+            if "screenshots" in layers and (sv := classify_screenshot(rec, self.cfg)).is_work:
+                shots.append((rec, sv))
+            if "expired" in layers and (ev := classify_expired(rec, self.cfg)).is_expired:
+                exp.append((rec, ev))
+            done += 1
+            if done % 50 == 0 or done == len(photos):
+                emit("Analyzing photos…", done, total or None)
 
         if "dedup" in layers:
-            emit("Comparing photoshoots…")
-            self._candidates["dedup"] = self.dedup_payload(self.dedup_groups(photos, progress=emit))
-            emit("Grouping photoshoots…")
+            ec.save()
+            emit("Grouping photoshoots…", done, total or None)
+            inject_face_quality(cand_recs)
+            self._candidates["dedup"] = self.dedup_payload(
+                find_duplicate_groups(photos, self.cfg, embeddings=ec))
+        if "screenshots" in layers:
+            self._candidates["screenshots"] = self.screenshot_payload(shots)
+        if "expired" in layers:
+            self._candidates["expired"] = self.expired_payload(exp)
 
-        if "screenshots" in layers or "expired" in layers:
-            from photo_cleanup.expired import classify_expired
-            from photo_cleanup.screenshots import classify_screenshot
-            shots, exp, n = [], [], len(photos)
-            for i, rec in enumerate(photos, 1):
-                if "screenshots" in layers:
-                    sv = classify_screenshot(rec, self.cfg)
-                    if sv.is_work:
-                        shots.append((rec, sv))
-                if "expired" in layers:
-                    ev = classify_expired(rec, self.cfg)
-                    if ev.is_expired:
-                        exp.append((rec, ev))
-                if i % 250 == 0 or i == n:
-                    emit("Scanning for screenshots & clutter", i, n)
-            if "screenshots" in layers:
-                self._candidates["screenshots"] = self.screenshot_payload(shots)
-            if "expired" in layers:
-                self._candidates["expired"] = self.expired_payload(exp)
-
+        # 4) videos: embed poster frames per file (same shared counter)
         if "videos" in layers:
-            emit("Connecting to your videos…")
-            vids = self.load_videos(since, until, excluded=excluded)
-            emit(f"Found {len(vids):,} videos", 0, len(vids) or None)
-            self._candidates["videos"] = self.video_payload(self.video_groups(vids, progress=emit))
+            for rec in videos:
+                embed_records([rec], ec)
+                done += 1
+                if done % 20 == 0 or done == total:
+                    emit("Analyzing videos…", done, total or None)
+            ec.save()
+            self._candidates["videos"] = self.video_payload(duplicate_takes(videos, ec, self.cfg))
 
-        emit("Finishing up…")
+        emit("Finishing up…", total or None, total or None)
         return {"since": since, "until": until,
                 "summary": {l: self._summarize(self._candidates.get(l, [])) for l in layers}}
 

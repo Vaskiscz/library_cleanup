@@ -51,6 +51,22 @@ class StubEngine(Engine):
     def video_groups(self, videos, progress=None):
         return self._vgroups
 
+    def analyze(self, since=None, until=None, layers=None, excluded=None, progress=None):
+        from photocleanup.engine import ALL_LAYERS
+        layers = [l for l in (layers or ALL_LAYERS) if l in ALL_LAYERS]
+        if progress:
+            progress("Analyzing photos…", 1, 2)
+            progress("Finishing up…", 2, 2)
+        built = {
+            "dedup": self.dedup_payload(self._groups),
+            "videos": self.video_payload(self._vgroups),
+            "screenshots": self.screenshot_payload([]),
+            "expired": self.expired_payload([]),
+        }
+        self._candidates = {l: built[l] for l in layers}
+        return {"since": since, "until": until,
+                "summary": {l: self._summarize(self._candidates[l]) for l in layers}}
+
 
 def make_stub_engine():
     """One photo burst (keep 'a', remove 'b','c') and one video set (keep 'v1',

@@ -22,6 +22,8 @@ const api = {
 
 const fmtN = (n) => (n || 0).toLocaleString();
 const fmtGB = (b) => `${((b || 0) / 1073741824).toFixed(1)} GB`;
+const fmtSize = (mb) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB`
+  : `${mb < 10 ? (mb || 0).toFixed(1) : Math.round(mb)} MB`);
 const icon = (id, cls = "") => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 
 const CATS = [
@@ -39,7 +41,9 @@ const CAT = Object.fromEntries(CATS.map((c) => [c.id, c]));
 const state = {
   view: "home",
   phase: "idle",            // idle | scanning | results
+  libStatus: "unknown",     // unknown | connected | error  (drives the status dot)
   lib: null,                // {photos, videos}
+  cardSize: 116,            // review preview size (px), slider + cmd+wheel
   summary: null,            // {layer: {groups, items, removable, reclaimable_bytes}}
   selected: new Set(),
   candidates: {},           // layer -> groups
@@ -53,15 +57,22 @@ const state = {
 
 /* ---- chrome --------------------------------------------------------------- */
 function chrome(inner) {
-  const lib = state.lib;
-  const status = lib
-    ? `Library connected · ${fmtN(lib.photos)} photos · ${fmtN(lib.videos)} videos`
-    : "Library connected";
+  // The dot/text reflect REAL state: grey until we've actually read the library,
+  // green once a scan succeeded, red if access failed.
+  let dot = "idle", text = "Not scanned yet";
+  if (state.libStatus === "error") {
+    dot = "err"; text = "Library access needed";
+  } else if (state.libStatus === "connected") {
+    dot = "ok";
+    text = state.lib
+      ? `Library connected · ${fmtN(state.lib.photos)} photos · ${fmtN(state.lib.videos)} videos`
+      : "Library connected";
+  }
   return `
     <div class="chrome">
       <div class="topbar">
         <div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
-        <div class="status"><span class="dot"></span>${status}</div>
+        <div class="status"><span class="dot ${dot}"></span>${text}</div>
       </div>
       ${inner}
     </div>`;
@@ -96,7 +107,7 @@ function renderHome() {
         <div class="step" id="step">Starting…</div>
         <div class="progress indet" id="prog"><span id="bar" style="width:100%"></span></div>
         <div class="count" id="count"></div>
-        <div style="margin-top:22px"><button class="btn-text" id="cancel">Cancel</button></div>
+        <div style="margin-top:22px"><button class="btn-secondary" id="cancel">Cancel</button></div>
       </div></div></div>`;
   } else {
     body = `<div class="scroll"><div class="home"><div class="results">
@@ -134,7 +145,7 @@ function resultsBar() {
   const sel = [...state.selected];
   const gb = sel.reduce((a, id) => a + (state.summary[id]?.reclaimable_bytes || 0), 0);
   return `<div class="bar bottom">
-      <button class="btn-text" id="rescan">Re-scan</button>
+      <button class="btn-secondary" id="rescan">Re-scan</button>
       <div style="flex:1"></div>
       <div style="color:var(--pc-text-tertiary)">${sel.length} categor${sel.length === 1 ? "y" : "ies"} · save up to ${fmtGB(gb)}</div>
       <button class="btn btn-primary" id="review" ${sel.length ? "" : "disabled"}>Review ${sel.length} categor${sel.length === 1 ? "y" : "ies"}</button>
@@ -174,11 +185,13 @@ async function pollProgress() {
   catch { return void setTimeout(pollProgress, 600); }
   updateScanning(p);
   if (p.status === "done") {
+    state.libStatus = "connected";   // the library was read successfully
     state.summary = p.summary;
     state.selected = new Set(CATS.filter((c) => p.summary[c.id]?.items > 0).map((c) => c.id));
     api.get("/api/library-stats").then((s) => { state.lib = s; render(); }).catch(() => {});
     state.phase = "results"; render();
   } else if (p.status === "error") {
+    state.libStatus = "error";
     state.phase = "idle"; render();
     alert("Analysis failed: " + (p.error || "unknown") +
       "\n\nIf this mentions permission, grant Full Disk Access to Library Cleanup in " +
@@ -249,10 +262,14 @@ function renderReview() {
       <span>${fmtN(c.items)} items in ${layers.length} categor${layers.length === 1 ? "y" : "ies"}</span>
       <span class="mini-prog"><span style="width:${pct}%"></span></span>
       <span><span class="keep-n">Keeping ${fmtN(c.keep)}</span> · <span class="rem-n">Removing ${fmtN(c.rem)}</span></span>
+      <span class="sizer" title="Preview size (⌘ + scroll)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+        <input type="range" min="84" max="240" step="2" value="${state.cardSize}" id="cardsize">
+      </span>
     </div>
     <div class="scroll"><div class="review">${sections}</div></div>
     <div class="bar bottom">
-      <button class="btn-text" id="back">‹ Back</button>
+      <button class="btn-secondary" id="back">‹ Back</button>
       <div style="flex:1"></div>
       <div style="color:var(--pc-text-tertiary)">
         <span class="keep-n">Keeping ${fmtN(c.keep)}</span> ·
@@ -289,8 +306,8 @@ function groupHtml(layer, g) {
       <span class="gtitle">${g.title}</span>
       <span class="gmeta">· ${g.size} ${noun} · keep ${keep} · remove ${rem}</span>
       <span class="spacer"></span>
-      <button class="btn-text" data-all="keep" data-layer="${layer}" data-g="${g.group_key}">Keep all</button>
-      <button class="btn-text" data-all="remove" data-layer="${layer}" data-g="${g.group_key}">Remove all</button>
+      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${g.group_key}">Keep all</button>
+      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${g.group_key}">Remove all</button>
       <button class="chev" data-collapse="${g.group_key}">${collapsed ? "▸" : "▾"}</button>
     </div>
     <div class="gbody">${g.photos.map((p) => cardHtml(layer, p)).join("")}</div>
@@ -301,31 +318,26 @@ function flatHtml(layer, g) {
   return `<div class="group"><div class="ghead">
       <span class="gtitle">All flagged to remove</span><span class="gmeta">· tap any to keep</span>
       <span class="spacer"></span>
-      <button class="btn-text" data-all="keep" data-layer="${layer}" data-g="${g.group_key}">Keep all</button>
-      <button class="btn-text" data-all="remove" data-layer="${layer}" data-g="${g.group_key}">Remove all</button>
+      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${g.group_key}">Keep all</button>
+      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${g.group_key}">Remove all</button>
     </div><div class="gbody">${g.photos.map((p) => cardHtml(layer, p, true)).join("")}</div></div>`;
 }
 
 function cardHtml(layer, p, shot = false) {
   const v = state.decisions[layer][p.uuid];
-  const badge = v === "keep" ? `<span class="badge">${icon("i-check")}</span>`
-    : `<span class="badge">${icon("i-x")}</span>`;
+  const badge = `<span class="badge">${icon(v === "keep" ? "i-check" : "i-x")}</span>`;
   const fav = p.favorite ? `<svg class="fav"><use href="#i-heart"/></svg>` : "";
   let overlay = "";
   if (p.is_video) {
     const dur = p.duration ? `${Math.floor(p.duration / 60)}:${String(Math.round(p.duration % 60)).padStart(2, "0")}` : "";
     overlay = `<div class="vplay">${icon("i-play")}</div>${dur ? `<span class="vdur">${dur}</span>` : ""}`;
   }
-  const meta = p.is_video
-    ? `${p.width}×${p.height}` : `score ${p.score} · ${p.width}×${p.height}`;
-  const cap = shot && p.subtitle ? `<div class="cap">${escapeHtml(p.subtitle)}</div>`
-    : `<div class="fn">${escapeHtml(p.filename)}</div>`;
   return `<div class="card ${shot ? "shot" : ""} ${v === "keep" ? "keep" : "remove"}" data-uuid="${p.uuid}" data-layer="${layer}">
     <div class="frame" tabindex="0" role="button" aria-pressed="${v === "keep"}">
       <img src="${p.thumb}" loading="lazy" alt="">
       ${fav}${overlay}${badge}
-      <div class="meta">${meta}</div>
-    </div>${cap}</div>`;
+    </div>
+    <div class="fn">${escapeHtml(p.filename)} · ${fmtSize(p.size_mb)}</div></div>`;
 }
 
 function escapeHtml(s) {
@@ -335,6 +347,7 @@ function escapeHtml(s) {
 function bindReview() {
   $("#back").onclick = () => { state.view = "home"; state.phase = "results"; render(); };
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
+  const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
 
   app.querySelectorAll(".card[data-uuid]").forEach((card) => {
     const toggle = () => flip(card);
@@ -412,7 +425,7 @@ function modalHtml() {
         <div class="row">${tick()}<span>Kept items are marked reviewed and won't be shown again. Nothing leaves your Mac.</span></div>
       </div>
       <div class="actions">
-        <button class="btn" id="m-cancel">Go back</button>
+        <button class="btn-secondary" id="m-cancel">Go back</button>
         <button class="btn btn-danger" id="m-go">Remove ${fmtN(c.rem)}</button>
       </div></div></div>`;
   }
@@ -486,7 +499,22 @@ function findGroupKey(layer, uuid) {
   return g ? g.group_key : null;
 }
 
+/* ---- preview size (slider + ⌘-scroll) ------------------------------------- */
+function setCardSize(px) {
+  px = Math.max(84, Math.min(240, Math.round(px)));
+  state.cardSize = px;
+  document.documentElement.style.setProperty("--card", px + "px");
+  const cs = $("#cardsize");
+  if (cs && +cs.value !== px) cs.value = px;
+}
+
 /* ---- boot ----------------------------------------------------------------- */
 // Nothing here touches the photo library — the first library access (and any
 // Photos permission prompt) happens only when the user clicks "Analyze".
+setCardSize(state.cardSize);
+document.addEventListener("wheel", (e) => {
+  if (!e.metaKey || state.view !== "review") return;
+  e.preventDefault();                          // don't let the page zoom
+  setCardSize(state.cardSize + (e.deltaY < 0 ? 10 : -10));
+}, { passive: false });
 render();

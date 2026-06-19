@@ -23,7 +23,9 @@ button { font-family: inherit; cursor: pointer; }
 .topbar .brand { font-size: 14px; font-weight: var(--pc-weight-semibold); display: flex; align-items: center; gap: 9px; white-space: nowrap; }
 .topbar .brand svg { width: 22px; height: 22px; flex: none; }
 .topbar .status { font-size: var(--pc-text-sm); color: var(--pc-text-secondary); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
-.topbar .status .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--pc-keep); display: inline-block; }
+.topbar .status .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--pc-text-tertiary); display: inline-block; }
+.topbar .status .dot.ok { background: var(--pc-keep); }
+.topbar .status .dot.err { background: var(--pc-clear); }
 
 .scroll { flex: 1; overflow-y: auto; }
 
@@ -43,6 +45,16 @@ button { font-family: inherit; cursor: pointer; }
 .btn-primary:disabled, .btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
 .btn-text { background: none; border: none; color: var(--pc-text-secondary); padding: 8px 10px; font-weight: var(--pc-weight-medium); }
 .btn-text:hover { color: var(--pc-text); text-decoration: underline; }
+/* secondary = primary shape, grey fill, generous hit area */
+.btn-secondary {
+  border: none; border-radius: var(--pc-radius-md); padding: 11px 22px;
+  font-size: var(--pc-text-md); font-weight: var(--pc-weight-semibold);
+  background: var(--pc-surface-sunken); color: var(--pc-text);
+  transition: background var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-fast) var(--pc-ease);
+}
+.btn-secondary:hover { background: var(--pc-border); }
+.btn-secondary:active { transform: scale(.98); }
+.btn-secondary.sm { padding: 8px 15px; font-size: var(--pc-text-base); }
 .btn-danger { background: var(--pc-clear); color: #fff; border: none; box-shadow: 0 2px 8px rgba(198,40,40,.28); }
 
 /* ---- home ----------------------------------------------------------------- */
@@ -107,6 +119,8 @@ button { font-family: inherit; cursor: pointer; }
 .bar.bottom { bottom: 0; border-top: 1px solid var(--pc-separator); justify-content: space-between; }
 .bar .mini-prog { flex: 1; max-width: 280px; height: 5px; border-radius: 999px; background: var(--pc-surface-sunken); overflow: hidden; }
 .bar .mini-prog > span { display: block; height: 100%; background: var(--pc-brand); width: 0; transition: width .2s var(--pc-ease); }
+.bar .sizer { display: flex; align-items: center; gap: 8px; color: var(--pc-text-tertiary); flex: none; }
+.bar .sizer input[type="range"] { width: 110px; accent-color: var(--pc-brand); cursor: pointer; }
 .keep-n { color: var(--pc-keep); font-weight: var(--pc-weight-semibold); }
 .rem-n { color: var(--pc-clear); font-weight: var(--pc-weight-semibold); }
 
@@ -126,13 +140,13 @@ button { font-family: inherit; cursor: pointer; }
 .group.collapsed .gbody { display: none; }
 
 /* photo / screenshot cards */
-.card { width: 116px; }
+.card { width: var(--card, 116px); }
 .card .frame {
-  position: relative; width: 116px; height: 116px; border-radius: 9px; overflow: hidden;
-  background: var(--pc-surface-sunken); transition: box-shadow .13s var(--pc-ease);
+  position: relative; width: var(--card, 116px); height: var(--card, 116px); border-radius: 9px;
+  overflow: hidden; background: var(--pc-surface-sunken); transition: box-shadow .13s var(--pc-ease);
 }
-.card.shot .frame { width: 156px; height: 112px; }
-.card.shot { width: 156px; }
+.card.shot { width: calc(var(--card, 116px) * 1.34); }
+.card.shot .frame { width: calc(var(--card, 116px) * 1.34); height: calc(var(--card, 116px) * 0.95); }
 .card .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .card.keep .frame { box-shadow: var(--pc-ring-keep), 0 3px 10px rgba(0,0,0,.14); }
 .card.remove .frame { opacity: .68; filter: grayscale(.35); }
@@ -146,11 +160,7 @@ button { font-family: inherit; cursor: pointer; }
   background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
 .vplay svg { width: 16px; height: 16px; color: #fff; margin-left: 2px; }
 .vdur { position: absolute; bottom: 6px; left: 6px; font-size: 10px; color: #fff; background: rgba(0,0,0,.6); padding: 1px 6px; border-radius: var(--pc-radius-pill); }
-.card .meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 4px; font-size: 10px; color: #fff;
-  background: linear-gradient(transparent, rgba(0,0,0,.7)); opacity: 0; transition: opacity var(--pc-dur-fast); }
-.card .frame:hover .meta { opacity: 1; }
 .card .fn { font-size: 10.5px; color: var(--pc-text-tertiary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card .cap { font-size: 10.5px; color: var(--pc-text-secondary); margin-top: 4px; line-height: 1.3; max-height: 28px; overflow: hidden; }
 .card .frame:focus-visible { outline: 2px solid var(--pc-brand); outline-offset: 2px; }
 
 /* faux screenshot placeholder (used until a real thumb loads) */
