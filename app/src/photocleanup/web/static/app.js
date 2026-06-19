@@ -21,9 +21,9 @@ const api = {
 };
 
 const fmtN = (n) => (n || 0).toLocaleString();
-const fmtSave = (b) => {           // savings: whole MB under 1000 MB, else GB
+const fmtSave = (b) => {           // savings: MB under 1000 MB, else GB
   const mb = (b || 0) / (1024 * 1024);
-  return mb < 1000 ? `${Math.round(mb)} MB` : `${(mb / 1024).toFixed(1)} GB`;
+  return mb < 1000 ? `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB` : `${(mb / 1024).toFixed(1)} GB`;
 };
 const fmtSize = (mb) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB`
   : `${mb < 10 ? (mb || 0).toFixed(1) : Math.round(mb)} MB`);
