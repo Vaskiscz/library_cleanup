@@ -1,0 +1,27 @@
+# Briefcase project for the Photo Cleanup Mac app (SPIKE).
+# Isolated from the root photo_cleanup package/CLI — it only DEPENDS on it.
+[tool.briefcase]
+project_name = "Photo Cleanup"
+bundle = "cz.vaskiscz"
+version = "0.0.1"
+license.file = "LICENSE"
+
+[tool.briefcase.app.photocleanup]
+formal_name = "Photo Cleanup"
+description = "On-device photo dedup & cleanup (packaging spike)"
+long_description = "Spike: validate bundling the photo_cleanup backend (osxphotos + Vision) inside a Mac WebView app."
+sources = ["src/photocleanup"]
+# The backend is reused as a library (built from the repo root), not forked.
+requires = [
+    # osxphotos pins bitmath<2.0.0, which is sdist-only on PyPI; briefcase
+    # installs wheels-only, so we vendor a locally-built wheel for it.
+    "bitmath @ file:///Users/vaclavtrnka/Projects/apple_photo_cleanup/app/wheels/bitmath-1.4.0.1-py3-none-any.whl",
+    "photo-cleanup @ file:///Users/vaclavtrnka/Projects/apple_photo_cleanup",
+]
+
+[tool.briefcase.app.photocleanup.macOS]
+universal_build = false
+requires = [
+    "toga-cocoa~=0.4.0",
+    "std-nslog~=1.0.0",
+]
