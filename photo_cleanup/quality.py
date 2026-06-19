@@ -40,7 +40,6 @@ def laplacian_variance(path: str, max_dim: int = 1024) -> Optional[float]:
     try:
         import numpy as np
         from PIL import Image
-        from scipy import ndimage
     except Exception:
         return None
 
@@ -48,10 +47,14 @@ def laplacian_variance(path: str, max_dim: int = 1024) -> Optional[float]:
         with Image.open(path) as im:
             im = im.convert("L")
             im.thumbnail((max_dim, max_dim))
-            arr = np.asarray(im, dtype="float64")
-        if arr.size == 0:
+            a = np.asarray(im, dtype="float64")
+        if a.shape[0] < 3 or a.shape[1] < 3:
             return None
-        return float(ndimage.laplace(arr).var())
+        # Discrete Laplacian (4-neighbour) on the interior — same operator as
+        # scipy.ndimage.laplace, no scipy dependency. Variance => focus measure.
+        lap = (a[:-2, 1:-1] + a[2:, 1:-1] + a[1:-1, :-2] + a[1:-1, 2:]
+               - 4.0 * a[1:-1, 1:-1])
+        return float(lap.var())
     except Exception:
         return None
 
