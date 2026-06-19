@@ -40,16 +40,24 @@ mandatory — the app can't read the library without it).
 
 ## For the maintainer
 
-Build the DMG (ad-hoc signed, no notarization):
+The DMG is signed with a **stable self-signed identity** (not notarized). The
+stable identity matters: macOS binds Full Disk Access / Photos grants to the
+signing identity, so those grants **persist across rebuilds** (an ad-hoc build
+gets a new hash each time and silently loses the grants).
 
 ```sh
-cd app
-uvx briefcase package macOS --adhoc-sign
-# -> dist/Library Cleanup-<version>.dmg
+# one-time per machine: create the self-signed code-signing cert
+bash app/scripts/setup-signing.sh
+
+# build + sign + package
+bash app/scripts/build-signed-dmg.sh
+# -> app/dist/Library Cleanup-<version>.dmg
 ```
 
 Bump the version in `app/pyproject.toml` (`[tool.briefcase] version`) before
-packaging a new release.
+packaging a new release. The cert is kept **untrusted** (never a system trust
+root) — that's all TCC needs. Remove it with:
+`security delete-keychain ~/Library/Keychains/library-cleanup-signing.keychain-db`.
 
 ---
 
