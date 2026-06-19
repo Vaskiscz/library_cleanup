@@ -35,4 +35,4 @@ class PhotoCleanup(toga.App):
 
 
 def main():
-    return PhotoCleanup("Photo Cleanup", "cz.vaskiscz.photocleanup")
+    return PhotoCleanup("Library Cleanup", "cz.vaskiscz.photocleanup")

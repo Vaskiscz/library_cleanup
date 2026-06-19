@@ -1,6 +1,6 @@
-# Photo Cleanup — Mac app
+# Library Cleanup — Mac app
 
-A thin Mac app around the existing on-device `photo_cleanup` backend.
+A Mac app around the existing on-device `photo_cleanup` backend.
 The backend is **reused as a library** (built from the repo root), not forked —
 `photo_cleanup/` stays the single source of truth for all curation logic.
 

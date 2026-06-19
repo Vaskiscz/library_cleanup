@@ -1,21 +1,25 @@
 """Local FastAPI service that exposes the photo_cleanup backend to the app's
 WebView UI. Binds to localhost only — nothing leaves the device.
 
-The service is the only thing the UI talks to: scan a date range, fetch
-candidate groups (with thumbnails), submit keep/discard decisions, finalise
-(record reviewed-state + learning), and retrain the model.
+Flow: analyze a scope (heavy, on-device) -> pick categories -> fetch candidate
+groups (with thumbnails) -> submit keep/remove decisions -> finalise (record
+reviewed-state + learning; returns the uuids to remove via PhotoKit next).
 """
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .engine import Engine
+from .engine import ALL_LAYERS, Engine
 from .store import DISCARD, KEEP, Store
 
-LAYERS = ("dedup", "screenshots")
+LAYERS = ALL_LAYERS
+WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
 
 
 class DecisionIn(BaseModel):
@@ -30,19 +34,19 @@ class DecisionsBody(BaseModel):
     decisions: list[DecisionIn]
 
 
-class ScanBody(BaseModel):
+class AnalyzeBody(BaseModel):
     since: Optional[str] = None
     until: Optional[str] = None
-    rescan: bool = False
+    layers: Optional[list[str]] = None
 
 
 class FinalizeBody(BaseModel):
-    layer: str = "dedup"
+    layers: Optional[list[str]] = None
 
 
 def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                store_path: Optional[str] = None) -> FastAPI:
-    app = FastAPI(title="Photo Cleanup", version="0.0.1")
+    app = FastAPI(title="Library Cleanup", version="0.1.0")
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()
 
@@ -52,37 +56,31 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     def _engine() -> Engine:
         return app.state.engine
 
-    @app.get("/")
-    def root():
-        return Response(
-            "<h2>Photo Cleanup service is running.</h2>"
-            "<p>The review UI arrives in Phase 3. API is under <code>/api</code>.</p>",
-            media_type="text/html",
-        )
-
+    # ---- API ---------------------------------------------------------------
     @app.get("/api/health")
     def health():
-        return {"ok": True, "layers": LAYERS, "counts": _store().counts()}
+        return {"ok": True, "layers": list(LAYERS), "counts": _store().counts()}
 
-    @app.post("/api/scan")
-    def scan(body: ScanBody):
-        recs = _engine().load_records(body.since, body.until,
-                                      excluded=_store().reviewed_uuids(),
-                                      force_rescan=body.rescan)
-        return {"scanned": len(recs), "since": body.since, "until": body.until}
+    @app.get("/api/library-stats")
+    def library_stats():
+        return _engine().library_stats()
+
+    @app.post("/api/analyze")
+    def analyze(body: AnalyzeBody):
+        layers = body.layers or list(LAYERS)
+        bad = [l for l in layers if l not in LAYERS]
+        if bad:
+            raise HTTPException(400, f"unknown layer(s): {bad}")
+        return _engine().analyze(body.since, body.until, layers,
+                                 excluded=_store().reviewed_uuids())
 
     @app.get("/api/candidates")
     def candidates(layer: str = "dedup", since: Optional[str] = None,
                    until: Optional[str] = None):
         if layer not in LAYERS:
             raise HTTPException(400, f"unknown layer {layer!r}; use one of {LAYERS}")
-        eng = _engine()
-        recs = eng.load_records(since, until, excluded=_store().reviewed_uuids())
-        if layer == "dedup":
-            groups = eng.dedup_payload(eng.dedup_groups(recs))
-        else:  # screenshots
-            groups = eng.screenshot_payload(eng.screenshot_items(recs))
-        # overlay any decisions already made this round
+        groups = _engine().candidates(layer, since, until,
+                                      excluded=_store().reviewed_uuids())
         decided = {d.uuid: d.verdict for d in _store().decisions(layer)}
         for g in groups:
             for ph in g["photos"]:
@@ -106,22 +104,22 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
 
     @app.post("/api/finalize")
     def finalize(body: FinalizeBody):
-        """Lock in this round: record reviewed-state for keeps and capture the
-        decisions for learning. Does NOT delete (that's the PhotoKit step) —
-        returns the discard uuids so the UI can drive deletion next."""
-        if body.layer not in LAYERS:
-            raise HTTPException(400, f"unknown layer {body.layer!r}")
+        """Lock in this round across the given layers: record reviewed-state for
+        keeps and capture decisions for learning. Does NOT delete (PhotoKit step)
+        — returns the uuids to remove so the UI can drive deletion next."""
+        layers = body.layers or list(LAYERS)
         st = _store()
-        decs = st.decisions(body.layer)
-        keep_ids = [d.uuid for d in decs if d.verdict == KEEP]
-        discard_ids = [d.uuid for d in decs if d.verdict == DISCARD]
+        keep_ids, discard_ids = [], []
+        for layer in layers:
+            for d in st.decisions(layer):
+                (keep_ids if d.verdict == KEEP else discard_ids).append(d.uuid)
 
         feedback_log = None
-        if body.layer == "dedup":
+        if "dedup" in layers:
             from .learning import write_dedup_feedback
             feedback_log = write_dedup_feedback(st, dbpath=_engine().dbpath)
 
-        st.mark_reviewed(keep_ids, body.layer)
+        st.mark_reviewed(keep_ids)
         return {"reviewed": len(keep_ids), "to_delete": discard_ids,
                 "feedback_log": feedback_log}
 
@@ -129,5 +127,18 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     def learn():
         from .learning import run_learning
         return run_learning(_engine().dbpath)
+
+    # ---- static UI (served last so /api/* wins) ----------------------------
+    if os.path.isdir(os.path.join(WEB_DIR, "static")):
+        app.mount("/static", StaticFiles(directory=os.path.join(WEB_DIR, "static")),
+                  name="static")
+
+    @app.get("/")
+    def index():
+        idx = os.path.join(WEB_DIR, "index.html")
+        if os.path.exists(idx):
+            return FileResponse(idx)
+        return Response("<h2>Library Cleanup service is running.</h2>",
+                        media_type="text/html")
 
     return app

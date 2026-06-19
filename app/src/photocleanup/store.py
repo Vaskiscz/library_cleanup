@@ -22,7 +22,7 @@ DISCARD = "discard"
 
 def default_db_path() -> str:
     """Per-user app data location (created on first use)."""
-    base = os.path.expanduser("~/Library/Application Support/Photo Cleanup")
+    base = os.path.expanduser("~/Library/Application Support/Library Cleanup")
     return os.path.join(base, "state.db")
 
 

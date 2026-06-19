@@ -1,15 +1,16 @@
-# Briefcase project for the Photo Cleanup Mac app (SPIKE).
+# Briefcase project for the Library Cleanup Mac app.
 # Isolated from the root photo_cleanup package/CLI — it only DEPENDS on it.
 [tool.briefcase]
-project_name = "Photo Cleanup"
+project_name = "Library Cleanup"
 bundle = "cz.vaskiscz"
-version = "0.0.1"
+version = "0.1.0"
 license.file = "LICENSE"
 
 [tool.briefcase.app.photocleanup]
-formal_name = "Photo Cleanup"
-description = "On-device photo dedup & cleanup"
-long_description = "On-device dedup + work-screenshot triage for Apple Photos, wrapping the photo_cleanup backend (osxphotos + Apple Vision) in a local WebView app."
+formal_name = "Library Cleanup"
+description = "On-device photo & video library cleanup"
+long_description = "On-device dedup of photoshoots & videos plus work-screenshot and expired-utility triage for Apple Photos. Wraps the photo_cleanup backend (osxphotos + Apple Vision) in a local WebView app; nothing is uploaded."
+icon = "src/photocleanup/resources/libraryclean"
 sources = ["src/photocleanup"]
 # The backend is reused as a library (built from the repo root), not forked.
 requires = [

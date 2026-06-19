@@ -1,0 +1,122 @@
+/* ============================================================
+   Photo Cleanup — design tokens
+   Drop into the WKWebView app. System font only, no network.
+   Light is the default; dark overrides via prefers-color-scheme.
+   Semantics are inherited from the CLI report: keep = green,
+   clear = red. Brand accent is a calm teal→green.
+   ============================================================ */
+
+:root {
+  color-scheme: light dark;
+
+  /* — Brand (teal → green). Used for primary actions + keeper ring. — */
+  --pc-brand:            #1f9e86;  /* solid accent (teal-green midpoint) */
+  --pc-brand-strong:     #178a74;  /* hover/pressed */
+  --pc-brand-teal:       #15a89a;  /* gradient start */
+  --pc-brand-green:      #2f9e5f;  /* gradient end */
+  --pc-brand-grad:       linear-gradient(135deg, var(--pc-brand-teal), var(--pc-brand-green));
+  --pc-brand-tint:       #1f9e8616; /* faint fill behind brand elements */
+  --pc-brand-ring:       #1f9e86;   /* keeper selection ring */
+
+  /* — Semantic (preserve meaning, refined hues) — */
+  --pc-keep:             #2e7d32;  /* safe / will be kept */
+  --pc-keep-tint:        #2e7d3214;
+  --pc-clear:            #c62828;  /* will be cleared */
+  --pc-clear-tint:       #c6282810;
+  --pc-warn:             #b26a00;  /* needs attention (FDA, errors) */
+  --pc-warn-tint:        #b26a0014;
+
+  /* — Surfaces — */
+  --pc-bg:               #f4f4f6;  /* window background */
+  --pc-surface:          #ffffff;  /* cards, panels */
+  --pc-surface-2:        #fbfbfd;  /* recessed / striped rows */
+  --pc-surface-sunken:   #ececef;  /* image placeholder, wells */
+  --pc-overlay:          #ffffffd9;/* sticky bars (with backdrop blur) */
+
+  /* — Text — */
+  --pc-text:             #1d1d1f;
+  --pc-text-secondary:   #6e6e73;
+  --pc-text-tertiary:    #98989d;
+  --pc-text-on-brand:    #ffffff;
+
+  /* — Lines & dividers — */
+  --pc-border:           #d9d9de;
+  --pc-border-strong:    #c4c4cb;
+  --pc-separator:        #e7e7eb;
+
+  /* — Type scale (system font) — */
+  --pc-font: -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif;
+  --pc-text-xs:   11px;  /* meta, badges */
+  --pc-text-sm:   12px;  /* filenames, captions */
+  --pc-text-base: 13px;  /* body / controls */
+  --pc-text-md:   15px;  /* section headers */
+  --pc-text-lg:   19px;  /* screen titles */
+  --pc-text-xl:   26px;  /* hero numbers */
+  --pc-weight-regular:  400;
+  --pc-weight-medium:   500;
+  --pc-weight-semibold: 600;
+
+  /* — Spacing scale (4px base) — */
+  --pc-sp-1: 4px;
+  --pc-sp-2: 8px;
+  --pc-sp-3: 12px;
+  --pc-sp-4: 16px;
+  --pc-sp-5: 24px;
+  --pc-sp-6: 32px;
+  --pc-sp-7: 48px;
+
+  /* — Radius — */
+  --pc-radius-sm: 6px;   /* photo cards, chips */
+  --pc-radius-md: 10px;  /* panels, buttons */
+  --pc-radius-lg: 14px;  /* groups */
+  --pc-radius-pill: 999px;
+
+  /* — Elevation — */
+  --pc-shadow-1: 0 1px 2px rgba(0,0,0,.06), 0 1px 1px rgba(0,0,0,.04);
+  --pc-shadow-2: 0 4px 16px rgba(0,0,0,.10);
+  --pc-shadow-pop: 0 12px 40px rgba(0,0,0,.18);
+  --pc-ring-keep: 0 0 0 2.5px var(--pc-brand-ring);
+
+  /* — Motion — */
+  --pc-ease: cubic-bezier(.22,.61,.36,1);
+  --pc-dur-fast: 110ms;
+  --pc-dur: 180ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --pc-brand:            #34c2a3;
+    --pc-brand-strong:     #45d0b2;
+    --pc-brand-teal:       #1fc1ad;
+    --pc-brand-green:      #3fb877;
+    --pc-brand-grad:       linear-gradient(135deg, var(--pc-brand-teal), var(--pc-brand-green));
+    --pc-brand-tint:       #34c2a322;
+    --pc-brand-ring:       #34c2a3;
+
+    --pc-keep:             #4caf50;
+    --pc-keep-tint:        #4caf5020;
+    --pc-clear:            #ff6b6b;
+    --pc-clear-tint:       #ff6b6b1c;
+    --pc-warn:             #e0a23a;
+    --pc-warn-tint:        #e0a23a1f;
+
+    --pc-bg:               #1c1c1e;
+    --pc-surface:          #2a2a2c;
+    --pc-surface-2:        #242426;
+    --pc-surface-sunken:   #161618;
+    --pc-overlay:          #2a2a2cd9;
+
+    --pc-text:             #f5f5f7;
+    --pc-text-secondary:   #a1a1a6;
+    --pc-text-tertiary:    #6e6e73;
+    --pc-text-on-brand:    #08221c;
+
+    --pc-border:           #3a3a3c;
+    --pc-border-strong:    #48484a;
+    --pc-separator:        #323234;
+
+    --pc-shadow-1: 0 1px 2px rgba(0,0,0,.4);
+    --pc-shadow-2: 0 4px 16px rgba(0,0,0,.5);
+    --pc-shadow-pop: 0 12px 40px rgba(0,0,0,.6);
+  }
+}

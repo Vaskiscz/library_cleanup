@@ -36,6 +36,24 @@ def test_thumb_bytes_unknown_uuid_is_none():
     assert Engine().thumb_bytes("nope") is None
 
 
+def test_summarize_counts_and_bytes():
+    eng = Engine()
+    payload = eng.dedup_payload([DuplicateGroup(keepers=[mk("a")], discards=[mk("b")])])
+    s = eng._summarize(payload)
+    assert s["groups"] == 1 and s["items"] == 2 and s["removable"] == 1
+    assert s["reclaimable_bytes"] >= 0
+
+
+def test_flat_payload_all_flagged_remove():
+    from photo_cleanup.expired import ExpiredVerdict
+    eng = Engine()
+    rec = mk("x", detected_text="receipt total 100")
+    pl = eng.expired_payload([(rec, ExpiredVerdict(True, ["receipt · age 3y"], 3.0, "receipt"))])
+    assert len(pl) == 1 and pl[0]["group_key"] == "expired"
+    assert pl[0]["photos"][0]["suggested_keep"] is False
+    assert "receipt" in pl[0]["photos"][0]["subtitle"]
+
+
 def test_thumb_bytes_from_real_image(tmp_path):
     from PIL import Image
     p = tmp_path / "img.png"

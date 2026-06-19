@@ -133,6 +133,8 @@ class Record:
     # paths to existing thumbnails/previews (avoid decoding originals for display)
     derivatives: list[str] = field(default_factory=list)
 
+    duration: Optional[float] = None        # video length in seconds (None for photos)
+
     # --- filled in by later pipeline stages ---
     laplacian: Optional[float] = None       # measured sharpness (None if not computed)
 

@@ -18,26 +18,48 @@ def mk(uuid, **kw):
     return Record(uuid=uuid, **base)
 
 
+def mkv(uuid, **kw):
+    """Video Record factory."""
+    return mk(uuid, original_filename=f"{uuid}.mov", is_photo=False, is_movie=True,
+              width=1920, height=1080, duration=12.0, **kw)
+
+
 class StubEngine(Engine):
     """Engine whose record loading + grouping are canned, so the service can be
     tested without a Photos library."""
 
-    def __init__(self, recs=None, groups=None):
+    def __init__(self, recs=None, groups=None, videos=None, vgroups=None):
         super().__init__()
         self._recs = recs or []
         self._groups = groups or []
+        self._videos = videos or []
+        self._vgroups = vgroups or []
 
     def load_records(self, since=None, until=None, excluded=None, force_rescan=False):
         for r in self._recs:
             self._index[r.uuid] = r
         return list(self._recs)
 
+    def load_videos(self, since=None, until=None, excluded=None):
+        for r in self._videos:
+            self._index[r.uuid] = r
+        return list(self._videos)
+
     def dedup_groups(self, records):
         return self._groups
 
+    def video_groups(self, videos):
+        return self._vgroups
+
 
 def make_stub_engine():
-    """Three records forming one burst: keep 'a', discard 'b' and 'c'."""
+    """One photo burst (keep 'a', remove 'b','c') and one video set (keep 'v1',
+    remove 'v2')."""
     a, b, c = mk("a"), mk("b"), mk("c")
-    return StubEngine(recs=[a, b, c],
-                      groups=[DuplicateGroup(keepers=[a], discards=[b, c])])
+    v1, v2 = mkv("v1"), mkv("v2")
+    return StubEngine(
+        recs=[a, b, c],
+        groups=[DuplicateGroup(keepers=[a], discards=[b, c])],
+        videos=[v1, v2],
+        vgroups=[DuplicateGroup(keepers=[v1], discards=[v2])],
+    )
