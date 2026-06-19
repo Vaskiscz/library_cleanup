@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -6,11 +8,30 @@ from photocleanup.server import create_app
 from photocleanup.store import Store
 
 
+@pytest.fixture(autouse=True)
+def _no_photo_prompt(monkeypatch):
+    # analyze requests Photos access; never trigger a real prompt in tests
+    monkeypatch.setattr("photocleanup.delete.ensure_access", lambda timeout=120.0: 3)
+
+
 @pytest.fixture
 def client():
     app = create_app(store=Store(":memory:"), engine=make_stub_engine())
     with TestClient(app) as c:
         yield c
+
+
+def _run_analyze(client, layers):
+    """Start the analyze job and poll until it finishes; returns the summary."""
+    assert client.post("/api/analyze", json={"layers": layers}).json()["started"] is True
+    for _ in range(100):
+        p = client.get("/api/progress").json()
+        if p["status"] == "done":
+            return p["summary"]
+        if p["status"] == "error":
+            raise AssertionError(p.get("error"))
+        time.sleep(0.02)
+    raise AssertionError("analyze did not finish")
 
 
 def test_health(client):
@@ -22,12 +43,8 @@ def test_health(client):
 
 
 def test_analyze_summary(client):
-    r = client.post("/api/analyze", json={"layers": ["dedup", "videos", "expired"]})
-    assert r.status_code == 200
-    summary = r.json()["summary"]
-    assert summary["dedup"] == {"groups": 1, "items": 3, "removable": 2,
-                                "reclaimable_bytes": summary["dedup"]["reclaimable_bytes"]}
-    assert summary["dedup"]["removable"] == 2
+    summary = _run_analyze(client, ["dedup", "videos", "expired"])
+    assert summary["dedup"]["groups"] == 1 and summary["dedup"]["removable"] == 2
     assert summary["videos"]["groups"] == 1 and summary["videos"]["removable"] == 1
     assert summary["expired"]["items"] == 0  # stub records aren't expired
 

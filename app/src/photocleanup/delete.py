@@ -27,6 +27,12 @@ def authorization_status() -> int:
     return int(P.PHPhotoLibrary.authorizationStatusForAccessLevel_(P.PHAccessLevelReadWrite))
 
 
+def ensure_access(timeout: float = 120.0) -> int:
+    """Public entry point: prompt for Photos access if not yet decided. Safe to
+    call before scanning so deletion later is seamless; returns the status int."""
+    return _ensure_authorized(timeout)
+
+
 def _ensure_authorized(timeout: float = 120.0) -> int:
     P = _photos()
     status = authorization_status()

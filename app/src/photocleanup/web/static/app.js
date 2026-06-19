@@ -49,7 +49,7 @@ const state = {
   done: null,
 };
 
-let scanAbort = null;
+// (analysis runs as a background job; the UI polls /api/progress)
 
 /* ---- chrome --------------------------------------------------------------- */
 function chrome(inner) {
@@ -93,8 +93,9 @@ function renderHome() {
       <div class="scroll"><div class="home"><div class="scanning">
         <div class="spinner"></div>
         <h2>Analyzing your library…</h2>
-        <div class="step" id="step">Reading your library…</div>
-        <div class="progress"><span id="bar"></span></div>
+        <div class="step" id="step">Starting…</div>
+        <div class="progress indet" id="prog"><span id="bar" style="width:100%"></span></div>
+        <div class="count" id="count"></div>
         <div style="margin-top:22px"><button class="btn-text" id="cancel">Cancel</button></div>
       </div></div></div>`;
   } else {
@@ -142,7 +143,7 @@ function resultsBar() {
 
 function bindHome() {
   const a = $("#analyze"); if (a) a.onclick = startAnalyze;
-  const c = $("#cancel"); if (c) c.onclick = () => { if (scanAbort) scanAbort.abort(); };
+  const c = $("#cancel"); if (c) c.onclick = () => { state.cancelled = true; state.phase = "idle"; render(); };
   const rs = $("#rescan"); if (rs) rs.onclick = () => { state.phase = "idle"; render(); };
   const rv = $("#review"); if (rv) rv.onclick = enterReview;
   app.querySelectorAll(".cat[data-cat]").forEach((btn) => {
@@ -156,33 +157,49 @@ function bindHome() {
 
 async function startAnalyze() {
   state.phase = "scanning";
+  state.cancelled = false;
   render();
-  scanAbort = new AbortController();
-  const steps = ["Reading your library…", "Computing on-device similarity…",
-    "Grouping photoshoots…", "Scanning for screenshots & clutter…", "Almost done…"];
-  let i = 0, pct = 6;
-  const stepEl = $("#step"), barEl = $("#bar");
-  if (barEl) barEl.style.width = pct + "%";
-  const timer = setInterval(() => {
-    i = Math.min(i + 1, steps.length - 1);
-    pct = Math.min(pct + 16, 90);
-    if (stepEl) stepEl.textContent = steps[i];
-    if (barEl) barEl.style.width = pct + "%";
-  }, 1100);
   try {
-    const res = await api.post("/api/analyze", { layers: CATS.map((c) => c.id) },
-      { signal: scanAbort.signal });
-    clearInterval(timer);
-    state.summary = res.summary;
-    state.selected = new Set(CATS.filter((c) => res.summary[c.id]?.items > 0).map((c) => c.id));
-    // library totals for the status line — fetched now (post-scan), not at launch
-    api.get("/api/library-stats").then((s) => { state.lib = s; render(); }).catch(() => {});
-    if (barEl) barEl.style.width = "100%";
-    setTimeout(() => { state.phase = "results"; render(); }, 250);
+    await api.post("/api/analyze", { layers: CATS.map((c) => c.id) });
   } catch (e) {
-    clearInterval(timer);
-    if (e.name === "AbortError") { state.phase = "idle"; render(); }
-    else { state.phase = "idle"; render(); alert("Analyze failed: " + e.message); }
+    state.phase = "idle"; render(); alert("Couldn't start analysis: " + e.message); return;
+  }
+  pollProgress();
+}
+
+async function pollProgress() {
+  if (state.cancelled || state.phase !== "scanning") return;
+  let p;
+  try { p = await api.get("/api/progress"); }
+  catch { return void setTimeout(pollProgress, 600); }
+  updateScanning(p);
+  if (p.status === "done") {
+    state.summary = p.summary;
+    state.selected = new Set(CATS.filter((c) => p.summary[c.id]?.items > 0).map((c) => c.id));
+    api.get("/api/library-stats").then((s) => { state.lib = s; render(); }).catch(() => {});
+    state.phase = "results"; render();
+  } else if (p.status === "error") {
+    state.phase = "idle"; render();
+    alert("Analysis failed: " + (p.error || "unknown") +
+      "\n\nIf this mentions permission, grant Full Disk Access to Library Cleanup in " +
+      "System Settings ▸ Privacy & Security, then try again.");
+  } else {
+    setTimeout(pollProgress, 400);
+  }
+}
+
+function updateScanning(p) {
+  const step = $("#step"), bar = $("#bar"), count = $("#count"), prog = $("#prog");
+  if (!step) return;
+  step.textContent = p.message || "Working…";
+  if (p.total) {
+    prog.classList.remove("indet");
+    bar.style.width = Math.round((p.done / p.total) * 100) + "%";
+    count.textContent = `${fmtN(p.done)} / ${fmtN(p.total)}`;
+  } else {
+    prog.classList.add("indet");
+    bar.style.width = "100%";
+    count.textContent = "";
   }
 }
 

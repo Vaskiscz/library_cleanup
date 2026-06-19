@@ -8,6 +8,7 @@ reviewed-state + learning; returns the uuids to remove via PhotoKit next).
 from __future__ import annotations
 
 import os
+import threading
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Response
@@ -54,6 +55,7 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     app = FastAPI(title="Library Cleanup", version="0.1.0")
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()
+    app.state.job = {"status": "idle"}   # analyze progress (single job at a time)
 
     def _store() -> Store:
         return app.state.store
@@ -72,12 +74,36 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
 
     @app.post("/api/analyze")
     def analyze(body: AnalyzeBody):
+        """Start the (heavy) analyze as a background job; the UI polls
+        /api/progress for the access request, library connection, and counted/
+        total processing, then reads the summary when status == 'done'."""
         layers = body.layers or list(LAYERS)
         bad = [l for l in layers if l not in LAYERS]
         if bad:
             raise HTTPException(400, f"unknown layer(s): {bad}")
-        return _engine().analyze(body.since, body.until, layers,
-                                 excluded=_store().reviewed_uuids())
+        job = app.state.job
+        if job.get("status") == "running":
+            return {"started": False, "running": True}
+        job.clear()
+        job.update({"status": "running", "message": "Starting…", "done": None, "total": None})
+
+        def cb(message, done=None, total=None):
+            job.update({"message": message, "done": done, "total": total})
+
+        def run():
+            try:
+                res = _engine().analyze(body.since, body.until, layers,
+                                        excluded=_store().reviewed_uuids(), progress=cb)
+                job.update({"status": "done", "summary": res["summary"], "message": "Done"})
+            except Exception as e:  # noqa: BLE001
+                job.update({"status": "error", "error": str(e)})
+
+        threading.Thread(target=run, daemon=True).start()
+        return {"started": True}
+
+    @app.get("/api/progress")
+    def progress():
+        return app.state.job
 
     @app.get("/api/candidates")
     def candidates(layer: str = "dedup", since: Optional[str] = None,

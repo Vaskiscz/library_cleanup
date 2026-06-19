@@ -108,22 +108,24 @@ class Engine:
         return self._index.get(uuid)
 
     # ---- candidate builders (delegate to photo_cleanup) --------------------
-    def dedup_groups(self, records):
+    def dedup_groups(self, records, progress=None):
         from photo_cleanup.cluster import find_duplicate_groups, time_gps_clusters
         from photo_cleanup.embedding import EmbeddingCache, embed_records
         from photo_cleanup.feedback import inject_face_quality
         cand = [r for c in time_gps_clusters(records, self.cfg) if len(c) >= 2 for r in c]
         ec = EmbeddingCache(self.emb_cache)
-        if embed_records(cand, ec):
+        emb_prog = (lambda i, n: progress("Comparing photos", i, n)) if progress else None
+        if embed_records(cand, ec, progress=emb_prog):
             ec.save()
         inject_face_quality(cand)
         return find_duplicate_groups(records, self.cfg, embeddings=ec)
 
-    def video_groups(self, videos):
+    def video_groups(self, videos, progress=None):
         from photo_cleanup.embedding import EmbeddingCache, embed_records
         from photo_cleanup.video import duplicate_takes
         ec = EmbeddingCache(self.emb_cache)
-        if embed_records(videos, ec):
+        emb_prog = (lambda i, n: progress("Comparing videos", i, n)) if progress else None
+        if embed_records(videos, ec, progress=emb_prog):
             ec.save()
         return duplicate_takes(videos, ec, self.cfg)
 
@@ -202,31 +204,70 @@ class Engine:
         return self._flat_payload(items, "expired", "Expired utility photos", 90)
 
     # ---- analyze (the heavy pass) + summary --------------------------------
-    def analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None):
+    def analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None,
+                progress=None):
         """Compute candidates for each requested layer, cache the payloads, and
-        return a per-layer summary (counts + reclaimable bytes) for the picker."""
+        return a per-layer summary (counts + reclaimable bytes) for the picker.
+
+        `progress(message, done, total)` is called throughout so the UI can show
+        the access request, library connection, and counted/total processing.
+        """
         layers = [l for l in (layers or ALL_LAYERS) if l in ALL_LAYERS]
         excluded = excluded or set()
         self._candidates = {}
-        summary = {}
 
+        def emit(msg, done=None, total=None):
+            if progress:
+                progress(msg, done, total)
+
+        # 1) privileges — surface the Photos access request up front
+        emit("Requesting photo access…")
+        try:
+            from .delete import ensure_access
+            ensure_access()
+        except Exception:
+            pass
+
+        photos = []
         if any(l in layers for l in ("dedup", "screenshots", "expired")):
+            emit("Connecting to your photo library…")
             photos = self.load_records(since, until, excluded=excluded)
-            builders = {
-                "dedup": lambda: self.dedup_payload(self.dedup_groups(photos)),
-                "screenshots": lambda: self.screenshot_payload(self.screenshot_items(photos)),
-                "expired": lambda: self.expired_payload(self.expired_items(photos)),
-            }
-            for layer in ("dedup", "screenshots", "expired"):
-                if layer in layers:
-                    self._candidates[layer] = builders[layer]()
-        if "videos" in layers:
-            vids = self.load_videos(since, until, excluded=excluded)
-            self._candidates["videos"] = self.video_payload(self.video_groups(vids))
+            emit(f"Found {len(photos):,} photos to review", 0, len(photos) or None)
 
-        for layer in layers:
-            summary[layer] = self._summarize(self._candidates.get(layer, []))
-        return {"since": since, "until": until, "summary": summary}
+        if "dedup" in layers:
+            emit("Comparing photoshoots…")
+            self._candidates["dedup"] = self.dedup_payload(self.dedup_groups(photos, progress=emit))
+            emit("Grouping photoshoots…")
+
+        if "screenshots" in layers or "expired" in layers:
+            from photo_cleanup.expired import classify_expired
+            from photo_cleanup.screenshots import classify_screenshot
+            shots, exp, n = [], [], len(photos)
+            for i, rec in enumerate(photos, 1):
+                if "screenshots" in layers:
+                    sv = classify_screenshot(rec, self.cfg)
+                    if sv.is_work:
+                        shots.append((rec, sv))
+                if "expired" in layers:
+                    ev = classify_expired(rec, self.cfg)
+                    if ev.is_expired:
+                        exp.append((rec, ev))
+                if i % 250 == 0 or i == n:
+                    emit("Scanning for screenshots & clutter", i, n)
+            if "screenshots" in layers:
+                self._candidates["screenshots"] = self.screenshot_payload(shots)
+            if "expired" in layers:
+                self._candidates["expired"] = self.expired_payload(exp)
+
+        if "videos" in layers:
+            emit("Connecting to your videos…")
+            vids = self.load_videos(since, until, excluded=excluded)
+            emit(f"Found {len(vids):,} videos", 0, len(vids) or None)
+            self._candidates["videos"] = self.video_payload(self.video_groups(vids, progress=emit))
+
+        emit("Finishing up…")
+        return {"since": since, "until": until,
+                "summary": {l: self._summarize(self._candidates.get(l, [])) for l in layers}}
 
     @staticmethod
     def _summarize(payload) -> dict:

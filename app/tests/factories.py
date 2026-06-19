@@ -45,10 +45,10 @@ class StubEngine(Engine):
             self._index[r.uuid] = r
         return list(self._videos)
 
-    def dedup_groups(self, records):
+    def dedup_groups(self, records, progress=None):
         return self._groups
 
-    def video_groups(self, videos):
+    def video_groups(self, videos, progress=None):
         return self._vgroups
 
 
