@@ -21,7 +21,10 @@ const api = {
 };
 
 const fmtN = (n) => (n || 0).toLocaleString();
-const fmtGB = (b) => `${((b || 0) / 1073741824).toFixed(1)} GB`;
+const fmtSave = (b) => {           // savings: MB under 1000 MB, else GB
+  const mb = (b || 0) / (1024 * 1024);
+  return mb < 1000 ? `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB` : `${(mb / 1024).toFixed(1)} GB`;
+};
 const fmtSize = (mb) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB`
   : `${mb < 10 ? (mb || 0).toFixed(1) : Math.round(mb)} MB`);
 const icon = (id, cls = "") => `<svg class="${cls}"><use href="#${id}"/></svg>`;
@@ -130,7 +133,7 @@ function catCard(c) {
     : "flagged to remove";
   const right = has
     ? `<div class="count">${fmtN(s.items)} <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
-       <div class="save">Save up to ${fmtGB(s.reclaimable_bytes)}</div>
+       <div class="save">Save up to ${fmtSave(s.reclaimable_bytes)}</div>
        <div class="desc">${sub}</div>`
     : `<span class="none">None identified</span>`;
   return `
@@ -147,7 +150,7 @@ function resultsBar() {
   return `<div class="bar bottom">
       <button class="btn-secondary" id="rescan">Re-scan</button>
       <div style="flex:1"></div>
-      <div style="color:var(--pc-text-tertiary)">${sel.length} categor${sel.length === 1 ? "y" : "ies"} · save up to ${fmtGB(gb)}</div>
+      <div style="color:var(--pc-text-tertiary)">${sel.length} categor${sel.length === 1 ? "y" : "ies"} · save up to ${fmtSave(gb)}</div>
       <button class="btn btn-primary" id="review" ${sel.length ? "" : "disabled"}>Review ${sel.length} categor${sel.length === 1 ? "y" : "ies"}</button>
     </div>`;
 }
@@ -273,7 +276,7 @@ function renderReview() {
       <div style="flex:1"></div>
       <div style="color:var(--pc-text-tertiary)">
         <span class="keep-n">Keeping ${fmtN(c.keep)}</span> ·
-        <span class="rem-n">Removing ${fmtN(c.rem)}</span> · Frees ${fmtGB(c.bytes)}</div>
+        <span class="rem-n">Removing ${fmtN(c.rem)}</span> · Frees ${fmtSave(c.bytes)}</div>
       <button class="btn btn-primary" id="finalize" ${c.rem ? "" : "disabled"}>Review &amp; Finalize</button>
     </div>`;
   app.innerHTML = chrome(body) + (state.finalize ? modalHtml() : "");
@@ -418,7 +421,7 @@ function modalHtml() {
   if (state.finalize === "confirm") {
     return `<div class="backdrop"><div class="modal">
       <h3>Review &amp; Finalize</h3>
-      <p class="head-n">Keeping ${fmtN(c.keep)} · removing ${fmtN(c.rem)} items · frees ${fmtGB(c.bytes)}</p>
+      <p class="head-n">Keeping ${fmtN(c.keep)} · removing ${fmtN(c.rem)} items · frees ${fmtSave(c.bytes)}</p>
       <div class="rows">
         <div class="row">${tick()}<span>macOS will ask you to confirm before anything is removed.</span></div>
         <div class="row">${tick()}<span>Removed items go to Recently Deleted — recoverable for 30 days.</span></div>
@@ -488,7 +491,7 @@ function doneHtml() {
   return `<div class="backdrop"><div class="modal center">
     <div class="done-disc">${icon("i-check")}</div>
     <h3>All done</h3>
-    <p class="head-n">Removed ${fmtN(d.deleted)} · kept ${fmtN(d.kept)} · freed up to ${fmtGB(d.bytes)}.</p>
+    <p class="head-n">Removed ${fmtN(d.deleted)} · kept ${fmtN(d.kept)} · freed up to ${fmtSave(d.bytes)}.</p>
     <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
     <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Start a new review</button></div>
   </div></div>`;
