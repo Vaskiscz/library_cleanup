@@ -108,7 +108,7 @@ button { font-family: inherit; cursor: pointer; }
 .cat .right { text-align: right; flex: none; }
 .cat .count { font-size: var(--pc-text-md); font-weight: var(--pc-weight-semibold); }
 .cat .save { font-size: var(--pc-text-xs); font-weight: var(--pc-weight-semibold); color: var(--pc-keep); margin-top: 3px; }
-.cat .none { font-size: var(--pc-text-sm); color: var(--pc-text-tertiary); }
+.cat .none { font-size: var(--pc-text-xs); color: var(--pc-text-tertiary); border: 1px solid var(--pc-border); border-radius: var(--pc-radius-pill); padding: 2px 9px; }
 
 /* ---- sticky bars ---------------------------------------------------------- */
 .bar {

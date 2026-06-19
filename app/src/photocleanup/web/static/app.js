@@ -132,7 +132,7 @@ function catCard(c) {
     ? `<div class="count">${fmtN(s.items)} <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
        <div class="save">Save up to ${fmtGB(s.reclaimable_bytes)}</div>
        <div class="desc">${sub}</div>`
-    : `<div class="none">none identified</div>`;
+    : `<span class="none">None identified</span>`;
   return `
     <button class="cat ${on ? "on" : ""} ${has ? "" : "disabled"}" data-cat="${c.id}" ${has ? "" : "disabled"}>
       <span class="check">${icon("i-check")}</span>
