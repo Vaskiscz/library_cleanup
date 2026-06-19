@@ -36,7 +36,7 @@ STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 rm -f "$DMG"
-hdiutil create -volname "$VOL" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "$VOL" -srcfolder "$STAGE" -ov -format UDBZ "$DMG" >/dev/null
 rm -rf "$STAGE"
 
 echo "[4/4] Done -> $DMG"
