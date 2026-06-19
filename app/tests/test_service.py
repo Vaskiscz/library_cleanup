@@ -74,6 +74,15 @@ def test_thumb_404_when_missing(client):
     assert client.get("/api/thumb/does-not-exist").status_code == 404
 
 
+def test_delete_endpoint(client, monkeypatch):
+    import photocleanup.delete as d
+    monkeypatch.setattr(d, "delete_assets",
+                        lambda uuids, dry_run=False: {"status": "ok", "requested": len(uuids),
+                                                      "matched": len(uuids), "deleted": len(uuids)})
+    r = client.post("/api/delete", json={"uuids": ["a", "b"]})
+    assert r.status_code == 200 and r.json()["deleted"] == 2
+
+
 def test_finalize_across_layers(client, monkeypatch):
     import photocleanup.learning as learning
     monkeypatch.setattr(learning, "write_dedup_feedback", lambda *a, **k: "/tmp/fake.json")

@@ -23,6 +23,11 @@ requires = [
     "uvicorn>=0.49",
 ]
 
+[tool.briefcase.app.photocleanup.permission]
+# -> NSPhotoLibraryUsageDescription, so the app can request Photos read-write
+# access to remove the items you select (PhotoKit shows its own confirmation).
+photo_library = "Library Cleanup removes only the duplicate and clutter photos and videos you select — each removal is confirmed by macOS and goes to Recently Deleted."
+
 [tool.briefcase.app.photocleanup.macOS]
 universal_build = false
 requires = [

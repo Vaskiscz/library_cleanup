@@ -44,6 +44,11 @@ class FinalizeBody(BaseModel):
     layers: Optional[list[str]] = None
 
 
+class DeleteBody(BaseModel):
+    uuids: list[str]
+    dry_run: bool = False
+
+
 def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                store_path: Optional[str] = None) -> FastAPI:
     app = FastAPI(title="Library Cleanup", version="0.1.0")
@@ -122,6 +127,13 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         st.mark_reviewed(keep_ids)
         return {"reviewed": len(keep_ids), "to_delete": discard_ids,
                 "feedback_log": feedback_log}
+
+    @app.post("/api/delete")
+    def delete(body: DeleteBody):
+        """Remove assets from Photos via PhotoKit (macOS shows its own confirm;
+        items go to Recently Deleted). Pass dry_run to only resolve/count."""
+        from .delete import delete_assets
+        return delete_assets(body.uuids, dry_run=body.dry_run)
 
     @app.post("/api/learn")
     def learn():

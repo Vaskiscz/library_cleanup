@@ -390,28 +390,21 @@ function modalHtml() {
       <h3>Review &amp; Finalize</h3>
       <p class="head-n">Keeping ${fmtN(c.keep)} · removing ${fmtN(c.rem)} items · frees ${fmtGB(c.bytes)}</p>
       <div class="rows">
-        <div class="row">${tick()}<span>Your choices are saved on this Mac — kept items are marked reviewed and won't be shown again.</span></div>
-        <div class="row">${tick()}<span>Removed items will go to Recently Deleted (recoverable for 30 days).</span></div>
-        <div class="row">${tick()}<span>Nothing leaves your Mac.</span></div>
+        <div class="row">${tick()}<span>macOS will ask you to confirm before anything is removed.</span></div>
+        <div class="row">${tick()}<span>Removed items go to Recently Deleted — recoverable for 30 days.</span></div>
+        <div class="row">${tick()}<span>Kept items are marked reviewed and won't be shown again. Nothing leaves your Mac.</span></div>
       </div>
       <div class="actions">
         <button class="btn" id="m-cancel">Go back</button>
-        <button class="btn btn-danger" id="m-go">Finalize review</button>
+        <button class="btn btn-danger" id="m-go">Remove ${fmtN(c.rem)}</button>
       </div></div></div>`;
   }
   if (state.finalize === "working") {
-    return `<div class="backdrop"><div class="modal center"><h3>Finalizing…</h3>
-      <div class="working"><div class="spinner sm"></div><div style="color:var(--pc-text-secondary)">Saving your review…</div></div></div></div>`;
+    return `<div class="backdrop"><div class="modal center"><h3>Removing…</h3>
+      <div class="working"><div class="spinner sm"></div>
+      <div style="color:var(--pc-text-secondary)">Asking Photos to remove the selected items…</div></div></div></div>`;
   }
-  const d = state.done || {};
-  return `<div class="backdrop"><div class="modal center">
-    <div class="done-disc">${icon("i-check")}</div>
-    <h3>Review saved</h3>
-    <p class="head-n">Kept ${fmtN(d.keep)} · ${fmtN(d.remove)} marked for removal · up to ${fmtGB(d.bytes)} to free.</p>
-    <p class="head-n" style="font-size:12px">Removing from Photos is the final step — coming in the next version.
-      Your keepers are marked reviewed so they won't reappear.</p>
-    <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Start a new review</button></div>
-  </div></div>`;
+  return doneHtml();
 }
 
 function tick() { return `<svg class="tick"><use href="#i-check"/></svg>`; }
@@ -430,13 +423,45 @@ async function doFinalize() {
       });
       await api.post("/api/decisions", { layer, decisions });
     }
-    await api.post("/api/finalize", { layers });
-    state.done = { keep: snapshot.keep, remove: snapshot.rem, bytes: snapshot.bytes };
+    const fin = await api.post("/api/finalize", { layers });
+    const del = await api.post("/api/delete", { uuids: fin.to_delete });
+    state.done = { status: del.status, deleted: del.deleted || 0,
+                   kept: snapshot.keep, bytes: snapshot.bytes };
     state.finalize = "done";
     renderReview();
   } catch (e) {
     state.finalize = null; renderReview(); alert("Finalize failed: " + e.message);
   }
+}
+
+function doneHtml() {
+  const d = state.done || {};
+  if (d.status === "unauthorized") {
+    return `<div class="backdrop"><div class="modal center">
+      <div class="done-disc" style="background:var(--pc-warn)">${icon("i-lock")}</div>
+      <h3>Photos access needed</h3>
+      <p class="head-n">To remove items, allow Library Cleanup in System Settings ▸ Privacy &amp;
+        Security ▸ Photos, then run the review again.</p>
+      <p class="head-n" style="font-size:12px">Your keepers are already marked reviewed.</p>
+      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Back to start</button></div>
+    </div></div>`;
+  }
+  if (d.status && d.status !== "ok") {
+    return `<div class="backdrop"><div class="modal center">
+      <div class="done-disc" style="background:var(--pc-warn)">${icon("i-x")}</div>
+      <h3>Nothing was removed</h3>
+      <p class="head-n">${d.status === "error" ? "Removal was cancelled." : "No matching items were found."}
+        Your keepers are marked reviewed.</p>
+      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Start a new review</button></div>
+    </div></div>`;
+  }
+  return `<div class="backdrop"><div class="modal center">
+    <div class="done-disc">${icon("i-check")}</div>
+    <h3>All done</h3>
+    <p class="head-n">Removed ${fmtN(d.deleted)} · kept ${fmtN(d.kept)} · freed up to ${fmtGB(d.bytes)}.</p>
+    <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
+    <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Start a new review</button></div>
+  </div></div>`;
 }
 
 function findGroupKey(layer, uuid) {
