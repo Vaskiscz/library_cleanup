@@ -9,6 +9,31 @@ A practical runbook for `photo-cleanup`. Commands assume the project lives at
 
 ---
 
+## Running it yourself (no Claude needed)
+
+Everything is a normal CLI you run in **Terminal.app** (already authorized to
+control Photos). A whole year of dedup is just two commands + your review:
+
+```sh
+cd /Users/vaclavtrnka/Projects/apple_photo_cleanup
+
+# 1) tag the year's near-duplicate photoshoots (keepers pre-♥)
+uv run photo-cleanup dedup --since 2023-01-01 --until 2023-12-31 --apply
+
+# 2) in Photos: review the `cleanup:duplicate` Smart Album, ♥ extra keepers,
+#    then delete [cleanup:duplicate AND Favorite is No]
+
+# 3) finalize + lock the year in ONE command
+uv run photo-cleanup finalize --since 2023-01-01 --until 2023-12-31 --apply
+```
+
+`finalize --since/--until` un-tags your keepers, un-favorites only the hearts
+added this round (genuine favorites preserved), marks them `reviewed:keep`, and
+locks the rest of the year — and it deliberately leaves any still-tagged (not yet
+deleted) photos unlocked so you can still delete them. Run `learn` whenever you
+like to fold your choices into the keeper model. Dry-run anything by omitting
+`--apply`.
+
 ## 0. What it does (today)
 
 - **Work-screenshot triage** — finds work screenshots (Slack/Teams, documents,
@@ -234,7 +259,7 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | `fav-baseline` | yes | no | snapshot pre-existing favorites |
 | `rescue-plan` | yes | no | compute keepers to un-tag / un-favorite |
 | `clear-tags` | no | yes | remove `cleanup:*` from rescued uuids |
-| `finalize` | no | yes | one-shot: clear-tags + unfavorite + mark-reviewed |
+| `finalize` | yes (with `--since`) | yes | one-shot: un-tag + unfavorite + mark-reviewed + lock range |
 | `unfavorite` | no | yes | un-favorite the rescue-only hearts |
 | `undo` | yes | yes | remove all `cleanup:*` keywords |
 

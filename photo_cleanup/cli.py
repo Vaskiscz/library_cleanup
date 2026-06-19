@@ -609,44 +609,68 @@ def learn():
 
 
 @cli.command()
+@click.option("--since", default=None, help="Finalize a date range live (recommended).")
+@click.option("--until", default=None, help="...end of the range (YYYY-MM-DD).")
+@click.option("--prefix", default=apply_mod.KW_DUPLICATE, show_default=True)
+@click.option("--baseline", default=FAV_BASELINE_FILE, show_default=True)
+@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--lock/--no-lock", default=True,
+              help="Also mark the whole range reviewed:keep (default on).")
 @click.option("--rescue-file", default=RESCUE_FILE, show_default=True,
-              help="uuids to keep (un-tag + mark reviewed) — from rescue-plan.")
-@click.option("--unfav-file", default=UNFAV_FILE, show_default=True,
-              help="uuids to un-favorite (the hearts added this activity).")
-@click.option("--prefix", default=apply_mod.KEYWORD_PREFIX, show_default=True)
-@click.option("--mark-reviewed/--no-mark-reviewed", default=True,
-              help="Tag the kept survivors reviewed:keep (default on).")
+              help="(file mode, no --since) uuids to keep.")
+@click.option("--unfav-file", default=UNFAV_FILE, show_default=True)
 @click.option("--apply", "do_apply", is_flag=True)
-def finalize(rescue_file, unfav_file, prefix, mark_reviewed, do_apply):
-    """One-shot finalize after a review: un-tag the kept survivors, un-favorite the
-    activity hearts (baseline preserved), and mark them reviewed:keep — in a single
-    Photos session. Write-only (run from Terminal); pair with `rescue-plan` first."""
+def finalize(since, until, prefix, baseline, cache, lock, rescue_file, unfav_file, do_apply):
+    """After you've reviewed + deleted in Photos: un-tag the kept survivors,
+    un-favorite the hearts added this round (genuine favorites preserved), mark
+    them reviewed:keep, and (with --since/--until) lock the rest of the range —
+    all in one command. Run it from your own Terminal.
+
+    Typical solo use:  finalize --since 2023-01-01 --until 2023-12-31 --apply
+    """
     import json
-    rescue = json.load(open(rescue_file))
-    unfav = json.load(open(unfav_file)) if __import__("os").path.exists(unfav_file) else []
+    if since or until:                         # live, one-command range finalize
+        in_range = {r.uuid for r in _filter_by_date(ensure_records(cache), since, until)}
+        survivors = [u for u in apply_mod.find_rescue_uuids(prefix, use_favorites=True)
+                     if u in in_range]
+        base = set(json.load(open(baseline))) if os.path.exists(baseline) else set()
+        unfav = [u for u in survivors if u not in base]
+    else:                                      # file mode (rescue-plan output)
+        survivors = json.load(open(rescue_file))
+        unfav = json.load(open(unfav_file)) if os.path.exists(unfav_file) else []
+        in_range = None
+
     mode = "APPLY" if do_apply else "DRY RUN"
-    click.echo(f"[{mode}] finalize: un-tag {len(rescue)} ({prefix}*), un-favorite "
-               f"{len(unfav)}, mark-reviewed {len(rescue) if mark_reviewed else 0}")
+    click.echo(f"[{mode}] finalize: un-tag {len(survivors)} keepers ({prefix}*), "
+               f"un-favorite {len(unfav)} (baseline preserved), mark them reviewed:keep"
+               + (", then lock the range" if (lock and in_range is not None) else ""))
+    if not do_apply:
+        click.echo("  dry run — add --apply to write.")
+        return
 
     def prog(i, n):
         if i % 50 == 0 or i == n:
             click.echo(f"  {i}/{n}")
     try:
-        r1 = apply_mod.clear_keywords_for_uuids(rescue, prefix, apply=do_apply,
-                                                progress=prog if do_apply else None)
-        r2 = apply_mod.unfavorite_uuids(unfav, apply=do_apply, progress=prog if do_apply else None)
-        r3 = apply_mod.ApplyResult()
-        if mark_reviewed:
-            r3 = apply_mod.add_keyword(rescue, apply_mod.KW_REVIEWED, apply=do_apply,
-                                       progress=prog if do_apply else None)
+        r1 = apply_mod.clear_keywords_for_uuids(survivors, prefix, apply=True, progress=prog)
+        r2 = apply_mod.unfavorite_uuids(unfav, apply=True, progress=prog)
+        r3 = apply_mod.add_keyword(survivors, apply_mod.KW_REVIEWED, apply=True, progress=prog)
+        locked = 0
+        if lock and in_range is not None:
+            # Lock everything in the range EXCEPT photos still tagged (pending
+            # deletes you haven't removed yet) — so we never lock a delete.
+            pending = set(apply_mod.find_tagged_uuids(prefix)) & in_range
+            lock_uuids = [u for u in in_range if u not in pending]
+            r4 = apply_mod.add_keyword(lock_uuids, apply_mod.KW_REVIEWED, apply=True, progress=prog)
+            locked = r4.tagged
+            if pending:
+                click.echo(f"  NOTE: {len(pending)} still tagged {prefix} (not deleted) — "
+                           f"left unlocked so you can still delete them.")
     except Exception as e:
         _hint_automation(e)
         sys.exit(1)
-    if do_apply:
-        click.echo(f"  un-tagged {r1.tagged}, un-favorited {r2.favorited}, "
-                   f"marked-reviewed {r3.tagged}, errors {r1.errors + r2.errors + r3.errors}")
-    else:
-        click.echo("  dry run — add --apply to write.")
+    click.echo(f"  un-tagged {r1.tagged}, un-favorited {r2.favorited}, "
+               f"reviewed:keep {r3.tagged + locked}, errors {r1.errors + r2.errors + r3.errors}")
 
 
 def _hint_automation(e: Exception):
