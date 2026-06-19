@@ -8,8 +8,8 @@ license.file = "LICENSE"
 
 [tool.briefcase.app.photocleanup]
 formal_name = "Photo Cleanup"
-description = "On-device photo dedup & cleanup (packaging spike)"
-long_description = "Spike: validate bundling the photo_cleanup backend (osxphotos + Vision) inside a Mac WebView app."
+description = "On-device photo dedup & cleanup"
+long_description = "On-device dedup + work-screenshot triage for Apple Photos, wrapping the photo_cleanup backend (osxphotos + Apple Vision) in a local WebView app."
 sources = ["src/photocleanup"]
 # The backend is reused as a library (built from the repo root), not forked.
 requires = [
@@ -17,6 +17,9 @@ requires = [
     # installs wheels-only, so we vendor a locally-built wheel for it.
     "bitmath @ file:///Users/vaclavtrnka/Projects/apple_photo_cleanup/app/wheels/bitmath-1.4.0.1-py3-none-any.whl",
     "photo-cleanup @ file:///Users/vaclavtrnka/Projects/apple_photo_cleanup",
+    # local API service (binds to localhost only — nothing leaves the device)
+    "fastapi>=0.137",
+    "uvicorn>=0.49",
 ]
 
 [tool.briefcase.app.photocleanup.macOS]
