@@ -27,9 +27,11 @@ Toga WebView app  ──>  local FastAPI service (localhost only)  ──>  phot
 - **`learning.py`** — turns the app's explicit keep/discard decisions into an
   "explicit-labels" feedback file the existing learning pipeline already reads.
 
-> Status: **service layer complete (Phase 2)**. The review UI (Phase 3) and
-> in-app PhotoKit delete (Phase 4) are next. `finalize` records reviewed-state +
-> learning and returns the discard uuids; it does not delete yet.
+> Status: **feature-complete.** Home → analyze → review grid (dedup / videos /
+> screenshots / expired) → finalize → **delete via PhotoKit** (macOS shows its
+> own confirmation; removed items go to Recently Deleted). Shipped as an
+> **unsigned DMG** (ad-hoc signed) — see [DISTRIBUTION.md](DISTRIBUTION.md) for
+> install + the notarization upgrade path.
 
 ## Build & run (bundled app)
 
