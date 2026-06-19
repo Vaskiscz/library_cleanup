@@ -15,19 +15,7 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ---- window chrome -------------------------------------------------------- */
 .chrome { display: flex; flex-direction: column; height: 100%; }
-.titlebar {
-  height: 38px; flex: none; background: #f0f0f2; position: relative;
-  display: flex; align-items: center; padding: 0 13px; -webkit-app-region: drag;
-  border-bottom: 1px solid var(--pc-separator);
-}
-@media (prefers-color-scheme: dark) { .titlebar { background: #2a2a2c; } }
-.lights { display: flex; gap: 8px; }
-.lights i { width: 12px; height: 12px; border-radius: 999px; display: block; }
-.lights .r { background: #ff5f57; } .lights .y { background: #febc2e; } .lights .g { background: #28c840; }
-.titlebar .ttl {
-  position: absolute; left: 0; right: 0; text-align: center;
-  font-size: var(--pc-text-sm); color: var(--pc-text-secondary); font-weight: var(--pc-weight-medium);
-}
+/* The native macOS title bar provides the window controls; no faux chrome. */
 .topbar {
   height: 50px; flex: none; display: flex; align-items: center; justify-content: space-between;
   padding: 0 var(--pc-sp-5); border-bottom: 1px solid var(--pc-separator); background: var(--pc-surface);

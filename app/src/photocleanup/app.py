@@ -22,7 +22,7 @@ class PhotoCleanup(toga.App):
     def startup(self):
         threading.Thread(target=_serve, daemon=True).start()
         self.web = toga.WebView(style=Pack(flex=1))
-        self.main_window = toga.MainWindow(title=self.formal_name)
+        self.main_window = toga.MainWindow(title=self.formal_name, size=(1200, 860))
         self.main_window.content = toga.Box(children=[self.web], style=Pack(direction=COLUMN, flex=1))
         self.main_window.show()
         # Navigate once uvicorn has had a beat to bind the port.

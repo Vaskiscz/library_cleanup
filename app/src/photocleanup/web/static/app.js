@@ -59,8 +59,6 @@ function chrome(inner) {
     : "Library connected";
   return `
     <div class="chrome">
-      <div class="titlebar"><div class="lights"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-        <div class="ttl">Library Cleanup</div></div>
       <div class="topbar">
         <div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
         <div class="status"><span class="dot"></span>${status}</div>
@@ -177,6 +175,8 @@ async function startAnalyze() {
     clearInterval(timer);
     state.summary = res.summary;
     state.selected = new Set(CATS.filter((c) => res.summary[c.id]?.items > 0).map((c) => c.id));
+    // library totals for the status line — fetched now (post-scan), not at launch
+    api.get("/api/library-stats").then((s) => { state.lib = s; render(); }).catch(() => {});
     if (barEl) barEl.style.width = "100%";
     setTimeout(() => { state.phase = "results"; render(); }, 250);
   } catch (e) {
@@ -470,5 +470,6 @@ function findGroupKey(layer, uuid) {
 }
 
 /* ---- boot ----------------------------------------------------------------- */
+// Nothing here touches the photo library — the first library access (and any
+// Photos permission prompt) happens only when the user clicks "Analyze".
 render();
-api.get("/api/library-stats").then((s) => { state.lib = s; if (state.view === "home" && state.phase === "idle") render(); }).catch(() => {});
