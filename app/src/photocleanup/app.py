@@ -25,10 +25,20 @@ class PhotoCleanup(toga.App):
         self.main_window = toga.MainWindow(title=self.formal_name, size=(1200, 860))
         self.main_window.content = toga.Box(children=[self.web], style=Pack(direction=COLUMN, flex=1))
         self.main_window.show()
-        # Navigate once uvicorn has had a beat to bind the port.
-        threading.Timer(
-            1.0, lambda: self.loop.call_soon_threadsafe(self._open)
-        ).start()
+        # Navigate only once the server is actually accepting connections, so a
+        # slow cold start never leaves a blank/error page.
+        threading.Thread(target=self._open_when_ready, daemon=True).start()
+
+    def _open_when_ready(self):
+        import socket
+        import time
+        for _ in range(150):                    # up to ~30s
+            try:
+                with socket.create_connection((HOST, PORT), timeout=0.3):
+                    break
+            except OSError:
+                time.sleep(0.2)
+        self.loop.call_soon_threadsafe(self._open)
 
     def _open(self):
         self.web.url = f"http://{HOST}:{PORT}/"
