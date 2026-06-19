@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import __version__
 from .engine import ALL_LAYERS, Engine
 from .store import DISCARD, KEEP, Store
 
@@ -52,7 +53,7 @@ class DeleteBody(BaseModel):
 
 def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                store_path: Optional[str] = None) -> FastAPI:
-    app = FastAPI(title="Library Cleanup", version="0.1.0")
+    app = FastAPI(title="Library Cleanup", version=__version__)
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()
     app.state.job = {"status": "idle"}   # analyze progress (single job at a time)
@@ -66,7 +67,8 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     # ---- API ---------------------------------------------------------------
     @app.get("/api/health")
     def health():
-        return {"ok": True, "layers": list(LAYERS), "counts": _store().counts()}
+        return {"ok": True, "version": __version__, "layers": list(LAYERS),
+                "counts": _store().counts()}
 
     @app.get("/api/library-stats")
     def library_stats():

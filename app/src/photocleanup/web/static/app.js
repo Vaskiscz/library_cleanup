@@ -45,6 +45,7 @@ const state = {
   view: "home",
   phase: "idle",            // idle | scanning | results
   libStatus: "unknown",     // unknown | connected | error  (drives the status dot)
+  version: "",              // app version, shown in the home footer
   lib: null,                // {photos, videos}
   cardSize: 116,            // review preview size (px), slider + cmd+wheel
   summary: null,            // {layer: {groups, items, removable, reclaimable_bytes}}
@@ -101,7 +102,7 @@ function renderHome() {
         <button class="btn btn-primary" id="analyze">Analyze my library</button>
         ${past}
       </div></div></div>
-      <div class="foot-note">${icon("i-lock")} Everything runs on your Mac. Nothing is uploaded, ever.</div>`;
+      <div class="foot-note">${icon("i-lock")} Everything runs on your Mac. Nothing is uploaded, ever.${state.version ? ` &middot; v${state.version}` : ""}</div>`;
   } else if (state.phase === "scanning") {
     body = `
       <div class="scroll"><div class="home"><div class="scanning">
@@ -515,6 +516,9 @@ function setCardSize(px) {
 // Nothing here touches the photo library — the first library access (and any
 // Photos permission prompt) happens only when the user clicks "Analyze".
 setCardSize(state.cardSize);
+// health is library-free (reads only the app's own SQLite) — safe at boot;
+// used to show the version in the footer.
+api.get("/api/health").then((h) => { state.version = h.version || ""; render(); }).catch(() => {});
 document.addEventListener("wheel", (e) => {
   if (!e.metaKey || state.view !== "review") return;
   e.preventDefault();                          // don't let the page zoom

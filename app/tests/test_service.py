@@ -39,6 +39,7 @@ def test_health(client):
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is True
+    assert body["version"]
     assert set(body["layers"]) == {"dedup", "videos", "screenshots", "expired"}
 
 
