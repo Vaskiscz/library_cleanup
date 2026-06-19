@@ -36,28 +36,20 @@ entitlement."com.apple.security.personal-information.photo_library" = false
 # Strip dead weight osxphotos drags in (its interactive REPL / pretty-print /
 # markdown / html tooling) that the app never imports at runtime — verified by
 # running a full analyze and checking sys.modules. Saves ~60 MB.
+# Only the osxphotos interactive-REPL cluster (loaded solely by `osxphotos repl`,
+# never on `import osxphotos`) + build/test cruft. Do NOT remove osxphotos's
+# data/util deps (mako, bs4, markdown*, etc.) — several are imported at load.
+# Every entry here is validated by running a real analyze in the built app.
 cleanup_paths = [
     "{app.formal_name}.app/Contents/Resources/app_packages/jedi",
     "{app.formal_name}.app/Contents/Resources/app_packages/jedi-*.dist-info",
     "{app.formal_name}.app/Contents/Resources/app_packages/parso",
     "{app.formal_name}.app/Contents/Resources/app_packages/ptpython",
-    "{app.formal_name}.app/Contents/Resources/app_packages/objexplore",
     "{app.formal_name}.app/Contents/Resources/app_packages/prompt_toolkit",
+    "{app.formal_name}.app/Contents/Resources/app_packages/objexplore",
     "{app.formal_name}.app/Contents/Resources/app_packages/rich_theme_manager",
-    "{app.formal_name}.app/Contents/Resources/app_packages/blessed",
-    "{app.formal_name}.app/Contents/Resources/app_packages/wcwidth",
-    "{app.formal_name}.app/Contents/Resources/app_packages/whenever",
-    "{app.formal_name}.app/Contents/Resources/app_packages/whenever-*.dist-info",
-    "{app.formal_name}.app/Contents/Resources/app_packages/Mako",
-    "{app.formal_name}.app/Contents/Resources/app_packages/markdown2.py",
-    "{app.formal_name}.app/Contents/Resources/app_packages/markdown_it",
-    "{app.formal_name}.app/Contents/Resources/app_packages/mdurl",
-    "{app.formal_name}.app/Contents/Resources/app_packages/bs4",
-    "{app.formal_name}.app/Contents/Resources/app_packages/soupsieve",
-    "{app.formal_name}.app/Contents/Resources/app_packages/psutil",
     "{app.formal_name}.app/Contents/Resources/app_packages/pip",
     "{app.formal_name}.app/Contents/Resources/app_packages/PyObjCTest",
-    # NOTE: fontTools is NOT removable — toga_cocoa.fonts imports fontTools.ttLib.
     "{app.formal_name}.app/Contents/Resources/app_packages/**/tests",
     "{app.formal_name}.app/Contents/Resources/app_packages/**/__pycache__",
     # embedded CPython stdlib weight we never use (test suite is ~32 MB)
