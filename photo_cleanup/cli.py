@@ -6,6 +6,7 @@ Nothing writes back to the Photos library yet (that's `apply`, stage 2).
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import time
 
@@ -72,7 +73,7 @@ def scan(dbpath, cache, rescan, report_path, limit, open_report):
     click.echo("Nothing changed. Review the report, then (stage 2) run `apply` to tag.")
 
     if open_report:
-        os.system(f'open "{out}"')
+        subprocess.run(["open", out], check=False)
 
 
 def _load_or_scan(cache, dbpath, rescan):
@@ -291,7 +292,7 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, include_reviewe
         click.echo("Review: Smart Album [Keyword is cleanup:duplicate]. Favorite any "
                    "extra keepers. Then delete via [cleanup:duplicate AND Favorite is No].")
     if open_report:
-        os.system(f'open "{out}"')
+        subprocess.run(["open", out], check=False)
 
 
 DEFAULT_EXPIRED_REPORT = os.path.abspath("./expired-report.html")
@@ -351,7 +352,7 @@ def expired(cache, since, until, min_age_years, report_path, do_apply, open_repo
         click.echo("Review: Smart Album [Keyword is cleanup:expired]. Favorite any to keep, "
                    "then delete via [cleanup:expired AND Favorite is No].")
     if open_report:
-        os.system(f'open "{out}"')
+        subprocess.run(["open", out], check=False)
 
 
 DEFAULT_VIDEO_REPORT = os.path.abspath("./videos-report.html")
@@ -437,7 +438,7 @@ def videos(since, until, large_mb, emb_cache, report_path, do_apply, open_report
                    "(delete candidates); keepers + large videos are ♥. Un-♥ any large one "
                    "you want to drop, then delete [cleanup:video AND Favorite is No].")
     if open_report:
-        _os.system(f'open "{out}"')
+        subprocess.run(["open", out], check=False)
 
 
 RESCUE_FILE = "/tmp/photo_cleanup_rescue.json"          # tagged favorites -> un-tag

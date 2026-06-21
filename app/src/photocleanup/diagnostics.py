@@ -61,13 +61,19 @@ def library_access_ok() -> tuple[bool, str]:
         return False, f"{db}: {type(e).__name__}: {e}"
 
 
+def _scrub(s: str) -> str:
+    """Replace the user's home path with ~ so a shared log doesn't leak the
+    username / home layout."""
+    return s.replace(os.path.expanduser("~"), "~")
+
+
 def log_failure(context: str, exc: BaseException) -> str:
     """Record a failure (traceback + access diagnosis). Returns the log path."""
     setup_logging()
     log = get_logger()
-    log.error("FAILURE during %s: %s: %s", context, type(exc).__name__, exc)
-    log.error("%s", "".join(
-        traceback.format_exception(type(exc), exc, exc.__traceback__)).rstrip())
+    log.error("FAILURE during %s: %s: %s", context, type(exc).__name__, _scrub(str(exc)))
+    log.error("%s", _scrub("".join(
+        traceback.format_exception(type(exc), exc, exc.__traceback__)).rstrip()))
     ok, detail = library_access_ok()
-    log.error("Full Disk Access (library readable): %s — %s", ok, detail)
+    log.error("Full Disk Access (library readable): %s — %s", ok, _scrub(detail))
     return LOG_PATH
