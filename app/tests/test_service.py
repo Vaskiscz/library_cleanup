@@ -50,6 +50,13 @@ def test_analyze_summary(client):
     assert summary["expired"]["items"] == 0  # stub records aren't expired
 
 
+def test_rejects_foreign_host(client):
+    # loopback Host is allowed (TestClient uses "testserver")...
+    assert client.get("/api/health").status_code == 200
+    # ...a rebound/foreign Host is refused (DNS-rebinding defense)
+    assert client.get("/api/health", headers={"host": "evil.example.com"}).status_code == 400
+
+
 def test_diagnostics_endpoint(client):
     r = client.get("/api/diagnostics")
     assert r.status_code == 200

@@ -15,6 +15,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import __version__
 from .engine import ALL_LAYERS, Engine
@@ -53,7 +54,13 @@ class DeleteBody(BaseModel):
 
 def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                store_path: Optional[str] = None) -> FastAPI:
-    app = FastAPI(title="Library Cleanup", version=__version__)
+    # No interactive API docs (smaller attack surface; the UI is the only client).
+    app = FastAPI(title="Library Cleanup", version=__version__,
+                  docs_url=None, redoc_url=None, openapi_url=None)
+    # Reject requests whose Host isn't loopback — defeats DNS-rebinding attacks
+    # where a malicious website resolves a domain to 127.0.0.1 to reach this API.
+    app.add_middleware(TrustedHostMiddleware,
+                       allowed_hosts=["127.0.0.1", "localhost", "testserver"])
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()
     app.state.job = {"status": "idle"}   # analyze progress (single job at a time)
