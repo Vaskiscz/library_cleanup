@@ -1,0 +1,45 @@
+<!-- @dsCard group="Components" -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  body { font-family: var(--pc-font); background: var(--pc-bg); margin: 0; padding: 20px; max-width: 760px; }
+  .lbl { font-size: 11px; color: var(--pc-text-secondary); margin: 18px 0 8px; }
+  .lbl:first-child { margin-top: 0; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12 l5 5 l9 -10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<div class="lbl">Category rows — selected, unselected, none-identified (disabled)</div>
+<div class="cat-list">
+  <button class="cat on">
+    <span class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+    <span class="body"><div class="name">Duplicate photoshoots</div>
+      <div class="desc">Fired the shutter 50 times at the same spot? No problem.</div></span>
+    <span class="right"><div class="count">1,015 <span style="font-weight:400;color:var(--pc-text-tertiary)">photos</span></div>
+      <div class="save">Save up to 6.4 GB</div><div class="desc">across 341 bursts</div></span>
+  </button>
+  <button class="cat">
+    <span class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+    <span class="body"><div class="name">Duplicate videos</div>
+      <div class="desc">Ten takes of the same wave? We keep the steady one.</div></span>
+    <span class="right"><div class="count">212 <span style="font-weight:400;color:var(--pc-text-tertiary)">videos</span></div>
+      <div class="save">Save up to 9.2 GB</div><div class="desc">across 58 sets</div></span>
+  </button>
+  <button class="cat disabled" disabled>
+    <span class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+    <span class="body"><div class="name">Screenshots</div>
+      <div class="desc">Work pings you screenshotted and never reopened.</div></span>
+    <span class="right"><span class="none">None identified</span></span>
+  </button>
+</div>
+
+<div class="lbl">Buttons — primary, secondary, secondary-sm, danger, text</div>
+<div class="row">
+  <button class="btn btn-primary">Analyze my library</button>
+  <button class="btn-secondary">Re-scan</button>
+  <button class="btn-secondary sm">Keep all</button>
+  <button class="btn btn-danger">Remove 39</button>
+  <button class="btn-text">Cancel</button>
+</div>

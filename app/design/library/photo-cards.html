@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  body { font-family: var(--pc-font); background: var(--pc-bg); margin: 0; padding: 20px; }
+  .lbl { font-size: 11px; color: var(--pc-text-secondary); margin: 0 0 8px; }
+  .ph1 { background: linear-gradient(135deg, #8fd3c8, #3f9e6b); }
+  .ph2 { background: linear-gradient(135deg, #cdd2da, #9aa3b0); }
+  .ph3 { background: linear-gradient(135deg, #1f2c33, #43616e); }
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12 l5 5 l9 -10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21 C-6 9 6 1 12 8 C18 1 30 9 12 21 Z" fill="currentColor"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z" fill="currentColor"/></symbol>
+</defs></svg>
+
+<div class="lbl">Photo cards — keeper (green ring + check), remove (red border, dimmed + ✕), favourite, video</div>
+<div class="gbody">
+  <div class="card keep">
+    <div class="frame"><div style="width:100%;height:100%" class="ph1"></div><span class="badge">
+      <svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+    <div class="fn">IMG_0299.JPG · 2.4 MB</div>
+  </div>
+  <div class="card remove">
+    <div class="frame"><div style="width:100%;height:100%" class="ph2"></div><span class="badge">
+      <svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+    <div class="fn">IMG_0301.JPG · 2.5 MB</div>
+  </div>
+  <div class="card keep">
+    <div class="frame"><div style="width:100%;height:100%" class="ph1"></div>
+      <svg class="fav" viewBox="0 0 24 24"><use href="#i-heart"/></svg>
+      <span class="badge"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+    <div class="fn">IMG_0305.HEIC · 1.9 MB ♥</div>
+  </div>
+  <div class="card keep">
+    <div class="frame"><div style="width:100%;height:100%" class="ph3"></div>
+      <div class="vplay"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></div>
+      <span class="vdur">0:12</span>
+      <span class="badge"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+    <div class="fn">IMG_2931.MOV · 184 MB</div>
+  </div>
+</div>
