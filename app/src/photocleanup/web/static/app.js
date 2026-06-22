@@ -62,6 +62,7 @@ const state = {
   selUuid: null,            // review: the card shown in the preview panel
   selLayer: null,
   pvCollapsed: false,       // review: preview panel hidden
+  pvWidth: 324,             // review: preview panel width (px), user-draggable
 };
 
 // (analysis runs as a background job; the UI polls /api/progress)
@@ -460,6 +461,7 @@ function renderReview() {
           <button class="btn pv-toggle" id="pvToggle"></button>
         </div>
       </aside>
+      <div class="pv-resize" id="pvResize" title="Drag to resize · double-click to reset" role="separator" aria-orientation="vertical"></div>
       <button class="pv-reopen" id="pvReopen" title="Show preview" aria-label="Show preview">‹</button>
     </div>
     <div class="bar bottom">
@@ -580,6 +582,27 @@ function bindReview() {
   const pvC = $("#pvCollapse"); if (pvC) pvC.onclick = () => { state.pvCollapsed = true; $("#rvMain").classList.add("collapsed"); };
   const pvR = $("#pvReopen"); if (pvR) pvR.onclick = () => { state.pvCollapsed = false; $("#rvMain").classList.remove("collapsed"); };
   const pvT = $("#pvToggle"); if (pvT) pvT.onclick = toggleSelected;
+
+  // drag the divider to resize the grid / preview split (double-click resets)
+  const rz = $("#pvResize");
+  if (rz) {
+    rz.onpointerdown = (e) => {
+      e.preventDefault();
+      const rm = $("#rvMain"); rm.classList.add("resizing");
+      try { rz.setPointerCapture(e.pointerId); } catch {}
+      const startX = e.clientX, startW = state.pvWidth, maxW = rm.clientWidth - 320;
+      const onMove = (ev) => setPreviewWidth(Math.min(maxW, startW + (startX - ev.clientX)));  // drag left = wider
+      const onUp = () => {
+        rm.classList.remove("resizing");
+        rz.removeEventListener("pointermove", onMove);
+        rz.removeEventListener("pointerup", onUp);
+        try { rz.releasePointerCapture(e.pointerId); } catch {}
+      };
+      rz.addEventListener("pointermove", onMove);
+      rz.addEventListener("pointerup", onUp);
+    };
+    rz.ondblclick = () => setPreviewWidth(PV_DEFAULT);
+  }
 
   // initialise / restore the previewed card so arrows + Space work the moment you arrive
   if (!state.finalize) {
@@ -795,10 +818,17 @@ function setCardSize(px) {
   if (cs && +cs.value !== px) cs.value = px;
 }
 
+const PV_MIN = 300, PV_DEFAULT = 324;     // preview panel: min keeps content uncramped
+function setPreviewWidth(px) {
+  state.pvWidth = Math.max(PV_MIN, Math.round(px));
+  document.documentElement.style.setProperty("--pv", state.pvWidth + "px");
+}
+
 /* ---- boot ----------------------------------------------------------------- */
 // Nothing here touches the photo library — the first library access (and any
 // Photos permission prompt) happens only when the user clicks "Analyze".
 setCardSize(state.cardSize);
+setPreviewWidth(state.pvWidth);
 // health is library-free (reads only the app's own SQLite) — safe at boot;
 // used to show the version in the footer.
 api.get("/api/health").then((h) => { state.version = h.version || ""; render(); }).catch(() => {});
