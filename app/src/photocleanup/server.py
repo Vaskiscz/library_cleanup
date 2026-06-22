@@ -133,6 +133,12 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                 ph["decided"] = decided.get(ph["uuid"])
         return {"layer": layer, "since": since, "until": until, "groups": groups}
 
+    @app.get("/api/all-items")
+    def all_items(since: Optional[str] = None, until: Optional[str] = None):
+        """Manual review feed: every eligible photo + video in range, chronological."""
+        groups = _engine().all_items(since, until, excluded=_store().reviewed_uuids())
+        return {"layer": "all", "since": since, "until": until, "groups": groups}
+
     @app.get("/api/thumb/{uuid}")
     def thumb(uuid: str, px: int = 240):
         data = _engine().thumb_bytes(uuid, px=px)

@@ -75,6 +75,15 @@ def test_candidates_dedup(client):
     assert all("decided" in p for p in g["photos"])
 
 
+def test_all_items_feed(client):
+    body = client.get("/api/all-items").json()
+    assert body["layer"] == "all" and len(body["groups"]) == 1
+    g = body["groups"][0]
+    assert g["size"] == 5                                  # 3 photos + 2 videos
+    assert all(p["suggested_keep"] for p in g["photos"])   # everything kept by default
+    assert any(p["is_video"] for p in g["photos"])         # videos included
+
+
 def test_candidates_videos_have_video_flag(client):
     g = client.get("/api/candidates", params={"layer": "videos"}).json()["groups"][0]
     assert g["size"] == 2

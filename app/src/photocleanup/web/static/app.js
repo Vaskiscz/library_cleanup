@@ -40,6 +40,10 @@ const CATS = [
     desc: "That parking-spot photo from a garage you left in 2022." },
 ];
 const CAT = Object.fromEntries(CATS.map((c) => [c.id, c]));
+// pseudo-layer for the manual "review everything" feed (not in the picker)
+CAT.all = { id: "all", name: "All photos & videos", grouped: false, noun: "items", setword: "items" };
+// which layers the review screen shows: the manual feed, or the picked categories
+const reviewLayers = () => state.manual ? ["all"] : CATS.map((c) => c.id).filter((id) => state.selected.has(id));
 
 const state = {
   view: "home",
@@ -63,6 +67,7 @@ const state = {
   selLayer: null,
   pvCollapsed: false,       // review: preview panel hidden
   pvWidth: 324,             // review: preview panel width (px), user-draggable
+  manual: false,            // review: manual "all photos & videos" feed (vs. curated)
 };
 
 // (analysis runs as a background job; the UI polls /api/progress)
@@ -205,6 +210,7 @@ function resultsBar() {
       <button class="btn-secondary" id="rescan">Re-scan</button>
       <div style="flex:1"></div>
       <div style="color:var(--pc-text-tertiary)" id="barInfo">${n} categor${n === 1 ? "y" : "ies"} · save up to ${fmtSave(tot.bytes)}</div>
+      <button class="btn-secondary" id="manual" title="Browse every photo &amp; video in this date range; nothing is pre-selected for removal">Review manually</button>
       <button class="btn btn-primary" id="review" ${n ? "" : "disabled"}>Review ${n} categor${n === 1 ? "y" : "ies"}</button>
     </div>`;
 }
@@ -312,6 +318,7 @@ function bindHome() {
   const c = $("#cancel"); if (c) c.onclick = () => { state.cancelled = true; state.phase = "idle"; render(); };
   const rs = $("#rescan"); if (rs) rs.onclick = () => { state.phase = "idle"; render(); };
   const rv = $("#review"); if (rv) rv.onclick = enterReview;
+  const mn = $("#manual"); if (mn) mn.onclick = enterManualReview;
   app.querySelectorAll(".cat[data-cat]").forEach((btn) => {
     btn.onclick = () => {
       const id = btn.dataset.cat;
@@ -386,8 +393,41 @@ function updateScanning(p) {
 }
 
 /* ---- review --------------------------------------------------------------- */
+// since/until (YYYY-MM-DD) for the current time-filter range, or nulls if "all".
+function rangeDates() {
+  if (!state.months.length || rangeIsAll()) return { since: null, until: null };
+  const lo = state.months[state.range.lo], hi = state.months[state.range.hi];
+  const [hy, hm] = hi.split("-").map(Number);
+  const lastDay = new Date(hy, hm, 0).getDate();
+  return { since: `${lo}-01`, until: `${hi}-${String(lastDay).padStart(2, "0")}` };
+}
+
+// Manual review: every photo & video in range as one chronological feed, all kept.
+async function enterManualReview() {
+  state.view = "review"; state.manual = true;
+  state.candidates = {}; state.decisions = {};
+  pvCache.clear();
+  app.innerHTML = chrome(`<div class="scroll"><div class="review"><div class="scanning">
+      <div class="spinner"></div><h2>Loading your photos…</h2></div></div></div>`);
+  const { since, until } = rangeDates();
+  const qs = new URLSearchParams();
+  if (since) qs.set("since", since);
+  if (until) qs.set("until", until);
+  try {
+    const res = await api.get(`/api/all-items?${qs.toString()}`);
+    state.candidates.all = res.groups;
+    const d = {};
+    res.groups.forEach((g) => g.photos.forEach((p) => (d[p.uuid] = "keep")));  // all keep by default
+    state.decisions.all = d;
+  } catch (e) {
+    state.view = "home"; state.manual = false; render(); alert("Couldn't load photos: " + e.message); return;
+  }
+  state.selUuid = null; state.selLayer = null; state.pvCollapsed = false;
+  renderReview();
+}
+
 async function enterReview() {
-  state.view = "review";
+  state.view = "review"; state.manual = false;
   state.candidates = {};
   state.decisions = {};
   pvCache.clear();                 // drop cached preview images from the previous review
@@ -437,7 +477,7 @@ function counts() {
 }
 
 function renderReview() {
-  const layers = CATS.map((c) => c.id).filter((id) => state.selected.has(id));
+  const layers = reviewLayers();
   const sections = layers.map(sectionHtml).join("");
   const c = counts();
   const pct = c.items ? Math.round(((c.keep + c.rem) / c.items) * 100) : 0;
@@ -489,9 +529,7 @@ function sectionHtml(layer) {
   const d = state.decisions[layer] || {};
   let keep = 0, rem = 0, items = 0;
   groups.forEach((g) => g.photos.forEach((p) => { items++; d[p.uuid] === "keep" ? keep++ : rem++; }));
-  const summary = c.grouped
-    ? `${fmtN(groups.length)} ${c.setword} · keeping ${keep} · removing ${rem}`
-    : `${fmtN(items)} flagged · keeping ${keep} · removing ${rem}`;
+  const summary = sectionSummary(layer, groups.length, items, keep, rem);
   const blocks = c.grouped
     ? groups.map((g) => groupHtml(layer, g)).join("")
     : (groups[0] ? flatHtml(layer, groups[0]) : "");
@@ -518,13 +556,25 @@ function groupHtml(layer, g) {
   </div>`;
 }
 
+// Summary line for a section — grouped layers count sets, the manual feed counts
+// items, the flat curated layers say "flagged".
+function sectionSummary(layer, nGroups, items, keep, rem) {
+  const c = CAT[layer];
+  if (c.grouped) return `${fmtN(nGroups)} ${c.setword} · keeping ${keep} · removing ${rem}`;
+  if (layer === "all") return `${fmtN(items)} items · keeping ${keep} · removing ${rem}`;
+  return `${fmtN(items)} flagged · keeping ${keep} · removing ${rem}`;
+}
+
 function flatHtml(layer, g) {
+  const manual = layer === "all";
+  const title = manual ? "All photos &amp; videos" : "All flagged to remove";
+  const meta = manual ? "· chronological · tap ✕ to remove" : "· tap any to keep";
   return `<div class="group"><div class="ghead">
-      <span class="gtitle">All flagged to remove</span><span class="gmeta">· tap any to keep</span>
+      <span class="gtitle">${title}</span><span class="gmeta">${meta}</span>
       <span class="spacer"></span>
       <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${g.group_key}">Keep all</button>
       <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${g.group_key}">Remove all</button>
-    </div><div class="gbody">${g.photos.map((p) => cardHtml(layer, p, true)).join("")}</div></div>`;
+    </div><div class="gbody">${g.photos.map((p) => cardHtml(layer, p, false)).join("")}</div></div>`;
 }
 
 function cardHtml(layer, p, shot = false) {
@@ -567,7 +617,7 @@ function escapeHtml(s) {
 }
 
 function bindReview() {
-  $("#back").onclick = () => { state.view = "home"; state.phase = "results"; render(); };
+  $("#back").onclick = () => { state.view = "home"; state.phase = "results"; state.manual = false; render(); };
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
   const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
 
@@ -651,7 +701,7 @@ function bindReview() {
   } else if (state.finalize === "done") {
     $("#m-new").onclick = () => {
       Object.assign(state, { view: "home", phase: "idle", finalize: null, done: null,
-        candidates: {}, decisions: {}, selected: new Set(), summary: null });
+        candidates: {}, decisions: {}, selected: new Set(), summary: null, manual: false });
       render();
     };
   }
@@ -675,14 +725,12 @@ function flip(card) {
 // Update all count text (section summaries, group headers, bars) in place —
 // no DOM rebuild, so thumbnails never reload.
 function refreshCounts() {
-  for (const layer of CATS.map((c) => c.id).filter((id) => state.selected.has(id))) {
-    const c = CAT[layer], groups = state.candidates[layer] || [], d = state.decisions[layer] || {};
+  for (const layer of reviewLayers()) {
+    const groups = state.candidates[layer] || [], d = state.decisions[layer] || {};
     let keep = 0, rem = 0, items = 0;
     groups.forEach((g) => g.photos.forEach((p) => { items++; d[p.uuid] === "keep" ? keep++ : rem++; }));
     const sum = document.querySelector(`.section[data-layer="${layer}"] .summary`);
-    if (sum) sum.textContent = c.grouped
-      ? `${fmtN(groups.length)} ${c.setword} · keeping ${keep} · removing ${rem}`
-      : `${fmtN(items)} flagged · keeping ${keep} · removing ${rem}`;
+    if (sum) sum.textContent = sectionSummary(layer, groups.length, items, keep, rem);
   }
   app.querySelectorAll(".group[data-group]").forEach((gEl) => {
     const d = state.decisions[gEl.dataset.layer] || {};
@@ -832,7 +880,9 @@ function modalHtml() {
       <div class="rows">
         <div class="row">${tick()}<span>macOS will ask you to confirm before anything is removed.</span></div>
         <div class="row">${tick()}<span>Removed items go to Recently Deleted — recoverable for 30 days.</span></div>
-        <div class="row">${tick()}<span>Kept items are marked reviewed and won't be shown again. Nothing leaves your Mac.</span></div>
+        <div class="row">${tick()}<span>${state.manual
+          ? "Kept items are left untouched. Nothing leaves your Mac."
+          : "Kept items are marked reviewed and won't be shown again. Nothing leaves your Mac."}</span></div>
       </div>
       <div class="actions">
         <button class="btn-secondary" id="m-cancel">Go back</button>
@@ -854,17 +904,24 @@ async function doFinalize() {
   state.finalize = "working";
   renderReview();
   try {
-    const layers = Object.keys(state.decisions);
-    for (const layer of layers) {
-      const decisions = Object.entries(state.decisions[layer]).map(([uuid, v]) => {
-        const p = (state.candidates[layer] || []).flatMap((g) => g.photos).find((x) => x.uuid === uuid);
-        return { uuid, verdict: v === "keep" ? "keep" : "discard",
-          group_key: p ? findGroupKey(layer, uuid) : null, suggested: p ? p.suggested_keep : false };
-      });
-      await api.post("/api/decisions", { layer, decisions });
+    let toDelete;
+    if (state.manual) {
+      // Manual feed: just remove the marked items — don't record the whole library
+      // as reviewed (that's only for the curated curator-training flow).
+      toDelete = Object.entries(state.decisions.all || {}).filter(([, v]) => v !== "keep").map(([u]) => u);
+    } else {
+      const layers = Object.keys(state.decisions);
+      for (const layer of layers) {
+        const decisions = Object.entries(state.decisions[layer]).map(([uuid, v]) => {
+          const p = (state.candidates[layer] || []).flatMap((g) => g.photos).find((x) => x.uuid === uuid);
+          return { uuid, verdict: v === "keep" ? "keep" : "discard",
+            group_key: p ? findGroupKey(layer, uuid) : null, suggested: p ? p.suggested_keep : false };
+        });
+        await api.post("/api/decisions", { layer, decisions });
+      }
+      toDelete = (await api.post("/api/finalize", { layers })).to_delete;
     }
-    const fin = await api.post("/api/finalize", { layers });
-    const del = await api.post("/api/delete", { uuids: fin.to_delete });
+    const del = await api.post("/api/delete", { uuids: toDelete });
     state.done = { status: del.status, deleted: del.deleted || 0,
                    kept: snapshot.keep, bytes: snapshot.bytes };
     state.finalize = "done";

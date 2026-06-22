@@ -395,6 +395,19 @@ class Engine:
         self._candidates[layer] = pl
         return pl
 
+    def all_items(self, since=None, until=None, excluded: Optional[set] = None) -> list[dict]:
+        """Every eligible photo + video in range as one chronological feed, all
+        suggested to keep — for the manual review flow. Same exclusions as the scan
+        (Hidden, reviewed:keep, app-excluded)."""
+        excluded = excluded or set()
+        recs = self.load_records(since, until, excluded=excluded) + \
+               self.load_videos(since, until, excluded=excluded)
+        recs.sort(key=lambda r: r.timestamp or 0)
+        photos = [self.photo_dict(r, suggested_keep=True) for r in recs]
+        return [{"group_key": "all", "title": "All photos & videos", "date_label": "",
+                 "size": len(photos), "suggested_keep": len(photos),
+                 "suggested_discard": 0, "photos": photos}]
+
     def library_stats(self) -> dict:
         """Cheap-ish library totals for the status line (videos counted once)."""
         from photo_cleanup.scan import ensure_records, scan_library
