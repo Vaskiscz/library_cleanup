@@ -1,0 +1,94 @@
+<!-- @dsCard group="Screens" -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  body { font-family: var(--pc-font); background: var(--pc-bg); margin: 0; padding: 20px; }
+  .win { height: 760px; border: 1px solid var(--pc-separator); border-radius: 12px; overflow: hidden; box-shadow: var(--pc-shadow-2); }
+  /* static stand-ins for the real <img> thumbnails so the screen reads without a server */
+  .card .frame .ph { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .card.remove .frame .ph { opacity: .55; filter: grayscale(.4); }
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="gCanvas" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ab6a6"/><stop offset=".55" stop-color="#1f9e86"/><stop offset="1" stop-color="#2f9e5f"/></linearGradient>
+  <clipPath id="frontClip"><rect x="268" y="260" width="489" height="489" rx="73"/></clipPath>
+  <symbol id="appicon" viewBox="0 0 1024 1024">
+    <rect x="88" y="88" width="848" height="848" rx="196" fill="url(#gCanvas)"/>
+    <rect x="268" y="260" width="489" height="489" rx="73" fill="#fff"/>
+    <g clip-path="url(#frontClip)"><circle cx="382" cy="382" r="60" fill="#15a89a"/>
+      <path d="M268 749 L457 512 L613 749 Z" fill="#2f9e5f"/><path d="M512 749 L668 559 L756 668 L756 749 Z" fill="#1f9e86"/></g>
+    <circle cx="743" cy="743" r="120" fill="#fff"/><circle cx="743" cy="743" r="99" fill="#2e7d32"/>
+    <path d="M694 743 L730 782 L795 704" fill="none" stroke="#fff" stroke-width="29" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12 l5 5 l9 -10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></symbol>
+  <linearGradient id="p1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8a87c"/><stop offset="1" stop-color="#c38d9e"/></linearGradient>
+  <linearGradient id="p4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d365"/><stop offset="1" stop-color="#e8956f"/></linearGradient>
+</defs></svg>
+
+<div class="win"><div class="chrome">
+  <div class="topbar">
+    <div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
+    <div class="status"><span class="dot ok"></span>Review your suggestions</div>
+  </div>
+
+  <div class="bar top">
+    <span>312 items in 4 categories</span>
+    <span class="mini-prog"><span style="width:60%"></span></span>
+    <span><span class="keep-n">Keeping 126</span> · <span class="rem-n">Removing 186</span></span>
+    <span class="sizer" title="Preview size (⌘ + scroll)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+      <input type="range" min="84" max="240" step="2" value="116">
+    </span>
+  </div>
+
+  <div class="scroll"><div class="review">
+    <div class="section" data-layer="dedup">
+      <h3>Duplicate photoshoots</h3>
+      <div class="summary">2 bursts · keeping 2 · removing 7</div>
+
+      <div class="group" data-group="g1" data-layer="dedup" data-noun="photos" data-size="5">
+        <div class="ghead">
+          <span class="gtitle">Beach trip — Jul 14</span>
+          <span class="gmeta">· 5 photos · keep 1 · remove 4</span>
+          <span class="spacer"></span>
+          <button class="btn-secondary sm">Keep all</button>
+          <button class="btn-secondary sm">Remove all</button>
+          <button class="chev">▾</button>
+        </div>
+        <div class="gbody">
+          <div class="card keep" data-uuid="a1"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-check"/></svg></span></div><div class="fn">IMG_4471.HEIC · 9.8 MB</div></div>
+          <div class="card remove" data-uuid="a2"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4472.HEIC · 9.6 MB</div></div>
+          <div class="card remove" data-uuid="a3"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4473.HEIC · 9.7 MB</div></div>
+          <div class="card remove" data-uuid="a4"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4474.HEIC · 9.4 MB</div></div>
+          <div class="card remove" data-uuid="a5"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4475.HEIC · 9.5 MB</div></div>
+        </div>
+      </div>
+
+      <div class="group" data-group="g2" data-layer="dedup" data-noun="photos" data-size="4">
+        <div class="ghead">
+          <span class="gtitle">Sunset on the pier — Jul 14</span>
+          <span class="gmeta">· 4 photos · keep 1 · remove 3</span>
+          <span class="spacer"></span>
+          <button class="btn-secondary sm">Keep all</button>
+          <button class="btn-secondary sm">Remove all</button>
+          <button class="chev">▾</button>
+        </div>
+        <div class="gbody">
+          <div class="card keep" data-uuid="b1"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-check"/></svg></span></div><div class="fn">IMG_4488.HEIC · 9.1 MB</div></div>
+          <div class="card remove" data-uuid="b2"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4489.HEIC · 8.9 MB</div></div>
+          <div class="card remove" data-uuid="b3"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4490.HEIC · 9.0 MB</div></div>
+          <div class="card remove" data-uuid="b4"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4491.HEIC · 8.8 MB</div></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="bar bottom">
+    <button class="btn-secondary">‹ Back</button>
+    <div style="flex:1"></div>
+    <div style="color:var(--pc-text-tertiary)">
+      <span class="keep-n">Keeping 126</span> ·
+      <span class="rem-n">Removing 186</span> · Frees 2.1 GB</div>
+    <button class="btn btn-primary">Review &amp; Finalize</button>
+  </div>
+</div></div>
