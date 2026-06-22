@@ -35,12 +35,12 @@ class StubEngine(Engine):
         self._videos = videos or []
         self._vgroups = vgroups or []
 
-    def load_records(self, since=None, until=None, excluded=None, force_rescan=False):
+    def load_records(self, since=None, until=None, excluded=None, force_rescan=False, eligible_only=True):
         for r in self._recs:
             self._index[r.uuid] = r
         return list(self._recs)
 
-    def load_videos(self, since=None, until=None, excluded=None):
+    def load_videos(self, since=None, until=None, excluded=None, eligible_only=True):
         for r in self._videos:
             self._index[r.uuid] = r
         return list(self._videos)

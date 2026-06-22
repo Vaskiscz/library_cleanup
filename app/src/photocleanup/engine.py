@@ -85,30 +85,35 @@ class Engine:
 
     # ---- record loading ----------------------------------------------------
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
-                     force_rescan: bool = False):
-        """Scoped, review-eligible photos. Excludes the Hidden album, anything the
-        library marks reviewed:keep, and (app-owned) any uuid in `excluded`."""
+                     force_rescan: bool = False, eligible_only: bool = True):
+        """Photos in scope. `eligible_only` (default) drops the Hidden album, items
+        the library already marks reviewed:keep, and any uuid in `excluded` — the set
+        the curated scan should suggest on. Set it False for the manual feed, which
+        shows everything in range except Hidden (incl. already-kept photos)."""
         from photo_cleanup.scan import ensure_records
         excluded = excluded or set()
         recs = _filter_by_date(ensure_records(self.cache, self.dbpath, force=force_rescan),
                                since, until)
-        recs = [r for r in recs
-                if not r.is_hidden
-                and KW_REVIEWED not in (r.keywords or [])
-                and r.uuid not in excluded]
+        if eligible_only:
+            recs = [r for r in recs if not r.is_hidden
+                    and KW_REVIEWED not in (r.keywords or []) and r.uuid not in excluded]
+        else:
+            recs = [r for r in recs if not r.is_hidden]
         for r in recs:
             self._index[r.uuid] = r
         return recs
 
-    def load_videos(self, since=None, until=None, excluded: Optional[set] = None):
-        """Scoped, review-eligible videos (same exclusions as photos)."""
+    def load_videos(self, since=None, until=None, excluded: Optional[set] = None,
+                    eligible_only: bool = True):
+        """Videos in scope (same eligibility rules as load_records)."""
         from photo_cleanup.scan import scan_library
         excluded = excluded or set()
         recs = _filter_by_date(scan_library(self.dbpath, movies_only=True), since, until)
-        recs = [r for r in recs
-                if KW_REVIEWED not in (r.keywords or [])
-                and r.uuid not in excluded
-                and r.path and os.path.exists(r.path)]
+        if eligible_only:
+            recs = [r for r in recs if KW_REVIEWED not in (r.keywords or [])
+                    and r.uuid not in excluded and r.path and os.path.exists(r.path)]
+        else:
+            recs = [r for r in recs if not r.is_hidden and r.path and os.path.exists(r.path)]
         for r in recs:
             self._index[r.uuid] = r
         return recs
@@ -395,13 +400,12 @@ class Engine:
         self._candidates[layer] = pl
         return pl
 
-    def all_items(self, since=None, until=None, excluded: Optional[set] = None) -> list[dict]:
-        """Every eligible photo + video in range as one chronological feed, all
-        suggested to keep — for the manual review flow. Same exclusions as the scan
-        (Hidden, reviewed:keep, app-excluded)."""
-        excluded = excluded or set()
-        recs = self.load_records(since, until, excluded=excluded) + \
-               self.load_videos(since, until, excluded=excluded)
+    def all_items(self, since=None, until=None) -> list[dict]:
+        """Every photo + video in range as one chronological feed, all suggested to
+        keep — for the manual review flow. Shows everything except Hidden, including
+        items already marked reviewed:keep (unlike the curated scan)."""
+        recs = self.load_records(since, until, eligible_only=False) + \
+               self.load_videos(since, until, eligible_only=False)
         recs.sort(key=lambda r: r.timestamp or 0)
         photos = [self.photo_dict(r, suggested_keep=True) for r in recs]
         return [{"group_key": "all", "title": "All photos & videos", "date_label": "",

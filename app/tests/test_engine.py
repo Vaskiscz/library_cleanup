@@ -44,6 +44,22 @@ def test_summarize_counts_and_bytes():
     assert s["reclaimable_bytes"] >= 0
 
 
+def test_manual_feed_includes_kept_items_excludes_hidden(monkeypatch):
+    from photo_cleanup import scan
+    from photo_cleanup.apply import KW_REVIEWED
+    a = mk("a")                              # normal
+    b = mk("b", keywords=[KW_REVIEWED])      # already kept (reviewed:keep)
+    h = mk("h", is_hidden=True)              # hidden
+    monkeypatch.setattr(scan, "ensure_records", lambda *args, **kw: [a, b, h])
+    monkeypatch.setattr(scan, "scan_library", lambda *args, **kw: [])
+    eng = Engine()
+    # curated scan: drops the kept + hidden ones
+    assert {r.uuid for r in eng.load_records()} == {"a"}
+    # manual feed: shows the kept one too, only Hidden is off-limits
+    feed = eng.all_items()[0]["photos"]
+    assert {p["uuid"] for p in feed} == {"a", "b"}
+
+
 def test_thumb_cache_is_memory_only_and_warms(tmp_path):
     from PIL import Image
     p = tmp_path / "img.jpg"; Image.new("RGB", (800, 600), (10, 90, 200)).save(p)
