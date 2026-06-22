@@ -73,18 +73,26 @@ const state = {
 // (analysis runs as a background job; the UI polls /api/progress)
 
 /* ---- chrome --------------------------------------------------------------- */
-function chrome(inner) {
-  // The dot/text reflect REAL state: grey until we've actually read the library,
-  // green once a scan succeeded, red if access failed.
-  let dot = "idle", text = "Library not connected";
-  if (state.libStatus === "error") {
-    dot = "err"; text = "Library access needed";
-  } else if (state.libStatus === "connected") {
-    dot = "ok";
-    text = state.lib
+// The status dot/text reflect REAL state: grey until we've read the library, green
+// once connected, red if access failed.
+function libStatusBits() {
+  if (state.libStatus === "error") return { dot: "err", text: "Library access needed" };
+  if (state.libStatus === "connected") {
+    return { dot: "ok", text: state.lib
       ? `Library connected · ${fmtN(state.lib.photos)} photos · ${fmtN(state.lib.videos)} videos`
-      : "Library connected";
+      : "Library connected" };
   }
+  return { dot: "idle", text: "Library not connected" };
+}
+// Update the top-bar status in place (no full re-render) — e.g. mid-scan, the
+// moment the library connection is established.
+function syncChromeStatus() {
+  const st = $(".topbar .status"); if (!st) return;
+  const { dot, text } = libStatusBits();
+  st.innerHTML = `<span class="dot ${dot}"></span>${text}`;
+}
+function chrome(inner) {
+  const { dot, text } = libStatusBits();
   const ver = state.version
     ? ` <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v${state.version}</span>`
     : "";
@@ -371,6 +379,12 @@ async function pollProgress() {
     state.errorLog = p.log || "";
     state.phase = "idle"; render();
   } else {
+    // Library is connected the moment scanning gets past access/connect (real
+    // counted progress) — reflect that in the top bar immediately, not at the end.
+    if (state.libStatus !== "connected" && (p.total || /^(Found|Analyzing|Grouping|Checking|Comparing|Finishing)/.test(p.message || ""))) {
+      state.libStatus = "connected";
+      syncChromeStatus();
+    }
     setTimeout(pollProgress, 400);
   }
 }
