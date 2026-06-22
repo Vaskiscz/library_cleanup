@@ -173,6 +173,7 @@ button { font-family: inherit; cursor: pointer; }
 .bar.bottom { bottom: 0; border-top: 1px solid var(--pc-separator); justify-content: space-between; }
 .bar .mini-prog { flex: 1; max-width: 280px; height: 5px; border-radius: 999px; background: var(--pc-surface-sunken); overflow: hidden; }
 .bar .mini-prog > span { display: block; height: 100%; background: var(--pc-brand); width: 0; transition: width .2s var(--pc-ease); }
+.bar .bulk { display: flex; gap: 8px; flex: none; }
 .bar .sizer { display: flex; align-items: center; gap: 8px; color: var(--pc-text-tertiary); flex: none; }
 .bar .sizer input[type="range"] { width: 110px; accent-color: var(--pc-brand); cursor: pointer; }
 .keep-n { color: var(--pc-keep); font-weight: var(--pc-weight-semibold); }

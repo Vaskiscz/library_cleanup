@@ -446,6 +446,10 @@ function renderReview() {
       <span>${fmtN(c.items)} items in ${layers.length} categor${layers.length === 1 ? "y" : "ies"}</span>
       <span class="mini-prog"><span style="width:${pct}%"></span></span>
       <span><span class="keep-n">Keeping ${fmtN(c.keep)}</span> · <span class="rem-n">Removing ${fmtN(c.rem)}</span></span>
+      <span class="bulk">
+        <button class="btn-secondary sm" id="keepAll" title="Keep every suggestion in the review">Keep all</button>
+        <button class="btn-secondary sm" id="removeAll" title="Remove every suggestion in the review">Remove all</button>
+      </span>
       <span class="sizer" title="Preview size (⌘ + scroll)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
         <input type="range" min="84" max="240" step="2" value="${state.cardSize}" id="cardsize">
@@ -548,6 +552,15 @@ function bindReview() {
   $("#back").onclick = () => { state.view = "home"; state.phase = "results"; render(); };
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
   const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
+
+  // whole-review keep/remove all (every card across every group, incl. collapsed)
+  const setAll = (v) => {
+    app.querySelectorAll(".card[data-uuid]").forEach((card) => setCardDecision(card, v));
+    if (state.selUuid) fillPreview();   // refresh the preview's toggle label
+    refreshCounts();
+  };
+  const ka = $("#keepAll"); if (ka) ka.onclick = () => setAll("keep");
+  const ra = $("#removeAll"); if (ra) ra.onclick = () => setAll("remove");
 
   // One delegated handler for the whole grid — cheaper than binding every card,
   // and (unlike a per-frame key handler) it can't double-fire with the global
