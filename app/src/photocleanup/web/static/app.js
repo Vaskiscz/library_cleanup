@@ -309,7 +309,7 @@ function sectionHtml(layer) {
   const blocks = c.grouped
     ? groups.map((g) => groupHtml(layer, g)).join("")
     : (groups[0] ? flatHtml(layer, groups[0]) : "");
-  return `<div class="section"><h3>${c.name}</h3><div class="summary">${summary}</div>${blocks}</div>`;
+  return `<div class="section" data-layer="${layer}"><h3>${c.name}</h3><div class="summary">${summary}</div>${blocks}</div>`;
 }
 
 function groupHtml(layer, g) {
@@ -318,7 +318,8 @@ function groupHtml(layer, g) {
   const keep = g.photos.filter((p) => d[p.uuid] === "keep").length;
   const rem = g.photos.length - keep;
   const collapsed = state.collapsed.has(g.group_key);
-  return `<div class="group ${collapsed ? "collapsed" : ""}" data-group="${g.group_key}">
+  return `<div class="group ${collapsed ? "collapsed" : ""}" data-group="${g.group_key}"
+              data-layer="${layer}" data-noun="${noun}" data-size="${g.size}">
     <div class="ghead">
       <span class="gtitle">${g.title}</span>
       <span class="gmeta">· ${g.size} ${noun} · keep ${keep} · remove ${rem}</span>
@@ -351,7 +352,7 @@ function cardHtml(layer, p, shot = false) {
   }
   return `<div class="card ${shot ? "shot" : ""} ${v === "keep" ? "keep" : "remove"}" data-uuid="${p.uuid}" data-layer="${layer}">
     <div class="frame" tabindex="0" role="button" aria-pressed="${v === "keep"}">
-      <img src="${p.thumb}" loading="lazy" alt="">
+      <img src="${p.thumb}" loading="lazy" decoding="async" width="240" height="240" alt="">
       ${fav}${overlay}${badge}
     </div>
     <div class="fn">${escapeHtml(p.filename)} · ${fmtSize(p.size_mb)}</div></div>`;
@@ -375,15 +376,15 @@ function bindReview() {
     };
   });
   app.querySelectorAll("[data-collapse]").forEach((b) => b.onclick = () => {
-    const k = b.dataset.collapse;
-    state.collapsed.has(k) ? state.collapsed.delete(k) : state.collapsed.add(k);
-    renderReview();
+    const gEl = b.closest(".group");
+    const collapsed = gEl.classList.toggle("collapsed");   // in place, no re-render
+    collapsed ? state.collapsed.add(b.dataset.collapse) : state.collapsed.delete(b.dataset.collapse);
+    b.textContent = collapsed ? "▸" : "▾";
   });
   app.querySelectorAll("[data-all]").forEach((b) => b.onclick = () => {
-    const { layer, g, all } = b.dataset;
-    const grp = (state.candidates[layer] || []).find((x) => x.group_key === g);
-    grp.photos.forEach((p) => (state.decisions[layer][p.uuid] = all));
-    renderReview();
+    const gEl = b.closest(".group");                       // mutate cards in place
+    gEl.querySelectorAll(".card[data-uuid]").forEach((card) => setCardDecision(card, b.dataset.all));
+    refreshCounts();
   });
 
   // finalize modal buttons
@@ -399,14 +400,42 @@ function bindReview() {
   }
 }
 
-function flip(card) {
+function setCardDecision(card, v) {
   const { uuid, layer } = card.dataset;
-  const v = state.decisions[layer][uuid] === "keep" ? "remove" : "keep";
   state.decisions[layer][uuid] = v;
   card.classList.toggle("keep", v === "keep");
   card.classList.toggle("remove", v !== "keep");
   $(".badge", card).innerHTML = icon(v === "keep" ? "i-check" : "i-x");
   $(".frame", card).setAttribute("aria-pressed", v === "keep");
+}
+
+function flip(card) {
+  const { uuid, layer } = card.dataset;
+  setCardDecision(card, state.decisions[layer][uuid] === "keep" ? "remove" : "keep");
+  refreshCounts();
+}
+
+// Update all count text (section summaries, group headers, bars) in place —
+// no DOM rebuild, so thumbnails never reload.
+function refreshCounts() {
+  for (const layer of CATS.map((c) => c.id).filter((id) => state.selected.has(id))) {
+    const c = CAT[layer], groups = state.candidates[layer] || [], d = state.decisions[layer] || {};
+    let keep = 0, rem = 0, items = 0;
+    groups.forEach((g) => g.photos.forEach((p) => { items++; d[p.uuid] === "keep" ? keep++ : rem++; }));
+    const sum = document.querySelector(`.section[data-layer="${layer}"] .summary`);
+    if (sum) sum.textContent = c.grouped
+      ? `${fmtN(groups.length)} ${c.setword} · keeping ${keep} · removing ${rem}`
+      : `${fmtN(items)} flagged · keeping ${keep} · removing ${rem}`;
+  }
+  app.querySelectorAll(".group[data-group]").forEach((gEl) => {
+    const d = state.decisions[gEl.dataset.layer] || {};
+    let keep = 0, total = 0;
+    gEl.querySelectorAll(".card[data-uuid]").forEach((card) => {
+      total++; if (d[card.dataset.uuid] === "keep") keep++;
+    });
+    const meta = $(".gmeta", gEl);
+    if (meta) meta.textContent = `· ${gEl.dataset.size} ${gEl.dataset.noun} · keep ${keep} · remove ${total - keep}`;
+  });
   updateBars();
 }
 
