@@ -1,0 +1,271 @@
+<!-- @dsCard group="Screens" -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  body { font-family: var(--pc-font); background: var(--pc-bg); margin: 0; padding: 20px; }
+  .win { height: 760px; border: 1px solid var(--pc-separator); border-radius: 12px; overflow: hidden; box-shadow: var(--pc-shadow-2); }
+  /* reclaim summary banner above the category list */
+  .reclaim { text-align: center; padding: 36px 0 6px; }
+  .reclaim .big { font-size: var(--pc-text-xl); font-weight: var(--pc-weight-bold); letter-spacing: -.02em; }
+  .reclaim .big em { font-style: normal; color: var(--pc-brand); }
+  .reclaim .sub { font-size: 14px; color: var(--pc-text-secondary); margin-top: 8px; }
+
+  /* time-period filter */
+  .tfilter { margin-top: 22px; padding: 16px 20px 20px; border: 1px solid var(--pc-separator);
+    border-radius: var(--pc-radius-lg); background: var(--pc-surface); }
+  .tf-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .tf-title { font-size: var(--pc-text-md); font-weight: var(--pc-weight-semibold); display: flex; align-items: center; gap: 8px; }
+  .tf-title svg { width: 15px; height: 15px; color: var(--pc-text-secondary); }
+  .tf-range { font-size: var(--pc-text-sm); font-weight: var(--pc-weight-semibold); color: var(--pc-brand);
+    font-variant-numeric: tabular-nums; }
+  .tf-range.all { color: var(--pc-text-tertiary); }
+  .tf-reset { font-size: var(--pc-text-xs); color: var(--pc-text-secondary); background: none; border: none;
+    padding: 2px 4px; margin-left: 8px; text-decoration: underline; opacity: 0; pointer-events: none;
+    transition: opacity var(--pc-dur-fast) var(--pc-ease); }
+  .tf-reset.show { opacity: 1; pointer-events: auto; }
+
+  .tf-chart { display: flex; align-items: flex-end; gap: 1px; height: 46px; margin-bottom: 7px; }
+  .tf-bar { flex: 1 1 0; min-height: 2px; border-radius: 1.5px 1.5px 0 0; background: var(--pc-surface-sunken);
+    transition: background var(--pc-dur-fast) var(--pc-ease); }
+  .tf-bar.in { background: var(--pc-brand); }
+  .range-wrap { position: relative; height: 24px; }
+  .rtrack { position: absolute; top: 50%; left: 0; right: 0; height: 5px; transform: translateY(-50%);
+    border-radius: 999px; background: var(--pc-surface-sunken); }
+  .rfill { position: absolute; top: 50%; height: 5px; transform: translateY(-50%); border-radius: 999px;
+    background: var(--pc-brand); }
+  .range-wrap input[type="range"] { position: absolute; top: 0; left: 0; width: 100%; height: 24px; margin: 0;
+    background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+  .range-wrap input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
+    pointer-events: auto; width: 18px; height: 18px; border-radius: 999px; background: #fff;
+    border: 1px solid var(--pc-border); box-shadow: var(--pc-shadow-1); cursor: grab; }
+  .range-wrap input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
+  .range-wrap input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 18px; height: 18px;
+    border-radius: 999px; background: #fff; border: 1px solid var(--pc-border); box-shadow: var(--pc-shadow-1); cursor: grab; }
+  #rStart { z-index: 3; }
+  #rEnd { z-index: 2; }
+
+  .ticks { position: relative; height: 16px; margin-top: 6px; }
+  .ticks span { position: absolute; transform: translateX(-50%); font-size: 10px; color: var(--pc-text-tertiary);
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ticks span:first-child { transform: none; }
+  .ticks span:last-child { transform: translateX(-100%); }
+
+  .cat .count.dim { color: var(--pc-text-tertiary); }
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="gCanvas" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ab6a6"/><stop offset=".55" stop-color="#1f9e86"/><stop offset="1" stop-color="#2f9e5f"/></linearGradient>
+  <clipPath id="frontClip"><rect x="268" y="260" width="489" height="489" rx="73"/></clipPath>
+  <symbol id="appicon" viewBox="0 0 1024 1024">
+    <rect x="88" y="88" width="848" height="848" rx="196" fill="url(#gCanvas)"/>
+    <rect x="268" y="260" width="489" height="489" rx="73" fill="#fff"/>
+    <g clip-path="url(#frontClip)"><circle cx="382" cy="382" r="60" fill="#15a89a"/>
+      <path d="M268 749 L457 512 L613 749 Z" fill="#2f9e5f"/><path d="M512 749 L668 559 L756 668 L756 749 Z" fill="#1f9e86"/></g>
+    <circle cx="743" cy="743" r="120" fill="#fff"/><circle cx="743" cy="743" r="99" fill="#2e7d32"/>
+    <path d="M694 743 L730 782 L795 704" fill="none" stroke="#fff" stroke-width="29" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12 l5 5 l9 -10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7 V12 L15.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<div class="win"><div class="chrome">
+  <div class="topbar">
+    <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.5</span></div>
+    <div class="status"><span class="dot ok"></span>Scan complete · 25,322 items</div>
+  </div>
+
+  <div class="scroll"><div class="home"><div class="results" style="padding-top:0">
+    <div class="reclaim">
+      <div class="big">Up to <em id="totGb">16.7 GB</em> ready to clear</div>
+      <div class="sub">Pick the categories worth a look. Nothing is removed until you confirm.</div>
+    </div>
+
+    <div class="tfilter">
+      <div class="tf-head">
+        <span class="tf-title"><svg viewBox="0 0 24 24"><use href="#i-clock"/></svg> Time period</span>
+        <span><span class="tf-range all" id="tfRange">All time · Jan 2019 – Jun 2026</span><button class="tf-reset" id="tfReset">Reset</button></span>
+      </div>
+      <div class="tf-chart" id="tfChart" aria-hidden="true"></div>
+      <div class="range-wrap">
+        <div class="rtrack"></div>
+        <div class="rfill" id="rfill"></div>
+        <input type="range" id="rStart" min="0" max="89" value="0" aria-label="Start month">
+        <input type="range" id="rEnd" min="0" max="89" value="89" aria-label="End month">
+      </div>
+      <div class="ticks" id="ticks"></div>
+    </div>
+
+    <div class="cat-list" style="margin-top:18px">
+      <button class="cat on" data-cat="photos">
+        <span class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+        <span class="body"><div class="name">Duplicate photoshoots</div>
+          <div class="desc">Fifty frames of the same view — the sharpest one is pre-picked.</div></span>
+        <span class="right"><div class="count"><span data-count>1,015</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">photos</span></div>
+          <div class="save" data-save>Save up to 6.4 GB</div><div class="desc"><span data-groups>across 341 bursts</span></div></span>
+      </button>
+      <button class="cat on" data-cat="videos">
+        <span class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+        <span class="body"><div class="name">Duplicate videos</div>
+          <div class="desc">Ten takes of one moment — the steady one stays.</div></span>
+        <span class="right"><div class="count"><span data-count>212</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">videos</span></div>
+          <div class="save" data-save>Save up to 9.2 GB</div><div class="desc"><span data-groups>across 58 sets</span></div></span>
+      </button>
+      <button class="cat on" data-cat="shots">
+        <span class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+        <span class="body"><div class="name">Screenshots</div>
+          <div class="desc">Snapped once and never opened again.</div></span>
+        <span class="right"><div class="count"><span data-count>486</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">shots</span></div>
+          <div class="save" data-save>Save up to 1.1 GB</div><div class="desc"><span data-groups>mostly receipts &amp; pings</span></div></span>
+      </button>
+      <button class="cat disabled" disabled>
+        <span class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+        <span class="body"><div class="name">Blurry &amp; low-light</div>
+          <div class="desc">Out-of-focus and underexposed shots.</div></span>
+        <span class="right"><span class="none">None identified</span></span>
+      </button>
+    </div>
+  </div></div></div>
+
+  <div class="bar bottom">
+    <button class="btn-secondary">‹ Back</button>
+    <div style="flex:1"></div>
+    <div style="color:var(--pc-text-tertiary)">
+      <span style="color:var(--pc-text);font-weight:var(--pc-weight-semibold)" id="barCats">3 categories</span> · <span id="barItems">1,713 items</span> · up to <span id="barGb">16.7 GB</span></div>
+    <button class="btn btn-primary" id="cta">Review 1,713 items ›</button>
+  </div>
+</div></div>
+
+<script>
+(function () {
+  // Time axis: Jan 2019 .. Jun 2026 inclusive (month granularity).
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var START_YEAR = 2019, N = 90;             // indices 0..89  → Jan 2019 .. Jun 2026
+  function label(i) { return MONTHS[i % 12] + ' ' + (START_YEAR + Math.floor(i / 12)); }
+
+  // Per-category totals + size model (avg MB/item, group nouns).
+  var CATS = {
+    photos: { total: 1015, avgMB: 6.45, unit: 'photos', groups: 341, gnoun: 'bursts', gverb: 'across' },
+    videos: { total: 212,  avgMB: 44.4, unit: 'videos', groups: 58,  gnoun: 'sets',   gverb: 'across' },
+    shots:  { total: 486,  avgMB: 2.32, unit: 'shots',  groups: null, gtext: 'mostly receipts & pings' }
+  };
+
+  // Deterministic per-month integer distribution summing exactly to `total`.
+  function dist(total, seed) {
+    var w = [], s = 0, i;
+    for (i = 0; i < N; i++) {
+      var r = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453;
+      var f = r - Math.floor(r);
+      // gentle upward trend toward recent months — libraries grow over time
+      var v = 0.25 + f + (i / N) * 0.9;
+      w.push(v); s += v;
+    }
+    var raw = w.map(function (x) { return x / s * total; });
+    var out = raw.map(Math.floor);
+    var rem = total - out.reduce(function (a, b) { return a + b; }, 0);
+    var order = raw.map(function (c, idx) { return { i: idx, f: c - Math.floor(c) }; })
+                   .sort(function (a, b) { return b.f - a.f; });
+    for (var k = 0; k < rem; k++) out[order[k].i]++;
+    return out;
+  }
+  Object.keys(CATS).forEach(function (key, idx) { CATS[key].dist = dist(CATS[key].total, idx + 1); });
+
+  function sumRange(arr, lo, hi) {
+    var t = 0; for (var i = lo; i <= hi; i++) t += arr[i]; return t;
+  }
+  function nfmt(n) { return n.toLocaleString('en-US'); }
+  function gb(mb) { return (mb / 1024); }
+  function gfmt(v) { return (v >= 10 ? v.toFixed(0) : v.toFixed(1)) + ' GB'; }
+
+  var rStart = document.getElementById('rStart'),
+      rEnd = document.getElementById('rEnd'),
+      rfill = document.getElementById('rfill'),
+      tfRange = document.getElementById('tfRange'),
+      tfReset = document.getElementById('tfReset'),
+      ticks = document.getElementById('ticks'),
+      totGb = document.getElementById('totGb'),
+      barCats = document.getElementById('barCats'),
+      barItems = document.getElementById('barItems'),
+      barGb = document.getElementById('barGb'),
+      cta = document.getElementById('cta');
+
+  // Monthly savings (GB across all categories) → column chart above the slider
+  var monthGb = [], maxGb = 0;
+  for (var m = 0; m < N; m++) {
+    var g = 0;
+    Object.keys(CATS).forEach(function (k) { g += gb(CATS[k].dist[m] * CATS[k].avgMB); });
+    monthGb.push(g); if (g > maxGb) maxGb = g;
+  }
+  var tfChart = document.getElementById('tfChart'), bars = [];
+  for (var b = 0; b < N; b++) {
+    var bar = document.createElement('div');
+    bar.className = 'tf-bar';
+    bar.style.height = (8 + (monthGb[b] / maxGb) * 92) + '%';
+    bar.title = label(b) + ' · up to ' + gfmt(monthGb[b]);
+    tfChart.appendChild(bar); bars.push(bar);
+  }
+
+  // Year ticks
+  for (var y = START_YEAR; y <= 2026; y++) {
+    var span = document.createElement('span');
+    span.textContent = y;
+    span.style.left = ((y - START_YEAR) * 12) / (N - 1) * 100 + '%';
+    ticks.appendChild(span);
+  }
+
+  function render() {
+    var lo = +rStart.value, hi = +rEnd.value;
+    var pct = function (v) { return v / (N - 1) * 100; };
+    rfill.style.left = pct(lo) + '%';
+    rfill.style.width = (pct(hi) - pct(lo)) + '%';
+
+    for (var bi = 0; bi < N; bi++) bars[bi].classList.toggle('in', bi >= lo && bi <= hi);
+
+    var all = (lo === 0 && hi === N - 1);
+    tfRange.textContent = (all ? 'All time · ' : '') + label(lo) + ' – ' + label(hi);
+    tfRange.classList.toggle('all', all);
+    tfReset.classList.toggle('show', !all);
+
+    var totalGb = 0, totalItems = 0, nCats = 0;
+    document.querySelectorAll('.cat[data-cat]').forEach(function (row) {
+      var c = CATS[row.getAttribute('data-cat')];
+      var n = sumRange(c.dist, lo, hi);
+      var size = gb(n * c.avgMB);
+      totalGb += size; totalItems += n; if (n > 0) nCats++;
+
+      row.querySelector('[data-count]').textContent = nfmt(n);
+      row.querySelector('[data-count]').parentElement.classList.toggle('dim', n === 0);
+      row.querySelector('[data-save]').textContent = n > 0 ? ('Save up to ' + gfmt(size)) : 'Nothing here';
+      var g = row.querySelector('[data-groups]');
+      if (c.groups != null) {
+        var gn = Math.max(n > 0 ? 1 : 0, Math.round(c.groups * n / c.total));
+        g.textContent = n > 0 ? (c.gverb + ' ' + nfmt(gn) + ' ' + c.gnoun) : '—';
+      } else {
+        g.textContent = n > 0 ? c.gtext : '—';
+      }
+      // dim/disable a category that has nothing in range
+      row.classList.toggle('on', n > 0 && row.dataset.disabled !== '1');
+      row.style.opacity = n === 0 ? '.55' : '';
+    });
+
+    totGb.textContent = gfmt(totalGb);
+    barGb.textContent = gfmt(totalGb);
+    barCats.textContent = nCats + (nCats === 1 ? ' category' : ' categories');
+    barItems.textContent = nfmt(totalItems) + ' items';
+    cta.textContent = totalItems > 0 ? ('Review ' + nfmt(totalItems) + ' items ›') : 'Nothing to review';
+    cta.disabled = totalItems === 0;
+  }
+
+  rStart.addEventListener('input', function () {
+    if (+rStart.value > +rEnd.value) rStart.value = rEnd.value;
+    render();
+  });
+  rEnd.addEventListener('input', function () {
+    if (+rEnd.value < +rStart.value) rEnd.value = rStart.value;
+    render();
+  });
+  tfReset.addEventListener('click', function () {
+    rStart.value = 0; rEnd.value = N - 1; render();
+  });
+
+  render();
+})();
+</script>

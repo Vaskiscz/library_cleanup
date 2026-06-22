@@ -4,9 +4,6 @@
 <style>
   body { font-family: var(--pc-font); background: var(--pc-bg); margin: 0; padding: 20px; }
   .win { height: 760px; border: 1px solid var(--pc-separator); border-radius: 12px; overflow: hidden; box-shadow: var(--pc-shadow-2); }
-  /* static stand-ins for the real <img> thumbnails so the screen reads without a server */
-  .card .frame .ph { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .card.remove .frame .ph { opacity: .55; filter: grayscale(.4); }
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="gCanvas" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ab6a6"/><stop offset=".55" stop-color="#1f9e86"/><stop offset="1" stop-color="#2f9e5f"/></linearGradient>
@@ -27,68 +24,161 @@
 
 <div class="win"><div class="chrome">
   <div class="topbar">
-    <div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
-    <div class="status"><span class="dot ok"></span>Review your suggestions</div>
+    <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.5</span></div>
   </div>
 
   <div class="bar top">
-    <span>312 items in 4 categories</span>
-    <span class="mini-prog"><span style="width:60%"></span></span>
-    <span><span class="keep-n">Keeping 126</span> · <span class="rem-n">Removing 186</span></span>
-    <span class="sizer" title="Preview size (⌘ + scroll)">
+    <span id="rvTotal">9 items in 1 category</span>
+    <span class="mini-prog"><span id="rvProg" style="width:0%"></span></span>
+    <span><span class="keep-n" id="rvKeepTop">Keeping 0</span> · <span class="rem-n" id="rvRemTop">Removing 0</span></span>
+    <span class="sizer" title="Preview size">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
-      <input type="range" min="84" max="240" step="2" value="116">
+      <input type="range" id="rvZoom" min="84" max="240" step="2" value="116" aria-label="Preview size">
     </span>
   </div>
 
-  <div class="scroll"><div class="review">
-    <div class="section" data-layer="dedup">
-      <h3>Duplicate photoshoots</h3>
-      <div class="summary">2 bursts · keeping 2 · removing 7</div>
+  <div class="rv-main" id="rvMain">
+    <div class="scroll"><div class="review" id="reviewBody" style="--card:116px">
+      <div class="section">
+        <h3>Duplicate photoshoots</h3>
+        <div class="summary">2 bursts · click a thumbnail to preview · tap its ✓ / ✕ to keep or remove</div>
 
-      <div class="group" data-group="g1" data-layer="dedup" data-noun="photos" data-size="5">
-        <div class="ghead">
-          <span class="gtitle">Beach trip — Jul 14</span>
-          <span class="gmeta">· 5 photos · keep 1 · remove 4</span>
-          <span class="spacer"></span>
-          <button class="btn-secondary sm">Keep all</button>
-          <button class="btn-secondary sm">Remove all</button>
-          <button class="chev">▾</button>
+        <div class="group">
+          <div class="ghead">
+            <span class="gtitle">Beach trip — Jul 14</span>
+            <span class="gmeta">· 5 photos</span>
+            <span class="spacer"></span>
+            <button class="btn-secondary sm" data-keepall>Keep all</button>
+            <button class="btn-secondary sm" data-removeall>Remove all</button>
+            <button class="chev" title="Collapse group">▾</button>
+          </div>
+          <div class="gbody">
+            <div class="card keep" data-mb="9.8"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div><div class="fn">IMG_4471.HEIC · 9.8 MB</div></div>
+            <div class="card remove" data-mb="9.6"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div><div class="fn">IMG_4472.HEIC · 9.6 MB</div></div>
+            <div class="card remove" data-mb="9.7"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div><div class="fn">IMG_4473.HEIC · 9.7 MB</div></div>
+            <div class="card remove" data-mb="9.4"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div><div class="fn">IMG_4474.HEIC · 9.4 MB</div></div>
+            <div class="card remove" data-mb="9.5"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div><div class="fn">IMG_4475.HEIC · 9.5 MB</div></div>
+          </div>
         </div>
-        <div class="gbody">
-          <div class="card keep" data-uuid="a1"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-check"/></svg></span></div><div class="fn">IMG_4471.HEIC · 9.8 MB</div></div>
-          <div class="card remove" data-uuid="a2"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4472.HEIC · 9.6 MB</div></div>
-          <div class="card remove" data-uuid="a3"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4473.HEIC · 9.7 MB</div></div>
-          <div class="card remove" data-uuid="a4"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4474.HEIC · 9.4 MB</div></div>
-          <div class="card remove" data-uuid="a5"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p1)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4475.HEIC · 9.5 MB</div></div>
+
+        <div class="group">
+          <div class="ghead">
+            <span class="gtitle">Sunset on the pier — Jul 14</span>
+            <span class="gmeta">· 4 photos</span>
+            <span class="spacer"></span>
+            <button class="btn-secondary sm" data-keepall>Keep all</button>
+            <button class="btn-secondary sm" data-removeall>Remove all</button>
+            <button class="chev" title="Collapse group">▾</button>
+          </div>
+          <div class="gbody">
+            <div class="card keep" data-mb="9.1"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div><div class="fn">IMG_4488.HEIC · 9.1 MB</div></div>
+            <div class="card remove" data-mb="8.9"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div><div class="fn">IMG_4489.HEIC · 8.9 MB</div></div>
+            <div class="card remove" data-mb="9.0"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div><div class="fn">IMG_4490.HEIC · 9.0 MB</div></div>
+            <div class="card remove" data-mb="8.8"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div><div class="fn">IMG_4491.HEIC · 8.8 MB</div></div>
+          </div>
         </div>
       </div>
+    </div></div>
 
-      <div class="group" data-group="g2" data-layer="dedup" data-noun="photos" data-size="4">
-        <div class="ghead">
-          <span class="gtitle">Sunset on the pier — Jul 14</span>
-          <span class="gmeta">· 4 photos · keep 1 · remove 3</span>
-          <span class="spacer"></span>
-          <button class="btn-secondary sm">Keep all</button>
-          <button class="btn-secondary sm">Remove all</button>
-          <button class="chev">▾</button>
-        </div>
-        <div class="gbody">
-          <div class="card keep" data-uuid="b1"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-check"/></svg></span></div><div class="fn">IMG_4488.HEIC · 9.1 MB</div></div>
-          <div class="card remove" data-uuid="b2"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4489.HEIC · 8.9 MB</div></div>
-          <div class="card remove" data-uuid="b3"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4490.HEIC · 9.0 MB</div></div>
-          <div class="card remove" data-uuid="b4"><div class="frame"><svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="url(#p4)"/></svg><span class="badge"><svg><use href="#i-x"/></svg></span></div><div class="fn">IMG_4491.HEIC · 8.8 MB</div></div>
-        </div>
+    <aside class="preview" id="preview">
+      <div class="pv-head">
+        <span class="pv-title">Preview</span>
+        <button class="pv-collapse" id="pvCollapse" title="Hide preview" aria-label="Hide preview">›</button>
       </div>
-    </div>
-  </div></div>
+      <div class="pv-empty" id="pvEmpty">Click any photo to preview it full-size here.</div>
+      <div class="pv-content" id="pvContent" hidden>
+        <div class="pv-img" id="pvImg"></div>
+        <div class="pv-name" id="pvName"></div>
+        <div class="pv-meta" id="pvMeta"></div>
+        <button class="btn pv-toggle" id="pvToggle"></button>
+      </div>
+    </aside>
+    <button class="pv-reopen" id="pvReopen" title="Show preview" aria-label="Show preview">‹</button>
+  </div>
 
   <div class="bar bottom">
     <button class="btn-secondary">‹ Back</button>
     <div style="flex:1"></div>
     <div style="color:var(--pc-text-tertiary)">
-      <span class="keep-n">Keeping 126</span> ·
-      <span class="rem-n">Removing 186</span> · Frees 2.1 GB</div>
+      <span class="keep-n" id="rvKeep">Keeping 0</span> · <span class="rem-n" id="rvRem">Removing 0</span> · Frees <span id="rvFrees">0 MB</span></div>
     <button class="btn btn-primary">Review &amp; Finalize</button>
   </div>
 </div></div>
+
+<script>
+(function () {
+  var reviewBody = document.getElementById('reviewBody');
+  function fmtSize(mb) { return mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB'; }
+  function setState(card, keep) {
+    card.classList.toggle('keep', keep); card.classList.toggle('remove', !keep);
+    card.querySelector('.badge use').setAttribute('href', keep ? '#i-check' : '#i-x');
+  }
+  function renderReview() {
+    var cards = reviewBody.querySelectorAll('.card'), keep = 0, rem = 0, freed = 0, total = cards.length;
+    cards.forEach(function (c) { if (c.classList.contains('remove')) { rem++; freed += parseFloat(c.dataset.mb || 0); } else keep++; });
+    var cats = reviewBody.querySelectorAll('.section').length;
+    document.getElementById('rvKeep').textContent = 'Keeping ' + keep;
+    document.getElementById('rvRem').textContent = 'Removing ' + rem;
+    document.getElementById('rvKeepTop').textContent = 'Keeping ' + keep;
+    document.getElementById('rvRemTop').textContent = 'Removing ' + rem;
+    document.getElementById('rvFrees').textContent = fmtSize(freed);
+    document.getElementById('rvTotal').textContent = total + ' items in ' + cats + (cats === 1 ? ' category' : ' categories');
+    document.getElementById('rvProg').style.width = (total ? (keep + rem) / total * 100 : 0) + '%';
+  }
+
+  /* preview panel */
+  var rvMain = document.getElementById('rvMain'),
+      pvEmpty = document.getElementById('pvEmpty'), pvContent = document.getElementById('pvContent'),
+      pvImg = document.getElementById('pvImg'), pvName = document.getElementById('pvName'),
+      pvMeta = document.getElementById('pvMeta'), pvToggle = document.getElementById('pvToggle');
+  var selectedCard = null;
+  function fillPreview(card) {
+    pvImg.innerHTML = ''; pvImg.appendChild(card.querySelector('.ph').cloneNode(true));
+    var fn = card.querySelector('.fn').textContent.split('·');
+    pvName.textContent = fn[0].trim();
+    pvMeta.textContent = '4032 × 3024 · ' + (fn[1] || '').trim();
+    var keep = card.classList.contains('keep');
+    pvToggle.textContent = keep ? 'Mark for removal' : 'Keep this one';
+    pvToggle.className = 'btn pv-toggle ' + (keep ? 'btn-danger' : 'btn-primary');
+    pvEmpty.hidden = true; pvContent.hidden = false;
+  }
+  function selectCard(card) {
+    if (selectedCard) selectedCard.classList.remove('selected');
+    selectedCard = card; card.classList.add('selected');
+    fillPreview(card); rvMain.classList.remove('collapsed');
+  }
+  reviewBody.querySelectorAll('.badge').forEach(function (b) { b.setAttribute('title', 'Click to keep / remove'); });
+  reviewBody.querySelectorAll('.frame').forEach(function (f) { f.setAttribute('title', 'Click to preview'); });
+
+  reviewBody.addEventListener('click', function (e) {
+    var badge = e.target.closest('.badge');
+    if (badge) {                                   // corner badge = destructive keep/remove toggle
+      var bc = badge.closest('.card');
+      setState(bc, bc.classList.contains('remove'));
+      if (selectedCard === bc) fillPreview(bc);
+      renderReview(); return;
+    }
+    var chev = e.target.closest('.chev');
+    if (chev) { chev.closest('.group').classList.toggle('collapsed'); return; }
+    var frame = e.target.closest('.frame');
+    if (frame) { selectCard(frame.closest('.card')); return; }   // image = non-destructive preview
+    var keepAll = e.target.closest('[data-keepall]'), removeAll = e.target.closest('[data-removeall]');
+    if (keepAll || removeAll) {
+      var grp = e.target.closest('.group');
+      grp.querySelectorAll('.card').forEach(function (c) { setState(c, !!keepAll); });
+      if (selectedCard && grp.contains(selectedCard)) fillPreview(selectedCard);
+      renderReview();
+    }
+  });
+  pvToggle.addEventListener('click', function () {
+    if (!selectedCard) return;
+    setState(selectedCard, selectedCard.classList.contains('remove'));
+    fillPreview(selectedCard); renderReview();
+  });
+  document.getElementById('pvCollapse').addEventListener('click', function () { rvMain.classList.add('collapsed'); });
+  document.getElementById('pvReopen').addEventListener('click', function () { rvMain.classList.remove('collapsed'); });
+  document.getElementById('rvZoom').addEventListener('input', function () { reviewBody.style.setProperty('--card', this.value + 'px'); });
+
+  renderReview();
+})();
+</script>

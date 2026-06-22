@@ -21,21 +21,42 @@
     <path d="M694 743 L730 782 L795 704" fill="none" stroke="#fff" stroke-width="29" stroke-linecap="round" stroke-linejoin="round"/>
   </symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><path d="M7 10 V8 a5 5 0 0 1 10 0 v2 M5 10 h14 v10 H5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-stack" viewBox="0 0 24 24"><rect x="7" y="7" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 16 V6 a2 2 0 0 1 2 -2 h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 10 L21 7 V17 L16 14 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-shot" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8 h8 M8 12 h8 M8 16 h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
 </defs></svg>
 
 <div class="win"><div class="chrome">
   <div class="topbar">
-    <div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
-    <div class="status"><span class="dot idle"></span>Not scanned yet</div>
+    <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.5</span></div>
+    <div class="status"><span class="dot idle"></span>Library not connected</div>
   </div>
   <div class="scroll"><div class="home"><div class="hero">
     <svg class="appicon" viewBox="0 0 1024 1024"><use href="#appicon"/></svg>
-    <h1>Tidy your photo library</h1>
-    <p class="sub">We scan on your Mac, pre-pick the best of every burst and flag clutter.
-      You just review the suggestions and confirm.</p>
-    <button class="btn btn-primary" id="analyze">Analyze my library</button>
-    <div class="past">Everything stays on your Mac.</div>
+    <h1>Your photo library, minus the junk drawer</h1>
+    <p class="sub">Years of near-identical bursts and one-and-done screenshots are quietly
+      eating your storage. One scan finds the keepers, flags the rest, and hands back the gigabytes.</p>
+    <div class="checks-lbl">On the hunt for</div>
+    <div class="checks">
+      <div class="check-card">
+        <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-stack"/></svg></span>
+        <span class="ct">Burst clones</span>
+        <span class="cd">Fifty shots of one sunset. The sharpest survives.</span>
+      </div>
+      <div class="check-card">
+        <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-video"/></svg></span>
+        <span class="ct">Repeat takes</span>
+        <span class="cd">Ten tries at the same clip. The steady one wins.</span>
+      </div>
+      <div class="check-card">
+        <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-shot"/></svg></span>
+        <span class="ct">Screenshot pile</span>
+        <span class="cd">Snapped once, never opened again. Buh-bye.</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="analyze">Analyze Library</button>
+    <div class="past">Takes a minute. No commitment — nothing's deleted until you say so.</div>
   </div></div></div>
   <div class="foot-note"><svg viewBox="0 0 24 24" style="width:13px;height:13px;opacity:.7"><use href="#i-lock"/></svg>
-    Everything runs on your Mac. Nothing is uploaded, ever. &middot; v0.1.5</div>
+    Runs entirely on your Mac. Your photos never go anywhere.</div>
 </div></div>
