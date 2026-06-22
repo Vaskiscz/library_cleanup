@@ -258,7 +258,9 @@ button { font-family: inherit; cursor: pointer; }
 .pv-content:not([hidden]) { display: flex; flex-direction: column; gap: 10px; padding: 16px; overflow-y: auto; min-width: 292px; }
 .pv-img { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: var(--pc-radius-md); overflow: hidden;
   background-color: var(--pc-surface-sunken); background-size: contain; background-position: center; background-repeat: no-repeat; }
-.pv-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.pv-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  opacity: 0; transition: opacity .12s ease; }   /* fade in over the thumb placeholder once the full-res decodes */
+.pv-img img.ready { opacity: 1; }
 .pv-img .vplay { width: 48px; height: 48px; }
 .pv-img .vplay svg { width: 20px; height: 20px; margin-left: 3px; }
 .pv-name { font-size: var(--pc-text-md); font-weight: var(--pc-weight-semibold); word-break: break-all; }

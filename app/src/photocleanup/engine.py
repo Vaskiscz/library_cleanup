@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import io
 import os
+import threading
+from collections import OrderedDict
 from datetime import datetime
 from typing import Optional
 
@@ -73,6 +75,13 @@ class Engine:
         self._index: dict[str, Record] = {}
         self._candidates: dict[str, list] = {}   # layer -> payload (from analyze)
         self._video_count: Optional[int] = None
+        # Rendered thumbnails/previews live ONLY here, in RAM — never written to
+        # disk. Bounded LRU (evicts oldest past the byte budget); cleared on quit.
+        self._thumb_cache: "OrderedDict[tuple[str, int], bytes]" = OrderedDict()
+        self._thumb_lock = threading.Lock()
+        self._thumb_used = 0
+        self._thumb_budget = 192 * 1024 * 1024
+        self._warming = False
 
     # ---- record loading ----------------------------------------------------
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
@@ -363,6 +372,27 @@ class Engine:
 
     # ---- thumbnails --------------------------------------------------------
     def thumb_bytes(self, uuid: str, px: int = 240) -> Optional[bytes]:
+        """Rendered bytes for a uuid at a target size, served from an in-memory
+        LRU so a given thumb/preview is only ever rendered once. Nothing is
+        written to disk — the cache lives in RAM and dies with the process."""
+        key = (uuid, px)
+        with self._thumb_lock:
+            hit = self._thumb_cache.get(key)
+            if hit is not None:
+                self._thumb_cache.move_to_end(key)
+                return hit
+        data = self._render_thumb(uuid, px)   # render outside the lock (PIL is slow)
+        if data is not None:
+            with self._thumb_lock:
+                if key not in self._thumb_cache:
+                    self._thumb_cache[key] = data
+                    self._thumb_used += len(data)
+                    while self._thumb_used > self._thumb_budget and len(self._thumb_cache) > 1:
+                        _, old = self._thumb_cache.popitem(last=False)
+                        self._thumb_used -= len(old)
+        return data
+
+    def _render_thumb(self, uuid: str, px: int) -> Optional[bytes]:
         rec = self._index.get(uuid)
         if rec is None:
             return None
@@ -391,6 +421,30 @@ class Engine:
             except Exception:
                 continue
         return None
+
+    def warm_thumbnails(self, px: int = 240) -> None:
+        """Pre-render grid thumbs for every current candidate into the RAM cache,
+        so Review scrolls instantly (like Photos' pre-baked thumbnails). Runs in a
+        background thread; one at a time so it never blocks request threads for
+        long. Safe to call repeatedly — already-cached items are skipped."""
+        if self._warming:
+            return
+        self._warming = True
+        try:
+            seen = set()
+            for payload in list(self._candidates.values()):
+                for g in payload:
+                    for p in g["photos"]:
+                        u = p["uuid"]
+                        if u in seen:
+                            continue
+                        seen.add(u)
+                        with self._thumb_lock:
+                            if (u, px) in self._thumb_cache:
+                                continue
+                        self.thumb_bytes(u, px=px)
+        finally:
+            self._warming = False
 
 
 def _size(p: str) -> int:

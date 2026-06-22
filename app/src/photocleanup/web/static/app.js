@@ -683,14 +683,12 @@ function selectCard(card, opts = {}) {
   fillPreview();
   if (opts.scroll !== false) card.scrollIntoView({ block: "nearest" });
 }
+let pvTimer = null;
 function fillPreview() {
   const layer = state.selLayer, uuid = state.selUuid, p = photoOf(layer, uuid);
   const pvImg = $("#pvImg"); if (!pvImg || !p) return;
   const keep = state.decisions[layer][uuid] === "keep";
-  // High-res render so near-identical shots are actually distinguishable; the grid
-  // thumb shows instantly underneath while the full-res version decodes.
-  pvImg.style.backgroundImage = `url("${p.thumb}")`;
-  pvImg.innerHTML = `<img src="${p.thumb}?px=2048" decoding="async" alt="">` + (p.is_video ? `<div class="vplay">${icon("i-play")}</div>` : "");
+  // metadata + toggle update instantly (also on a keep/remove toggle of the same card)
   $("#pvName").textContent = p.filename;
   const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : "";
   const dur = p.is_video && p.duration ? `${Math.floor(p.duration / 60)}:${String(Math.round(p.duration % 60)).padStart(2, "0")}` : "";
@@ -699,6 +697,31 @@ function fillPreview() {
   pvT.textContent = keep ? "Mark for removal" : "Keep this one";
   pvT.className = "btn pv-toggle " + (keep ? "btn-danger" : "btn-primary");
   $("#pvEmpty").hidden = true; $("#pvContent").hidden = false;
+
+  // (Re)load the image only when the previewed photo actually changes — never on a
+  // mere keep/remove toggle. The grid thumb is an instant placeholder; the high-res
+  // render is debounced so flicking through with ← / → stays snappy and only the
+  // photo you settle on is fetched at full size.
+  if (pvImg.dataset.uuid === uuid) return;
+  pvImg.dataset.uuid = uuid;
+  pvImg.style.backgroundImage = `url("${p.thumb}")`;
+  pvImg.innerHTML = `<img decoding="async" alt="">` + (p.is_video ? `<div class="vplay">${icon("i-play")}</div>` : "");
+  const img = pvImg.querySelector("img");
+  img.onload = () => { if (pvImg.dataset.uuid === uuid) img.classList.add("ready"); };
+  clearTimeout(pvTimer);
+  pvTimer = setTimeout(() => {
+    if (state.selUuid !== uuid) return;          // moved on during the settle window
+    img.src = `${p.thumb}?px=2048`;
+    prefetchNeighbors();                          // warm the server cache for ← / →
+  }, 130);
+}
+function prefetchNeighbors() {
+  const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
+  const i = cards.findIndex((c) => c.dataset.uuid === state.selUuid);
+  for (const j of [i - 1, i + 1]) {
+    const c = cards[j];
+    if (c) fetch(`/api/thumb/${c.dataset.uuid}?px=2048`).catch(() => {});  // render into RAM cache
+  }
 }
 function moveSelection(key) {
   const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];

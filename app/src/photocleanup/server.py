@@ -101,9 +101,13 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
 
         def run():
             try:
-                res = _engine().analyze(body.since, body.until, layers,
-                                        excluded=_store().reviewed_uuids(), progress=cb)
+                eng = _engine()
+                res = eng.analyze(body.since, body.until, layers,
+                                  excluded=_store().reviewed_uuids(), progress=cb)
                 job.update({"status": "done", "summary": res["summary"], "message": "Done"})
+                # Pre-render grid thumbs into the RAM cache so Review scrolls
+                # instantly — like Photos having its thumbnails ready.
+                threading.Thread(target=eng.warm_thumbnails, daemon=True).start()
             except Exception as e:  # noqa: BLE001
                 from .diagnostics import LOG_PATH, log_failure
                 log_failure("analyze", e)
@@ -134,8 +138,10 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         data = _engine().thumb_bytes(uuid, px=px)
         if data is None:
             raise HTTPException(404, "no thumbnail available")
+        # no-store: the WebView must not persist any rendered preview to disk —
+        # speed comes from the engine's in-RAM cache, not browser disk caching.
         return Response(data, media_type="image/jpeg",
-                        headers={"Cache-Control": "max-age=3600"})
+                        headers={"Cache-Control": "no-store"})
 
     @app.post("/api/decisions")
     def decisions(body: DecisionsBody):

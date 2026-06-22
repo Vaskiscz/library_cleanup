@@ -44,6 +44,23 @@ def test_summarize_counts_and_bytes():
     assert s["reclaimable_bytes"] >= 0
 
 
+def test_thumb_cache_is_memory_only_and_warms(tmp_path):
+    from PIL import Image
+    p = tmp_path / "img.jpg"; Image.new("RGB", (800, 600), (10, 90, 200)).save(p)
+    eng = Engine()
+    rec = mk("x", path=str(p)); eng._index[rec.uuid] = rec
+    # rendered once, then served from RAM — second call returns the identical object
+    first = eng.thumb_bytes("x", px=64)
+    assert first and ("x", 64) in eng._thumb_cache
+    assert eng.thumb_bytes("x", px=64) is first      # cache hit, not re-rendered
+    # warming pre-renders grid thumbs for current candidates into the same RAM cache
+    eng._thumb_cache.clear(); eng._thumb_used = 0
+    eng._candidates = {"dedup": [{"photos": [{"uuid": "x"}]}]}
+    eng.warm_thumbnails(px=64)
+    assert ("x", 64) in eng._thumb_cache
+    assert eng._warming is False
+
+
 def test_summarize_months_histogram():
     import datetime as _dt
     ts = lambda y, m: _dt.datetime(y, m, 1).timestamp()
