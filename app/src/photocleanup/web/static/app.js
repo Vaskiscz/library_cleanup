@@ -680,6 +680,7 @@ function selectCard(card, opts = {}) {
   state.selLayer = card.dataset.layer;
   state.pvCollapsed = false;
   const rm = $("#rvMain"); if (rm) rm.classList.remove("collapsed");
+  const f = $(".frame", card); if (f) f.focus({ preventScroll: true });   // DOM focus follows the selection
   fillPreview();
   if (opts.scroll !== false) card.scrollIntoView({ block: "nearest" });
 }
@@ -868,11 +869,6 @@ document.addEventListener("keydown", (e) => {
   if (state.view !== "review" || state.finalize) return;
   if (e.target && e.target.tagName === "INPUT") return;   // let the size slider use arrows
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); moveSelection(e.key); }
-  else if (e.key === " " || e.key === "Enter") {
-    e.preventDefault();
-    const card = e.target.closest && e.target.closest(".card[data-uuid]");   // a Tab-focused card wins
-    if (card && card.dataset.uuid !== state.selUuid) selectCard(card);
-    toggleSelected();
-  }
+  else if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleSelected(); }   // the current selection
 });
 render();

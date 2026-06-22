@@ -174,8 +174,9 @@ class Engine:
         """Shared shape for grouped layers (dedup, videos)."""
         out = []
         for g in sorted(groups, key=lambda g: g.size, reverse=True):
-            members = (sorted(g.keepers, key=lambda r: r.timestamp or 0)
-                       + sorted(g.discards, key=lambda r: r.timestamp or 0))
+            # Show the whole burst in capture order — keepers aren't floated to the
+            # front, just marked — so neighbouring frames sit side by side.
+            members = sorted(g.keepers + g.discards, key=lambda r: r.timestamp or 0)
             keep_ids = {r.uuid for r in g.keepers}
             ts = min((r.timestamp for r in members if r.timestamp), default=None)
             out.append({
