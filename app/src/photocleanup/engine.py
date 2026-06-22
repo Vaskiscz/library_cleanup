@@ -367,19 +367,26 @@ class Engine:
         if rec is None:
             return None
         try:
-            from PIL import Image
+            from PIL import Image, ImageOps
         except Exception:
             return None
         candidates = list(rec.derivatives)
         if rec.path:
             candidates.append(rec.path)
-        for p in sorted(candidates, key=_size):  # smallest existing first = fastest
+        # Grid thumbs (small px) take the smallest source — fastest. The detail
+        # preview (large px) takes the largest/original so fine differences between
+        # near-identical shots actually survive; `thumbnail()` only downscales, so a
+        # small source could never produce a sharp preview. Higher JPEG quality too.
+        hi = px > 512
+        order = sorted(set(candidates), key=_size, reverse=hi)
+        quality = 90 if hi else 72
+        for p in order:
             try:
                 with Image.open(p) as im:
-                    im = im.convert("RGB")
+                    im = ImageOps.exif_transpose(im).convert("RGB")  # honour camera rotation
                     im.thumbnail((px, px))
                     buf = io.BytesIO()
-                    im.save(buf, format="JPEG", quality=72)
+                    im.save(buf, format="JPEG", quality=quality)
                 return buf.getvalue()
             except Exception:
                 continue

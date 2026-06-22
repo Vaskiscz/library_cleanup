@@ -687,7 +687,10 @@ function fillPreview() {
   const layer = state.selLayer, uuid = state.selUuid, p = photoOf(layer, uuid);
   const pvImg = $("#pvImg"); if (!pvImg || !p) return;
   const keep = state.decisions[layer][uuid] === "keep";
-  pvImg.innerHTML = `<img src="${p.thumb}" alt="">` + (p.is_video ? `<div class="vplay">${icon("i-play")}</div>` : "");
+  // High-res render so near-identical shots are actually distinguishable; the grid
+  // thumb shows instantly underneath while the full-res version decodes.
+  pvImg.style.backgroundImage = `url("${p.thumb}")`;
+  pvImg.innerHTML = `<img src="${p.thumb}?px=2048" decoding="async" alt="">` + (p.is_video ? `<div class="vplay">${icon("i-play")}</div>` : "");
   $("#pvName").textContent = p.filename;
   const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : "";
   const dur = p.is_video && p.duration ? `${Math.floor(p.duration / 60)}:${String(Math.round(p.duration % 60)).padStart(2, "0")}` : "";

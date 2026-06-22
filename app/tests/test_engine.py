@@ -86,3 +86,23 @@ def test_thumb_bytes_from_real_image(tmp_path):
     eng._index[rec.uuid] = rec
     data = eng.thumb_bytes("x", px=64)
     assert data and data[:2] == b"\xff\xd8"  # JPEG SOI marker
+
+
+def test_thumb_bytes_high_res_prefers_original(tmp_path):
+    import io
+    from PIL import Image
+    big = tmp_path / "orig.jpg"; Image.new("RGB", (1600, 1200), (10, 90, 200)).save(big)
+    small = tmp_path / "deriv.jpg"; Image.new("RGB", (160, 120), (10, 90, 200)).save(small)
+    eng = Engine()
+    rec = mk("x", path=str(big), derivatives=[str(small)])
+    eng._index[rec.uuid] = rec
+
+    def longest(data):
+        with Image.open(io.BytesIO(data)) as im:
+            return max(im.size)
+
+    # grid thumb: smallest source, downscaled small
+    assert longest(eng.thumb_bytes("x", px=64)) <= 64
+    # detail preview: sourced from the 1600px original (not the 160px derivative),
+    # and never upscaled past the source
+    assert longest(eng.thumb_bytes("x", px=2048)) == 1600
