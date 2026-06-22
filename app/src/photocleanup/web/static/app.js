@@ -252,25 +252,28 @@ function rangeIsAll() { return !state.range || (state.range.lo === 0 && state.ra
 function buildHistogram() {
   const chart = $("#tfChart"), ticks = $("#ticks"); if (!chart) return;
   const axis = state.months;
-  const vals = axis.map((m) => {
-    let b = 0;
-    for (const c of CATS) { const s = state.summary[c.id]; if (s && s.months) { const e = s.months.find((x) => x.m === m); if (e) b += e.bytes; } }
-    return b;
-  });
+  const byMonth = new Map();                                  // total reclaimable bytes per month
+  for (const c of CATS) {
+    const s = state.summary[c.id];
+    if (s && s.months) for (const e of s.months) byMonth.set(e.m, (byMonth.get(e.m) || 0) + e.bytes);
+  }
+  const vals = axis.map((m) => byMonth.get(m) || 0);
   const max = Math.max(1, ...vals);
-  chart.innerHTML = "";
+  const bars = document.createDocumentFragment();
   axis.forEach((m, i) => {
     const bar = document.createElement("div"); bar.className = "tf-bar";
     bar.style.height = (8 + vals[i] / max * 92) + "%";
     bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])}`;
-    chart.appendChild(bar);
+    bars.appendChild(bar);
   });
-  ticks.innerHTML = "";
+  chart.innerHTML = ""; chart.appendChild(bars);
+  const tickFrag = document.createDocumentFragment();
   [...new Set(axis.map((m) => m.slice(0, 4)))].forEach((y) => {
     const idx = axis.findIndex((m) => m.startsWith(y));
     const sp = document.createElement("span"); sp.textContent = y;
-    sp.style.left = (idx / (axis.length - 1) * 100) + "%"; ticks.appendChild(sp);
+    sp.style.left = (idx / (axis.length - 1) * 100) + "%"; tickFrag.appendChild(sp);
   });
+  ticks.innerHTML = ""; ticks.appendChild(tickFrag);
 }
 function updateFilter() {
   const axis = state.months; if (!axis.length) { updateResultsBar(); return; }
@@ -280,6 +283,7 @@ function updateFilter() {
   const all = rangeIsAll();
   const rng = $("#tfRange"); if (rng) { rng.textContent = (all ? "All time · " : "") + monthLabel(axis[lo]) + " – " + monthLabel(axis[hi]); rng.classList.toggle("all", all); }
   const rst = $("#tfReset"); if (rst) rst.classList.toggle("show", !all);
+  let selN = 0, selBytes = 0;                                 // tally selected-in-range as we go
   app.querySelectorAll(".cat[data-cat]").forEach((row) => {
     const id = row.dataset.cat, f = filteredCat(id), c = CAT[id];
     const cnt = $("[data-count]", row); if (cnt) { cnt.textContent = fmtN(f.items); cnt.parentElement.classList.toggle("dim", f.items === 0); }
@@ -287,15 +291,18 @@ function updateFilter() {
     const gp = $("[data-groups]", row); if (gp) gp.textContent = f.items ? (c.grouped ? `across ${fmtN(f.groups)} ${c.setword}` : "flagged to remove") : "—";
     row.style.opacity = f.items ? "" : ".55";
     if (!f.items) { state.selected.delete(id); row.classList.remove("on"); }
-    else if (state.selected.has(id)) row.classList.add("on");
+    else if (state.selected.has(id)) { row.classList.add("on"); selN++; selBytes += f.bytes; }
   });
-  const tg = $("#totGb"); if (tg) tg.textContent = fmtSave(filteredTotals().bytes);
-  updateResultsBar();
+  const tg = $("#totGb"); if (tg) tg.textContent = fmtSave(selBytes);
+  applyResultsBar(selN, selBytes);
+}
+function applyResultsBar(n, bytes) {
+  const info = $("#barInfo"); if (info) info.textContent = `${n} categor${n === 1 ? "y" : "ies"} · save up to ${fmtSave(bytes)}`;
+  const rv = $("#review"); if (rv) { rv.disabled = !n; rv.textContent = `Review ${n} categor${n === 1 ? "y" : "ies"}`; }
 }
 function updateResultsBar() {
-  const tot = filteredTotals(), n = selectedInRange().length;
-  const info = $("#barInfo"); if (info) info.textContent = `${n} categor${n === 1 ? "y" : "ies"} · save up to ${fmtSave(tot.bytes)}`;
-  const rv = $("#review"); if (rv) { rv.disabled = !n; rv.textContent = `Review ${n} categor${n === 1 ? "y" : "ies"}`; }
+  const tot = filteredTotals();
+  applyResultsBar(selectedInRange().length, tot.bytes);
 }
 
 function bindHome() {
@@ -537,34 +544,42 @@ function bindReview() {
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
   const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
 
-  // Two-gesture cards: click the image = preview it; click the corner badge = keep/remove.
-  app.querySelectorAll(".card[data-uuid]").forEach((card) => {
-    $(".frame", card).onclick = (e) => {
-      if (e.target.closest(".badge")) { flip(card); if (card.dataset.uuid === state.selUuid) fillPreview(); }
-      else selectCard(card);
-    };
-    $(".frame", card).onkeydown = (e) => {                 // Space/Enter on a focused card toggles it
-      if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(card); if (card.dataset.uuid === state.selUuid) fillPreview(); }
-    };
-  });
+  // One delegated handler for the whole grid — cheaper than binding every card,
+  // and (unlike a per-frame key handler) it can't double-fire with the global
+  // keydown once a clicked card grabs focus. Click the image = preview; click the
+  // corner badge = keep/remove; ghead buttons = keep/remove-all / collapse.
+  const reviewEl = $(".review");
+  if (reviewEl) reviewEl.onclick = (e) => {
+    const badge = e.target.closest(".badge");
+    if (badge) {
+      const card = badge.closest(".card[data-uuid]");
+      if (card) { flip(card); if (card.dataset.uuid === state.selUuid) fillPreview(); }
+      return;
+    }
+    const all = e.target.closest("[data-all]");
+    if (all) {
+      const gEl = all.closest(".group");
+      gEl.querySelectorAll(".card[data-uuid]").forEach((card) => setCardDecision(card, all.dataset.all));
+      if (state.selUuid && gEl.querySelector(`.card[data-uuid="${CSS.escape(state.selUuid)}"]`)) fillPreview();
+      refreshCounts();
+      return;
+    }
+    const chev = e.target.closest("[data-collapse]");
+    if (chev) {
+      const gEl = chev.closest(".group");
+      const collapsed = gEl.classList.toggle("collapsed");
+      collapsed ? state.collapsed.add(chev.dataset.collapse) : state.collapsed.delete(chev.dataset.collapse);
+      chev.textContent = collapsed ? "▸" : "▾";
+      return;
+    }
+    const frame = e.target.closest(".frame");
+    if (frame) { const card = frame.closest(".card[data-uuid]"); if (card) selectCard(card); }
+  };
 
   // preview panel: hide / reopen / toggle the previewed card's decision
   const pvC = $("#pvCollapse"); if (pvC) pvC.onclick = () => { state.pvCollapsed = true; $("#rvMain").classList.add("collapsed"); };
   const pvR = $("#pvReopen"); if (pvR) pvR.onclick = () => { state.pvCollapsed = false; $("#rvMain").classList.remove("collapsed"); };
   const pvT = $("#pvToggle"); if (pvT) pvT.onclick = toggleSelected;
-
-  app.querySelectorAll("[data-collapse]").forEach((b) => b.onclick = () => {
-    const gEl = b.closest(".group");
-    const collapsed = gEl.classList.toggle("collapsed");   // in place, no re-render
-    collapsed ? state.collapsed.add(b.dataset.collapse) : state.collapsed.delete(b.dataset.collapse);
-    b.textContent = collapsed ? "▸" : "▾";
-  });
-  app.querySelectorAll("[data-all]").forEach((b) => b.onclick = () => {
-    const gEl = b.closest(".group");                       // mutate cards in place
-    gEl.querySelectorAll(".card[data-uuid]").forEach((card) => setCardDecision(card, b.dataset.all));
-    if (state.selUuid && gEl.querySelector(`.card[data-uuid="${CSS.escape(state.selUuid)}"]`)) fillPreview();
-    refreshCounts();
-  });
 
   // initialise / restore the previewed card so arrows + Space work the moment you arrive
   if (!state.finalize) {
@@ -797,6 +812,11 @@ document.addEventListener("keydown", (e) => {
   if (state.view !== "review" || state.finalize) return;
   if (e.target && e.target.tagName === "INPUT") return;   // let the size slider use arrows
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); moveSelection(e.key); }
-  else if (e.key === " ") { e.preventDefault(); toggleSelected(); }
+  else if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    const card = e.target.closest && e.target.closest(".card[data-uuid]");   // a Tab-focused card wins
+    if (card && card.dataset.uuid !== state.selUuid) selectCard(card);
+    toggleSelected();
+  }
 });
 render();
