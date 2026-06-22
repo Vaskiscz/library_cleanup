@@ -374,7 +374,9 @@ function updateScanning(p) {
   step.textContent = p.message || "Working…";
   if (p.total) {
     prog.classList.remove("indet");
-    bar.style.width = Math.round((p.done / p.total) * 100) + "%";
+    // bar follows overall progress (incl. post-passes); the count is items scanned
+    const frac = (p.frac != null) ? p.frac : (p.done / p.total);
+    bar.style.width = Math.round(frac * 100) + "%";
     count.textContent = `${fmtN(p.done)} / ${fmtN(p.total)}`;
   } else {
     prog.classList.add("indet");

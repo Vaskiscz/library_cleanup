@@ -96,8 +96,8 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         job.clear()
         job.update({"status": "running", "message": "Starting…", "done": None, "total": None})
 
-        def cb(message, done=None, total=None):
-            job.update({"message": message, "done": done, "total": total})
+        def cb(message, done=None, total=None, frac=None):
+            job.update({"message": message, "done": done, "total": total, "frac": frac})
 
         def run():
             try:

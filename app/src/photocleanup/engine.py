@@ -234,9 +234,21 @@ class Engine:
         self._candidates = {}
         photo_layers = [l for l in layers if l in ("dedup", "screenshots", "expired")]
 
-        def emit(msg, done=None, total=None):
-            if progress:
-                progress(msg, done, total)
+        # The on-screen count is eligible items scanned (photos + videos). The bar
+        # is driven by a larger internal "work" budget so it keeps moving through the
+        # heavy post-passes (faces, grouping, video takes) without inflating the count.
+        scanned = 0      # eligible items processed  -> the "X / Y" number
+        work = 0.0       # internal work units       -> the bar fill
+        items_total = 0
+        work_total = 0
+
+        def emit(msg):
+            if not progress:
+                return
+            progress(msg,
+                     min(scanned, items_total) if items_total else None,
+                     items_total or None,
+                     (min(work, work_total) / work_total) if work_total else None)
 
         # 1) privileges — surface the Photos access request up front
         emit("Requesting photo access…")
@@ -262,32 +274,23 @@ class Engine:
                     cand.update(r.uuid for r in c)
         cand_n = len(cand)
 
-        # One bar across every phase (in "work units"), so it keeps moving through
-        # the heavy post-passes — faces, grouping, video takes — instead of freezing
-        # near the end on "Grouping photoshoots…".
-        total = (nphotos
-                 + (cand_n if dedup_on else 0)        # face-quality pass (candidates)
-                 + (cand_n if dedup_on else 0)        # photo grouping
-                 + (nvideos if videos_on else 0)      # video embedding
-                 + (nvideos if videos_on else 0))     # video grouping
-        done = 0.0
+        items_total = nphotos + nvideos                       # the count = eligible photos + videos
+        work_total = (nphotos + nvideos
+                      + (2 * cand_n if dedup_on else 0)        # face-quality + photo grouping
+                      + (nvideos if videos_on else 0))         # video takes
+        emit(f"Found {nphotos:,} photos and {nvideos:,} videos")
 
-        def step(msg):
-            emit(msg, min(int(done), total) if total else None, total or None)
-
-        def phase(units, msg):
-            """Capture the phase's start and return a progress(i, n) callback that
-            advances the bar by `units` as the phase reports 0..1."""
-            base = done
+        def work_phase(units, msg):
+            """Return a progress(i, n) callback advancing the bar (not the count) by
+            `units` as a post-pass reports 0..1."""
+            base = work
             def cb(i, n):
-                nonlocal done
-                done = base + (units * (i / n) if n else units)
-                step(msg)
+                nonlocal work
+                work = base + (units * (i / n) if n else units)
+                emit(msg)
             return base, cb
 
-        emit(f"Found {nphotos:,} photos and {nvideos:,} videos", 0, total or None)
-
-        # 3) ONE pass over every photo: embed dedup candidates + classify.
+        # 3) scan every photo: embed dedup candidates + classify (advances count + bar)
         shots, exp, cand_recs = [], [], []
         for rec in photos:
             if rec.uuid in cand:
@@ -297,39 +300,37 @@ class Engine:
                 shots.append((rec, sv))
             if "expired" in layers and (ev := classify_expired(rec, self.cfg)).is_expired:
                 exp.append((rec, ev))
-            done += 1
-            if int(done) % 50 == 0 or done == nphotos:
-                step("Analyzing photos…")
+            scanned += 1; work += 1
+            if scanned % 50 == 0 or scanned == nphotos:
+                emit("Analyzing photos…")
 
+        # 4) scan every video (poster-frame embed) — finishes the item count
+        if videos_on:
+            for k, rec in enumerate(videos, 1):
+                embed_records([rec], ec)
+                scanned += 1; work += 1
+                if k % 20 == 0 or k == nvideos:
+                    emit("Analyzing videos…")
+        ec.save()
+
+        # 5) post-passes: every item is scanned now, so only the bar advances
         if dedup_on:
-            ec.save()
-            base, cb = phase(cand_n, "Checking faces…"); step("Checking faces…")
-            inject_face_quality(cand_recs, progress=cb)
-            done = base + cand_n
-            base, cb = phase(cand_n, "Grouping photoshoots…"); step("Grouping photoshoots…")
-            groups = find_duplicate_groups(photos, self.cfg, embeddings=ec, progress=cb)
-            done = base + cand_n
+            base, cb = work_phase(cand_n, "Checking faces…"); emit("Checking faces…")
+            inject_face_quality(cand_recs, progress=cb); work = base + cand_n
+            base, cb = work_phase(cand_n, "Grouping photoshoots…"); emit("Grouping photoshoots…")
+            groups = find_duplicate_groups(photos, self.cfg, embeddings=ec, progress=cb); work = base + cand_n
             self._candidates["dedup"] = self.dedup_payload(groups)
         if "screenshots" in layers:
             self._candidates["screenshots"] = self.screenshot_payload(shots)
         if "expired" in layers:
             self._candidates["expired"] = self.expired_payload(exp)
-
-        # 4) videos: embed poster frames per file, then group takes
         if videos_on:
-            for k, rec in enumerate(videos, 1):
-                embed_records([rec], ec)
-                done += 1
-                if k % 20 == 0 or k == nvideos:
-                    step("Analyzing videos…")
-            ec.save()
-            base, cb = phase(nvideos, "Comparing video takes…"); step("Comparing video takes…")
-            vgroups = duplicate_takes(videos, ec, self.cfg, progress=cb)
-            done = base + nvideos
+            base, cb = work_phase(nvideos, "Comparing video takes…"); emit("Comparing video takes…")
+            vgroups = duplicate_takes(videos, ec, self.cfg, progress=cb); work = base + nvideos
             self._candidates["videos"] = self.video_payload(vgroups)
 
-        done = total
-        emit("Finishing up…", total or None, total or None)
+        scanned, work = items_total, work_total
+        emit("Finishing up…")
         return {"since": since, "until": until,
                 "summary": {l: self._summarize(self._candidates.get(l, []), grouped=(l in ("dedup", "videos")))
                             for l in layers}}
