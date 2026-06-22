@@ -193,7 +193,7 @@ button { font-family: inherit; cursor: pointer; }
 .group .ghead .gmeta { font-size: var(--pc-text-sm); color: var(--pc-text-tertiary); }
 .group .ghead .spacer { flex: 1; }
 .group .ghead .chev { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: var(--pc-text-secondary); border: none; background: none; }
-.gbody { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 16px; align-items: flex-start; }
+.gbody { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 16px; align-items: center; }
 .group.collapsed .gbody { display: none; }
 
 /* photo / screenshot cards — sized to each image's aspect (uncropped, like Photos):
