@@ -153,14 +153,16 @@ button { font-family: inherit; cursor: pointer; }
   contain-intrinsic-size: auto var(--card, 116px) auto calc(var(--card, 116px) + 26px); }
 .card .frame {
   position: relative; width: var(--card, 116px); height: var(--card, 116px); border-radius: 9px;
-  overflow: hidden; background: var(--pc-surface-sunken); transition: box-shadow .13s var(--pc-ease);
+  overflow: hidden; background: var(--pc-surface-sunken);
+  border: 2.5px solid transparent;   /* in-box ring: content-visibility paint-containment can't clip it */
+  transition: border-color .13s var(--pc-ease);
 }
 .card.shot { width: calc(var(--card, 116px) * 1.34);
   contain-intrinsic-size: auto calc(var(--card, 116px) * 1.34) auto calc(var(--card, 116px) * 0.95 + 26px); }
 .card.shot .frame { width: calc(var(--card, 116px) * 1.34); height: calc(var(--card, 116px) * 0.95); }
 .card .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.card.keep .frame { box-shadow: var(--pc-shadow-1); }   /* no green border — the check badge marks keep */
-.card.remove .frame { box-shadow: 0 0 0 2.5px var(--pc-clear); }  /* red border = same color as the ✕ */
+/* keep = no border (the check badge marks it); remove = red border (same as the ✕) */
+.card.remove .frame { border-color: var(--pc-clear); }
 .card.remove .frame img { opacity: .55; filter: grayscale(.4); }
 .badge { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
