@@ -133,20 +133,27 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
     return DuplicateGroup(keepers=keepers, discards=discards)
 
 
-def find_duplicate_groups(records: list[Record], cfg: Config, embeddings=None) -> list[DuplicateGroup]:
+def find_duplicate_groups(records: list[Record], cfg: Config, embeddings=None,
+                          progress=None) -> list[DuplicateGroup]:
     """Full near-duplicate pass -> only groups that actually have discards.
 
     Requires a Vision-embedding cache (the only similarity method). Without one
-    (embeddings is None) there's nothing to compare on, so no groups are returned."""
+    (embeddings is None) there's nothing to compare on, so no groups are returned.
+    `progress(done, total)` is called per processed cluster (in photos) so callers
+    can show a moving bar instead of freezing through a long grouping pass."""
     if embeddings is None:
         return []
     out: list[DuplicateGroup] = []
-    for cluster in time_gps_clusters(records, cfg):
-        if len(cluster) < 2:
-            continue
+    multi = [c for c in time_gps_clusters(records, cfg) if len(c) >= 2]
+    total = sum(len(c) for c in multi) or 1
+    done = 0
+    for cluster in multi:
         # Treat the whole session as one group; keep the best, most-diverse 1-N
         # (farthest-point, adaptive cap), discard the rest of the shoot.
         dg = select_keepers(cluster, cfg, embeddings=embeddings)
         if dg.discards:
             out.append(dg)
+        done += len(cluster)
+        if progress:
+            progress(done, total)
     return out

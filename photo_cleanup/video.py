@@ -59,14 +59,16 @@ def quality_per_byte(rec: Record) -> float:
     return pixels / size
 
 
-def duplicate_takes(records: list[Record], cache, cfg: Config) -> list[DuplicateGroup]:
+def duplicate_takes(records: list[Record], cache, cfg: Config, progress=None) -> list[DuplicateGroup]:
     """Group same-scene video takes within a time/GPS cluster (by poster-frame
-    embedding); keeper = best size-to-quality ratio, the rest are extra takes."""
+    embedding); keeper = best size-to-quality ratio, the rest are extra takes.
+    `progress(done, total)` is called per processed cluster (in videos)."""
     from .embedding import distance
     out: list[DuplicateGroup] = []
-    for cluster in time_gps_clusters(records, cfg):
-        if len(cluster) < 2:
-            continue
+    multi = [c for c in time_gps_clusters(records, cfg) if len(c) >= 2]
+    grp_total = sum(len(c) for c in multi) or 1
+    grp_done = 0
+    for cluster in multi:
         items = [r for r in cluster if cache.get(r.uuid) is not None]
         n = len(items)
         parent = list(range(n))
@@ -98,6 +100,9 @@ def duplicate_takes(records: list[Record], cache, cfg: Config) -> list[Duplicate
             promoted = [d for d in discards if d.favorite]
             discards = [d for d in discards if not d.favorite]
             out.append(DuplicateGroup(keepers=[keeper] + promoted, discards=discards))
+        grp_done += len(cluster)
+        if progress:
+            progress(grp_done, grp_total)
     return [g for g in out if g.discards]
 
 

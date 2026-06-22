@@ -1,7 +1,7 @@
 from photo_cleanup.cluster import DuplicateGroup
 from photocleanup.engine import Engine
 
-from factories import mk
+from factories import mk, mkv
 
 
 def test_dedup_payload_shape():
@@ -59,6 +59,30 @@ def test_thumb_cache_is_memory_only_and_warms(tmp_path):
     eng.warm_thumbnails(px=64)
     assert ("x", 64) in eng._thumb_cache
     assert eng._warming is False
+
+
+def test_grouping_reports_progress():
+    """The heavy post-passes must report incremental progress so the scan bar
+    keeps moving instead of freezing on 'Grouping photoshoots…'."""
+    import numpy as np
+    from photo_cleanup.model import Config
+    from photo_cleanup.cluster import find_duplicate_groups
+    from photo_cleanup.video import duplicate_takes
+    cfg = Config()
+
+    a, b = mk("a", timestamp=1000.0), mk("b", timestamp=1001.0)
+    emb = {"a": np.array([1.0, 0, 0]), "b": np.array([0.999, 0.001, 0])}
+    calls = []
+    find_duplicate_groups([a, b], cfg, embeddings=type("E", (), {"get": lambda s, u: emb.get(u)})(),
+                          progress=lambda i, n: calls.append((i, n)))
+    assert calls and calls[-1][0] == calls[-1][1]      # reaches 100% of its work
+
+    va, vb = mkv("va", timestamp=2000.0), mkv("vb", timestamp=2001.0)
+    vemb = {"va": np.array([1.0, 0]), "vb": np.array([1.0, 0])}
+    vcalls = []
+    duplicate_takes([va, vb], type("C", (), {"get": lambda s, u: vemb.get(u)})(), cfg,
+                    progress=lambda i, n: vcalls.append((i, n)))
+    assert vcalls and vcalls[-1][0] == vcalls[-1][1]
 
 
 def test_summarize_months_histogram():

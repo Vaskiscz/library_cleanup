@@ -249,20 +249,44 @@ class Engine:
         emit("Connecting to your photo library…")
         photos = self.load_records(since, until, excluded=excluded) if photo_layers else []
         videos = self.load_videos(since, until, excluded=excluded) if "videos" in layers else []
-        total = len(photos) + len(videos)
-        done = 0
-        emit(f"Found {len(photos):,} photos and {len(videos):,} videos", done, total or None)
+        dedup_on, videos_on = "dedup" in layers, "videos" in layers
+        nphotos, nvideos = len(photos), len(videos)
 
         # dedup candidates (photos in a multi-shot time/GPS cluster)
         ec = EmbeddingCache(self.emb_cache)
         cand = set()
-        if "dedup" in layers:
+        if dedup_on:
             for c in time_gps_clusters(photos, self.cfg):
                 if len(c) >= 2:
                     cand.update(r.uuid for r in c)
+        cand_n = len(cand)
+
+        # One bar across every phase (in "work units"), so it keeps moving through
+        # the heavy post-passes — faces, grouping, video takes — instead of freezing
+        # near the end on "Grouping photoshoots…".
+        total = (nphotos
+                 + (cand_n if dedup_on else 0)        # face-quality pass (candidates)
+                 + (cand_n if dedup_on else 0)        # photo grouping
+                 + (nvideos if videos_on else 0)      # video embedding
+                 + (nvideos if videos_on else 0))     # video grouping
+        done = 0.0
+
+        def step(msg):
+            emit(msg, min(int(done), total) if total else None, total or None)
+
+        def phase(units, msg):
+            """Capture the phase's start and return a progress(i, n) callback that
+            advances the bar by `units` as the phase reports 0..1."""
+            base = done
+            def cb(i, n):
+                nonlocal done
+                done = base + (units * (i / n) if n else units)
+                step(msg)
+            return base, cb
+
+        emit(f"Found {nphotos:,} photos and {nvideos:,} videos", 0, total or None)
 
         # 3) ONE pass over every photo: embed dedup candidates + classify.
-        #    `done/total` advances per file, so the bar tracks files analyzed.
         shots, exp, cand_recs = [], [], []
         for rec in photos:
             if rec.uuid in cand:
@@ -273,30 +297,37 @@ class Engine:
             if "expired" in layers and (ev := classify_expired(rec, self.cfg)).is_expired:
                 exp.append((rec, ev))
             done += 1
-            if done % 50 == 0 or done == len(photos):
-                emit("Analyzing photos…", done, total or None)
+            if int(done) % 50 == 0 or done == nphotos:
+                step("Analyzing photos…")
 
-        if "dedup" in layers:
+        if dedup_on:
             ec.save()
-            emit("Grouping photoshoots…", done, total or None)
-            inject_face_quality(cand_recs)
-            self._candidates["dedup"] = self.dedup_payload(
-                find_duplicate_groups(photos, self.cfg, embeddings=ec))
+            base, cb = phase(cand_n, "Checking faces…"); step("Checking faces…")
+            inject_face_quality(cand_recs, progress=cb)
+            done = base + cand_n
+            base, cb = phase(cand_n, "Grouping photoshoots…"); step("Grouping photoshoots…")
+            groups = find_duplicate_groups(photos, self.cfg, embeddings=ec, progress=cb)
+            done = base + cand_n
+            self._candidates["dedup"] = self.dedup_payload(groups)
         if "screenshots" in layers:
             self._candidates["screenshots"] = self.screenshot_payload(shots)
         if "expired" in layers:
             self._candidates["expired"] = self.expired_payload(exp)
 
-        # 4) videos: embed poster frames per file (same shared counter)
-        if "videos" in layers:
-            for rec in videos:
+        # 4) videos: embed poster frames per file, then group takes
+        if videos_on:
+            for k, rec in enumerate(videos, 1):
                 embed_records([rec], ec)
                 done += 1
-                if done % 20 == 0 or done == total:
-                    emit("Analyzing videos…", done, total or None)
+                if k % 20 == 0 or k == nvideos:
+                    step("Analyzing videos…")
             ec.save()
-            self._candidates["videos"] = self.video_payload(duplicate_takes(videos, ec, self.cfg))
+            base, cb = phase(nvideos, "Comparing video takes…"); step("Comparing video takes…")
+            vgroups = duplicate_takes(videos, ec, self.cfg, progress=cb)
+            done = base + nvideos
+            self._candidates["videos"] = self.video_payload(vgroups)
 
+        done = total
         emit("Finishing up…", total or None, total or None)
         return {"since": since, "until": until,
                 "summary": {l: self._summarize(self._candidates.get(l, []), grouped=(l in ("dedup", "videos")))
