@@ -290,16 +290,46 @@ class Engine:
 
         emit("Finishing up…", total or None, total or None)
         return {"since": since, "until": until,
-                "summary": {l: self._summarize(self._candidates.get(l, [])) for l in layers}}
+                "summary": {l: self._summarize(self._candidates.get(l, []), grouped=(l in ("dedup", "videos")))
+                            for l in layers}}
 
     @staticmethod
-    def _summarize(payload) -> dict:
+    def _summarize(payload, grouped: bool = True) -> dict:
+        """Counts + reclaimable bytes for the picker, plus a per-month histogram
+        (`months`) the UI uses to filter by time period without a re-scan.
+
+        Grouped layers (dedup/videos) bucket a whole cluster into its date; flat
+        layers (screenshots/expired) bucket each item by its own date."""
         removable = [p for g in payload for p in g["photos"] if not p["suggested_keep"]]
+        months: dict[str, dict] = {}
+
+        def bucket(m, items, rbytes, groups):
+            if not m:
+                return
+            e = months.setdefault(m, {"items": 0, "bytes": 0, "groups": 0})
+            e["items"] += items
+            e["bytes"] += rbytes
+            e["groups"] += groups
+
+        def month_of(ts):
+            return datetime.fromtimestamp(ts).strftime("%Y-%m") if ts else None
+
+        if grouped:
+            for g in payload:
+                ts = min((p["timestamp"] for p in g["photos"] if p.get("timestamp")), default=None)
+                rbytes = sum(p["bytes"] for p in g["photos"] if not p["suggested_keep"])
+                bucket(month_of(ts), len(g["photos"]), rbytes, 1)
+        else:
+            for p in (q for g in payload for q in g["photos"]):
+                rbytes = p["bytes"] if not p["suggested_keep"] else 0
+                bucket(month_of(p.get("timestamp")), 1, rbytes, 0)
+
         return {
             "groups": len(payload),
             "items": sum(len(g["photos"]) for g in payload),
             "removable": len(removable),
             "reclaimable_bytes": sum(p["bytes"] for p in removable),
+            "months": [{"m": k, **v} for k, v in sorted(months.items())],
         }
 
     def candidates(self, layer, since=None, until=None, excluded: Optional[set] = None):

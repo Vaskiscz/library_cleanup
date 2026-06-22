@@ -78,42 +78,47 @@
   --pc-ring-keep: 0 0 0 2.5px var(--pc-brand-ring);
 
   /* — Motion — */
-  --pc-ease: cubic-bezier(.22,.61,.36,1);
-  --pc-dur-fast: 110ms;
-  --pc-dur: 180ms;
+  --pc-ease: cubic-bezier(.22,.61,.36,1); /* @kind other */
+  --pc-dur-fast: 110ms; /* @kind other */
+  --pc-dur: 180ms; /* @kind other */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --pc-brand:            #34c2a3;
-    --pc-brand-strong:     #45d0b2;
-    --pc-brand-teal:       #1fc1ad;
-    --pc-brand-green:      #3fb877;
+    /* Calmer accents: lower chroma + slightly lower luminance so they don't
+       vibrate against the neutrals. Brand identity (teal → green) preserved. */
+    --pc-brand:            #34b89e;
+    --pc-brand-strong:     #43c5ab;
+    --pc-brand-teal:       #25b6a7;
+    --pc-brand-green:      #40b079;
     --pc-brand-grad:       linear-gradient(135deg, var(--pc-brand-teal), var(--pc-brand-green));
-    --pc-brand-tint:       #34c2a322;
-    --pc-brand-ring:       #34c2a3;
+    --pc-brand-tint:       #34b89e18;
+    --pc-brand-ring:       #34b89e;
 
-    --pc-keep:             #4caf50;
-    --pc-keep-tint:        #4caf5020;
-    --pc-clear:            #ff6b6b;
-    --pc-clear-tint:       #ff6b6b1c;
-    --pc-warn:             #e0a23a;
-    --pc-warn-tint:        #e0a23a1f;
+    /* keep-green pulled toward the teal-green family + desaturated so it reads
+       calm as text/fills rather than a harsh saturated green */
+    --pc-keep:             #5bbd86;
+    --pc-keep-tint:        #5bbd8618;
+    --pc-clear:            #f17a7e;
+    --pc-clear-tint:       #f17a7e18;
+    --pc-warn:             #d9a44a;
+    --pc-warn-tint:        #d9a44a1c;
 
-    --pc-bg:               #1c1c1e;
-    --pc-surface:          #2a2a2c;
-    --pc-surface-2:        #242426;
-    --pc-surface-sunken:   #161618;
-    --pc-overlay:          #2a2a2cd9;
+    /* Neutrals: faintly cool, lifted off near-black so accent contrast is gentler */
+    --pc-bg:               #1b1c1e;
+    --pc-surface:          #292a2d;
+    --pc-surface-2:        #222326;
+    --pc-surface-sunken:   #151619;
+    --pc-overlay:          #292a2dd9;
 
-    --pc-text:             #f5f5f7;
-    --pc-text-secondary:   #a1a1a6;
-    --pc-text-tertiary:    #6e6e73;
-    --pc-text-on-brand:    #08221c;
+    --pc-text:             #f1f2f4;
+    --pc-text-secondary:   #a3a5aa;
+    --pc-text-tertiary:    #707177;
+    --pc-text-on-brand:    #06201a;
 
-    --pc-border:           #3a3a3c;
-    --pc-border-strong:    #48484a;
-    --pc-separator:        #323234;
+    --pc-border:           #393a3d;
+    --pc-border-strong:    #474849;
+    --pc-separator:        #2f3033;
 
     --pc-shadow-1: 0 1px 2px rgba(0,0,0,.4);
     --pc-shadow-2: 0 4px 16px rgba(0,0,0,.5);

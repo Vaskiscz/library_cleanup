@@ -5,10 +5,24 @@
       "name": "library-cleanup",
       "runtimeExecutable": "uv",
       "runtimeArgs": [
-        "run", "python", "-c",
+        "run",
+        "python",
+        "-c",
         "import sys; sys.path.insert(0, 'app/src'); import uvicorn; from photocleanup.server import create_app; uvicorn.run(create_app(), host='127.0.0.1', port=8799, log_level='warning')"
       ],
       "port": 8799
+    },
+    {
+      "name": "design-library",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8788",
+        "--directory",
+        "app/design/library"
+      ],
+      "port": 8788
     }
   ]
 }

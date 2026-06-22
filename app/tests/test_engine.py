@@ -44,6 +44,29 @@ def test_summarize_counts_and_bytes():
     assert s["reclaimable_bytes"] >= 0
 
 
+def test_summarize_months_histogram():
+    import datetime as _dt
+    ts = lambda y, m: _dt.datetime(y, m, 1).timestamp()
+    # grouped: each cluster buckets into its own month
+    grouped = [
+        {"photos": [{"timestamp": ts(2024, 7), "bytes": 10_000_000, "suggested_keep": True},
+                    {"timestamp": ts(2024, 7), "bytes": 9_000_000, "suggested_keep": False}]},
+        {"photos": [{"timestamp": ts(2023, 3), "bytes": 8_000_000, "suggested_keep": True},
+                    {"timestamp": ts(2023, 3), "bytes": 8_000_000, "suggested_keep": False}]},
+    ]
+    s = Engine._summarize(grouped, grouped=True)
+    by = {m["m"]: m for m in s["months"]}
+    assert by["2024-07"] == {"m": "2024-07", "items": 2, "bytes": 9_000_000, "groups": 1}
+    assert by["2023-03"]["groups"] == 1 and by["2023-03"]["items"] == 2
+    # flat: each item buckets by its own month, no groups
+    flat = [{"photos": [{"timestamp": ts(2025, 1), "bytes": 2_000_000, "suggested_keep": False},
+                        {"timestamp": ts(2025, 2), "bytes": 3_000_000, "suggested_keep": False}]}]
+    f = Engine._summarize(flat, grouped=False)
+    fb = {m["m"]: m for m in f["months"]}
+    assert fb["2025-01"]["items"] == 1 and fb["2025-01"]["groups"] == 0
+    assert fb["2025-02"]["bytes"] == 3_000_000
+
+
 def test_flat_payload_all_flagged_remove():
     from photo_cleanup.expired import ExpiredVerdict
     eng = Engine()

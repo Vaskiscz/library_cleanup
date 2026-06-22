@@ -31,11 +31,11 @@ const icon = (id, cls = "") => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 
 const CATS = [
   { id: "dedup", name: "Duplicate photoshoots", grouped: true, setword: "bursts", noun: "photos",
-    desc: "Fired the shutter 50 times at the same spot? No problem." },
+    desc: "Fifty frames of the same view — the sharpest one is pre-picked." },
   { id: "screenshots", name: "Screenshots", grouped: false, noun: "screenshots",
-    desc: "Work pings you screenshotted and never reopened." },
+    desc: "Snapped once and never opened again." },
   { id: "videos", name: "Duplicate videos", grouped: true, setword: "sets", noun: "videos",
-    desc: "Ten takes of the same wave? We keep the steady one." },
+    desc: "Ten takes of one moment — the steady one stays." },
   { id: "expired", name: "Expired utility photos", grouped: false, noun: "photos",
     desc: "That parking-spot photo from a garage you left in 2022." },
 ];
@@ -57,6 +57,11 @@ const state = {
   collapsed: new Set(),
   finalize: null,           // null | 'confirm' | 'working' | 'done'
   done: null,
+  months: [],               // global month axis ["YYYY-MM", …] for the time filter
+  range: null,              // {lo, hi} indices into months (null = all)
+  selUuid: null,            // review: the card shown in the preview panel
+  selLayer: null,
+  pvCollapsed: false,       // review: preview panel hidden
 };
 
 // (analysis runs as a background job; the UI polls /api/progress)
@@ -65,7 +70,7 @@ const state = {
 function chrome(inner) {
   // The dot/text reflect REAL state: grey until we've actually read the library,
   // green once a scan succeeded, red if access failed.
-  let dot = "idle", text = "Not scanned yet";
+  let dot = "idle", text = "Library not connected";
   if (state.libStatus === "error") {
     dot = "err"; text = "Library access needed";
   } else if (state.libStatus === "connected") {
@@ -74,10 +79,13 @@ function chrome(inner) {
       ? `Library connected · ${fmtN(state.lib.photos)} photos · ${fmtN(state.lib.videos)} videos`
       : "Library connected";
   }
+  const ver = state.version
+    ? ` <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v${state.version}</span>`
+    : "";
   return `
     <div class="chrome">
       <div class="topbar">
-        <div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
+        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup${ver}</div>
         <div class="status"><span class="dot ${dot}"></span>${text}</div>
       </div>
       ${inner}
@@ -93,8 +101,6 @@ function render() {
 function renderHome() {
   let body = "";
   if (state.phase === "idle") {
-    const past = state.summary
-      ? "" : `<div class="past">Everything stays on your Mac.</div>`;
     const err = state.libStatus === "error" ? `
         <div class="errbox">
           <div class="errttl">Couldn't read your photo library</div>
@@ -108,14 +114,20 @@ function renderHome() {
     body = `
       <div class="scroll"><div class="home"><div class="hero">
         <svg class="appicon" viewBox="0 0 1024 1024"><use href="#appicon"/></svg>
-        <h1>Tidy your photo library</h1>
-        <p class="sub">We scan on your Mac, pre-pick the best of every burst and flag clutter.
-          You just review the suggestions and confirm.</p>
+        <h1>Your photo library, minus the junk drawer</h1>
+        <p class="sub">Years of near-identical bursts and one-and-done screenshots are quietly
+          eating your storage. One scan finds the keepers, flags the rest, and hands back the gigabytes.</p>
         ${err}
-        <button class="btn btn-primary" id="analyze">Analyze my library</button>
-        ${past}
+        <div class="checks-lbl">On the hunt for</div>
+        <div class="checks">
+          <div class="check-card"><span class="ic">${icon("i-stack")}</span><span class="ct">Burst clones</span><span class="cd">Fifty shots of one sunset. The sharpest survives.</span></div>
+          <div class="check-card"><span class="ic">${icon("i-video")}</span><span class="ct">Repeat takes</span><span class="cd">Ten tries at the same clip. The steady one wins.</span></div>
+          <div class="check-card"><span class="ic">${icon("i-shot")}</span><span class="ct">Screenshot pile</span><span class="cd">Snapped once, never opened again. Buh-bye.</span></div>
+        </div>
+        <button class="btn btn-primary" id="analyze">Analyze Library</button>
+        <div class="past">Takes a minute. No commitment — nothing's deleted until you say so.</div>
       </div></div></div>
-      <div class="foot-note">${icon("i-lock")} Everything runs on your Mac. Nothing is uploaded, ever.${state.version ? ` &middot; v${state.version}` : ""}</div>`;
+      <div class="foot-note">${icon("i-lock")} Runs entirely on your Mac. Your photos never go anywhere.</div>`;
   } else if (state.phase === "scanning") {
     body = `
       <div class="scroll"><div class="home"><div class="scanning">
@@ -127,31 +139,59 @@ function renderHome() {
         <div style="margin-top:22px"><button class="btn-secondary" id="cancel">Cancel</button></div>
       </div></div></div>`;
   } else {
-    body = `<div class="scroll"><div class="home"><div class="results">
-        <h2>Here's what we found</h2>
-        <div class="sub">Pick what to review. We've pre-selected the best of each group to keep.</div>
-        <div class="cat-list">${CATS.map(catCard).join("")}</div>
-      </div></div></div>
-      ${resultsBar()}`;
+    body = categoriesBody();
   }
   app.innerHTML = chrome(body);
   bindHome();
 }
 
+/* ---- categories (post-scan picker + reclaim banner + time filter) --------- */
+function categoriesBody() {
+  buildMonthAxis();
+  const tot = filteredTotals();
+  const filter = state.months.length > 1 ? timeFilterHtml() : "";
+  return `<div class="scroll"><div class="home"><div class="results" style="padding-top:0">
+      <div class="reclaim">
+        <div class="big">Up to <em id="totGb">${fmtSave(tot.bytes)}</em> ready to clear</div>
+        <div class="sub">Pick the categories worth a look. Nothing is removed until you confirm.</div>
+      </div>
+      ${filter}
+      <div class="cat-list" style="margin-top:18px">${CATS.map(catCard).join("")}</div>
+    </div></div></div>
+    ${resultsBar()}`;
+}
+
+function timeFilterHtml() {
+  const { lo, hi } = state.range, max = state.months.length - 1;
+  return `<div class="tfilter">
+    <div class="tf-head">
+      <span class="tf-title">${icon("i-clock")} Time period</span>
+      <span><span class="tf-range" id="tfRange"></span><button class="tf-reset" id="tfReset">Reset</button></span>
+    </div>
+    <div class="tf-chart" id="tfChart" aria-hidden="true"></div>
+    <div class="range-wrap">
+      <div class="rtrack"></div><div class="rfill" id="rfill"></div>
+      <input type="range" id="rStart" min="0" max="${max}" value="${lo}" aria-label="Start month">
+      <input type="range" id="rEnd" min="0" max="${max}" value="${hi}" aria-label="End month">
+    </div>
+    <div class="ticks" id="ticks"></div>
+  </div>`;
+}
+
 function catCard(c) {
   const s = state.summary && state.summary[c.id];
-  const has = s && s.items > 0;
-  const on = state.selected.has(c.id);
-  const sub = c.grouped
-    ? `across ${fmtN(s ? s.groups : 0)} ${c.setword}`
-    : "flagged to remove";
-  const right = has
-    ? `<div class="count">${fmtN(s.items)} <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
-       <div class="save">Save up to ${fmtSave(s.reclaimable_bytes)}</div>
-       <div class="desc">${sub}</div>`
-    : `<span class="none">None identified</span>`;
+  const identified = s && s.items > 0;
+  const f = filteredCat(c.id);
+  const has = identified && f.items > 0;
+  const on = state.selected.has(c.id) && has;
+  const sub = c.grouped ? `across ${fmtN(f.groups)} ${c.setword}` : "flagged to remove";
+  const right = !identified
+    ? `<span class="none">None identified</span>`
+    : `<div class="count${has ? "" : " dim"}"><span data-count>${fmtN(f.items)}</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
+       <div class="save" data-save>${has ? `Save up to ${fmtSave(f.bytes)}` : "Nothing here"}</div>
+       <div class="desc"><span data-groups>${has ? sub : "—"}</span></div>`;
   return `
-    <button class="cat ${on ? "on" : ""} ${has ? "" : "disabled"}" data-cat="${c.id}" ${has ? "" : "disabled"}>
+    <button class="cat ${on ? "on" : ""} ${identified ? "" : "disabled"}" data-cat="${c.id}" ${identified ? "" : "disabled"} style="${identified && !has ? "opacity:.55" : ""}">
       <span class="check">${icon("i-check")}</span>
       <span class="body"><div class="name">${c.name}</div><div class="desc">${c.desc}</div></span>
       <span class="right">${right}</span>
@@ -159,14 +199,103 @@ function catCard(c) {
 }
 
 function resultsBar() {
-  const sel = [...state.selected];
-  const gb = sel.reduce((a, id) => a + (state.summary[id]?.reclaimable_bytes || 0), 0);
+  const tot = filteredTotals(), n = selectedInRange().length;
   return `<div class="bar bottom">
       <button class="btn-secondary" id="rescan">Re-scan</button>
       <div style="flex:1"></div>
-      <div style="color:var(--pc-text-tertiary)">${sel.length} categor${sel.length === 1 ? "y" : "ies"} · save up to ${fmtSave(gb)}</div>
-      <button class="btn btn-primary" id="review" ${sel.length ? "" : "disabled"}>Review ${sel.length} categor${sel.length === 1 ? "y" : "ies"}</button>
+      <div style="color:var(--pc-text-tertiary)" id="barInfo">${n} categor${n === 1 ? "y" : "ies"} · save up to ${fmtSave(tot.bytes)}</div>
+      <button class="btn btn-primary" id="review" ${n ? "" : "disabled"}>Review ${n} categor${n === 1 ? "y" : "ies"}</button>
     </div>`;
+}
+
+/* ---- time-filter helpers -------------------------------------------------- */
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function monthStr(ts) {
+  if (!ts) return null;
+  const d = new Date(ts * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabel(m) { const [y, mo] = m.split("-"); return `${MONTH_NAMES[+mo - 1]} ${y}`; }
+function nextMonth(m) { let [y, mo] = m.split("-").map(Number); mo++; if (mo > 12) { mo = 1; y++; } return `${y}-${String(mo).padStart(2, "0")}`; }
+function groupMonth(g) {
+  const ts = g.photos.map((p) => p.timestamp).filter(Boolean);
+  return ts.length ? monthStr(Math.min(...ts)) : null;
+}
+function buildMonthAxis() {
+  const ms = new Set();
+  for (const c of CATS) { const s = state.summary && state.summary[c.id]; if (s && s.months) s.months.forEach((e) => ms.add(e.m)); }
+  if (!ms.size) { state.months = []; state.range = null; return; }
+  const sorted = [...ms].sort(), last = sorted[sorted.length - 1], axis = [];
+  let cur = sorted[0];
+  while (cur <= last) { axis.push(cur); if (cur === last) break; cur = nextMonth(cur); if (axis.length > 1200) break; }
+  state.months = axis;
+  if (!state.range || state.range.hi > axis.length - 1) state.range = { lo: 0, hi: axis.length - 1 };
+}
+function filteredCat(layer) {
+  const s = state.summary && state.summary[layer];
+  if (!s) return { items: 0, bytes: 0, groups: 0 };
+  if (!state.months.length || !s.months) return { items: s.items, bytes: s.reclaimable_bytes, groups: s.groups };
+  const loM = state.months[state.range.lo], hiM = state.months[state.range.hi];
+  let items = 0, bytes = 0, groups = 0;
+  for (const e of s.months) if (e.m >= loM && e.m <= hiM) { items += e.items; bytes += e.bytes; groups += e.groups; }
+  return { items, bytes, groups };
+}
+function selectedInRange() { return [...state.selected].filter((id) => filteredCat(id).items > 0); }
+function filteredTotals() {
+  const ids = selectedInRange();
+  let items = 0, bytes = 0;
+  for (const id of ids) { const f = filteredCat(id); items += f.items; bytes += f.bytes; }
+  return { items, bytes };
+}
+function rangeIsAll() { return !state.range || (state.range.lo === 0 && state.range.hi === state.months.length - 1); }
+
+function buildHistogram() {
+  const chart = $("#tfChart"), ticks = $("#ticks"); if (!chart) return;
+  const axis = state.months;
+  const vals = axis.map((m) => {
+    let b = 0;
+    for (const c of CATS) { const s = state.summary[c.id]; if (s && s.months) { const e = s.months.find((x) => x.m === m); if (e) b += e.bytes; } }
+    return b;
+  });
+  const max = Math.max(1, ...vals);
+  chart.innerHTML = "";
+  axis.forEach((m, i) => {
+    const bar = document.createElement("div"); bar.className = "tf-bar";
+    bar.style.height = (8 + vals[i] / max * 92) + "%";
+    bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])}`;
+    chart.appendChild(bar);
+  });
+  ticks.innerHTML = "";
+  [...new Set(axis.map((m) => m.slice(0, 4)))].forEach((y) => {
+    const idx = axis.findIndex((m) => m.startsWith(y));
+    const sp = document.createElement("span"); sp.textContent = y;
+    sp.style.left = (idx / (axis.length - 1) * 100) + "%"; ticks.appendChild(sp);
+  });
+}
+function updateFilter() {
+  const axis = state.months; if (!axis.length) { updateResultsBar(); return; }
+  const { lo, hi } = state.range, pct = (v) => v / (axis.length - 1) * 100;
+  const rfill = $("#rfill"); if (rfill) { rfill.style.left = pct(lo) + "%"; rfill.style.width = (pct(hi) - pct(lo)) + "%"; }
+  app.querySelectorAll(".tf-bar").forEach((b, i) => b.classList.toggle("in", i >= lo && i <= hi));
+  const all = rangeIsAll();
+  const rng = $("#tfRange"); if (rng) { rng.textContent = (all ? "All time · " : "") + monthLabel(axis[lo]) + " – " + monthLabel(axis[hi]); rng.classList.toggle("all", all); }
+  const rst = $("#tfReset"); if (rst) rst.classList.toggle("show", !all);
+  app.querySelectorAll(".cat[data-cat]").forEach((row) => {
+    const id = row.dataset.cat, f = filteredCat(id), c = CAT[id];
+    const cnt = $("[data-count]", row); if (cnt) { cnt.textContent = fmtN(f.items); cnt.parentElement.classList.toggle("dim", f.items === 0); }
+    const sv = $("[data-save]", row); if (sv) sv.textContent = f.items ? `Save up to ${fmtSave(f.bytes)}` : "Nothing here";
+    const gp = $("[data-groups]", row); if (gp) gp.textContent = f.items ? (c.grouped ? `across ${fmtN(f.groups)} ${c.setword}` : "flagged to remove") : "—";
+    row.style.opacity = f.items ? "" : ".55";
+    if (!f.items) { state.selected.delete(id); row.classList.remove("on"); }
+    else if (state.selected.has(id)) row.classList.add("on");
+  });
+  const tg = $("#totGb"); if (tg) tg.textContent = fmtSave(filteredTotals().bytes);
+  updateResultsBar();
+}
+function updateResultsBar() {
+  const tot = filteredTotals(), n = selectedInRange().length;
+  const info = $("#barInfo"); if (info) info.textContent = `${n} categor${n === 1 ? "y" : "ies"} · save up to ${fmtSave(tot.bytes)}`;
+  const rv = $("#review"); if (rv) { rv.disabled = !n; rv.textContent = `Review ${n} categor${n === 1 ? "y" : "ies"}`; }
 }
 
 function bindHome() {
@@ -178,10 +307,23 @@ function bindHome() {
   app.querySelectorAll(".cat[data-cat]").forEach((btn) => {
     btn.onclick = () => {
       const id = btn.dataset.cat;
+      if (filteredCat(id).items === 0) return;          // nothing here in this range
       state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
-      render();
+      btn.classList.toggle("on", state.selected.has(id));
+      updateResultsBar();
     };
   });
+  if (state.phase === "results" && state.months.length > 1) {
+    buildHistogram();
+    const rStart = $("#rStart"), rEnd = $("#rEnd");
+    if (rStart) rStart.oninput = () => { if (+rStart.value > +rEnd.value) rStart.value = rEnd.value; state.range.lo = +rStart.value; updateFilter(); };
+    if (rEnd) rEnd.oninput = () => { if (+rEnd.value < +rStart.value) rEnd.value = rStart.value; state.range.hi = +rEnd.value; updateFilter(); };
+    const rst = $("#tfReset"); if (rst) rst.onclick = () => {
+      state.range = { lo: 0, hi: state.months.length - 1 };
+      rStart.value = 0; rEnd.value = state.months.length - 1; updateFilter();
+    };
+    updateFilter();
+  }
 }
 
 async function startAnalyze() {
@@ -241,16 +383,30 @@ async function enterReview() {
   app.innerHTML = chrome(`<div class="scroll"><div class="review"><div class="scanning">
       <div class="spinner"></div><h2>Loading review…</h2></div></div></div>`);
   const layers = CATS.map((c) => c.id).filter((id) => state.selected.has(id));
+  const all = rangeIsAll();
+  const loM = all ? null : state.months[state.range.lo];
+  const hiM = all ? null : state.months[state.range.hi];
   for (const layer of layers) {
     const res = await api.get(`/api/candidates?layer=${layer}`);
-    state.candidates[layer] = res.groups;
+    let groups = res.groups;
+    if (!all) {                                  // narrow to the picked time period, client-side
+      if (CAT[layer].grouped) {
+        groups = groups.filter((g) => { const m = groupMonth(g); return m && m >= loM && m <= hiM; });
+      } else {
+        groups = groups
+          .map((g) => ({ ...g, photos: g.photos.filter((p) => { const m = monthStr(p.timestamp); return m && m >= loM && m <= hiM; }) }))
+          .filter((g) => g.photos.length);
+      }
+    }
+    state.candidates[layer] = groups;
     const d = {};
-    res.groups.forEach((g) => g.photos.forEach((p) => {
+    groups.forEach((g) => g.photos.forEach((p) => {
       d[p.uuid] = p.decided ? (p.decided === "keep" ? "keep" : "remove")
         : (p.suggested_keep ? "keep" : "remove");
     }));
     state.decisions[layer] = d;
   }
+  state.selUuid = null; state.selLayer = null; state.pvCollapsed = false;
   renderReview();
 }
 
@@ -284,7 +440,21 @@ function renderReview() {
         <input type="range" min="84" max="240" step="2" value="${state.cardSize}" id="cardsize">
       </span>
     </div>
-    <div class="scroll"><div class="review">${sections}</div></div>
+    <div class="rv-main ${state.pvCollapsed ? "collapsed" : ""}" id="rvMain">
+      <div class="scroll"><div class="review">${sections}</div></div>
+      <aside class="preview" id="preview">
+        <div class="pv-head"><span class="pv-title">Preview</span>
+          <button class="pv-collapse" id="pvCollapse" title="Hide preview" aria-label="Hide preview">›</button></div>
+        <div class="pv-empty" id="pvEmpty">Click any photo to preview it full-size here.</div>
+        <div class="pv-content" id="pvContent" hidden>
+          <div class="pv-img" id="pvImg"></div>
+          <div class="pv-name" id="pvName"></div>
+          <div class="pv-meta" id="pvMeta"></div>
+          <button class="btn pv-toggle" id="pvToggle"></button>
+        </div>
+      </aside>
+      <button class="pv-reopen" id="pvReopen" title="Show preview" aria-label="Show preview">‹</button>
+    </div>
     <div class="bar bottom">
       <button class="btn-secondary" id="back">‹ Back</button>
       <div style="flex:1"></div>
@@ -367,14 +537,22 @@ function bindReview() {
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
   const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
 
+  // Two-gesture cards: click the image = preview it; click the corner badge = keep/remove.
   app.querySelectorAll(".card[data-uuid]").forEach((card) => {
-    const toggle = () => flip(card);
-    $(".frame", card).onclick = toggle;
-    $(".frame", card).onkeydown = (e) => {
-      if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); }
-      else if (e.key.startsWith("Arrow")) moveFocus(card, e.key);
+    $(".frame", card).onclick = (e) => {
+      if (e.target.closest(".badge")) { flip(card); if (card.dataset.uuid === state.selUuid) fillPreview(); }
+      else selectCard(card);
+    };
+    $(".frame", card).onkeydown = (e) => {                 // Space/Enter on a focused card toggles it
+      if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(card); if (card.dataset.uuid === state.selUuid) fillPreview(); }
     };
   });
+
+  // preview panel: hide / reopen / toggle the previewed card's decision
+  const pvC = $("#pvCollapse"); if (pvC) pvC.onclick = () => { state.pvCollapsed = true; $("#rvMain").classList.add("collapsed"); };
+  const pvR = $("#pvReopen"); if (pvR) pvR.onclick = () => { state.pvCollapsed = false; $("#rvMain").classList.remove("collapsed"); };
+  const pvT = $("#pvToggle"); if (pvT) pvT.onclick = toggleSelected;
+
   app.querySelectorAll("[data-collapse]").forEach((b) => b.onclick = () => {
     const gEl = b.closest(".group");
     const collapsed = gEl.classList.toggle("collapsed");   // in place, no re-render
@@ -384,8 +562,15 @@ function bindReview() {
   app.querySelectorAll("[data-all]").forEach((b) => b.onclick = () => {
     const gEl = b.closest(".group");                       // mutate cards in place
     gEl.querySelectorAll(".card[data-uuid]").forEach((card) => setCardDecision(card, b.dataset.all));
+    if (state.selUuid && gEl.querySelector(`.card[data-uuid="${CSS.escape(state.selUuid)}"]`)) fillPreview();
     refreshCounts();
   });
+
+  // initialise / restore the previewed card so arrows + Space work the moment you arrive
+  if (!state.finalize) {
+    let card = selectedCardEl() || app.querySelector(".group:not(.collapsed) .card[data-uuid]");
+    if (card) selectCard(card, { scroll: false });
+  }
 
   // finalize modal buttons
   if (state.finalize === "confirm") {
@@ -439,11 +624,52 @@ function refreshCounts() {
   updateBars();
 }
 
-function moveFocus(card, key) {
-  const cards = [...app.querySelectorAll(".card[data-uuid] .frame")];
-  const i = cards.indexOf($(".frame", card));
-  const next = key === "ArrowRight" || key === "ArrowDown" ? i + 1 : i - 1;
-  if (cards[next]) cards[next].focus();
+/* ---- review preview panel + keyboard selection --------------------------- */
+function photoOf(layer, uuid) {
+  for (const g of (state.candidates[layer] || [])) {
+    const p = g.photos.find((x) => x.uuid === uuid);
+    if (p) return p;
+  }
+  return null;
+}
+function selectedCardEl() {
+  return state.selUuid ? app.querySelector(`.card[data-uuid="${CSS.escape(state.selUuid)}"]`) : null;
+}
+function selectCard(card, opts = {}) {
+  app.querySelectorAll(".card.selected").forEach((c) => c.classList.remove("selected"));
+  card.classList.add("selected");
+  state.selUuid = card.dataset.uuid;
+  state.selLayer = card.dataset.layer;
+  state.pvCollapsed = false;
+  const rm = $("#rvMain"); if (rm) rm.classList.remove("collapsed");
+  fillPreview();
+  if (opts.scroll !== false) card.scrollIntoView({ block: "nearest" });
+}
+function fillPreview() {
+  const layer = state.selLayer, uuid = state.selUuid, p = photoOf(layer, uuid);
+  const pvImg = $("#pvImg"); if (!pvImg || !p) return;
+  const keep = state.decisions[layer][uuid] === "keep";
+  pvImg.innerHTML = `<img src="${p.thumb}" alt="">` + (p.is_video ? `<div class="vplay">${icon("i-play")}</div>` : "");
+  $("#pvName").textContent = p.filename;
+  const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : "";
+  const dur = p.is_video && p.duration ? `${Math.floor(p.duration / 60)}:${String(Math.round(p.duration % 60)).padStart(2, "0")}` : "";
+  $("#pvMeta").textContent = [dims, dur, fmtSize(p.size_mb)].filter(Boolean).join(" · ");
+  const pvT = $("#pvToggle");
+  pvT.textContent = keep ? "Mark for removal" : "Keep this one";
+  pvT.className = "btn pv-toggle " + (keep ? "btn-danger" : "btn-primary");
+  $("#pvEmpty").hidden = true; $("#pvContent").hidden = false;
+}
+function moveSelection(key) {
+  const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
+  if (!cards.length) return;
+  const i = cards.findIndex((c) => c.dataset.uuid === state.selUuid);
+  if (i < 0) { selectCard(cards[0]); return; }
+  const next = cards[key === "ArrowRight" ? i + 1 : i - 1];
+  if (next) selectCard(next);
+}
+function toggleSelected() {
+  const card = selectedCardEl();
+  if (card) { flip(card); fillPreview(); }
 }
 
 function updateBars() {
@@ -566,4 +792,11 @@ document.addEventListener("wheel", (e) => {
   e.preventDefault();                          // don't let the page zoom
   setCardSize(state.cardSize + (e.deltaY < 0 ? 10 : -10));
 }, { passive: false });
+// Review keyboard: ← / → move the previewed photo, Space marks/unmarks it.
+document.addEventListener("keydown", (e) => {
+  if (state.view !== "review" || state.finalize) return;
+  if (e.target && e.target.tagName === "INPUT") return;   // let the size slider use arrows
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); moveSelection(e.key); }
+  else if (e.key === " ") { e.preventDefault(); toggleSelected(); }
+});
 render();
