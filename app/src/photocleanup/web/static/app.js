@@ -446,13 +446,13 @@ function renderReview() {
       <span>${fmtN(c.items)} items in ${layers.length} categor${layers.length === 1 ? "y" : "ies"}</span>
       <span class="mini-prog"><span style="width:${pct}%"></span></span>
       <span><span class="keep-n">Keeping ${fmtN(c.keep)}</span> · <span class="rem-n">Removing ${fmtN(c.rem)}</span></span>
-      <span class="bulk">
-        <button class="btn-secondary sm" id="keepAll" title="Keep every suggestion in the review">Keep all</button>
-        <button class="btn-secondary sm" id="removeAll" title="Remove every suggestion in the review">Remove all</button>
-      </span>
       <span class="sizer" title="Preview size (⌘ + scroll)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
         <input type="range" min="84" max="240" step="2" value="${state.cardSize}" id="cardsize">
+      </span>
+      <span class="bulk">
+        <button class="btn-secondary sm" id="keepAll" title="Keep every suggestion in the review">Keep all</button>
+        <button class="btn-secondary sm" id="removeAll" title="Remove every suggestion in the review">Remove all</button>
       </span>
     </div>
     <div class="rv-main ${state.pvCollapsed ? "collapsed" : ""}" id="rvMain">
@@ -723,7 +723,7 @@ function selectCard(card, opts = {}) {
 // the <img> elements (encoded ~1 MB each); the browser manages the decoded bitmaps.
 // ±2 in each direction are pre-loaded so arrow-scrolling lands on a ready image.
 const PREVIEW_PX = 2048;          // ≥ 2× any panel width → crisp on Retina, fine for pixel-peeping
-const PV_CACHE_MAX = 7;           // current + ~2 each side + a little slack
+const PV_CACHE_MAX = 5;           // current + ~1 each side + a little slack
 const pvCache = new Map();        // uuid -> HTMLImageElement (LRU)
 function pvGet(uuid) {
   let img = pvCache.get(uuid);
@@ -763,9 +763,9 @@ function fillPreview() {
   else { img.classList.remove("ready"); img.addEventListener("load", () => { if (pvImg.dataset.uuid === uuid) img.classList.add("ready"); }, { once: true }); }
   if (p.is_video) pvImg.insertAdjacentHTML("beforeend", `<div class="vplay">${icon("i-play")}</div>`);
 
-  // Pre-load ±2 in each direction (full-res) once settled, so the next moves are seamless.
+  // Pre-load ±1 in each direction (full-res) once settled, so the next move is seamless.
   clearTimeout(pvWarmTimer);
-  pvWarmTimer = setTimeout(() => { if (state.selUuid === uuid) warmNeighbors(2); }, 120);
+  pvWarmTimer = setTimeout(() => { if (state.selUuid === uuid) warmNeighbors(1); }, 120);
 }
 function warmNeighbors(span) {
   const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
@@ -782,6 +782,28 @@ function moveSelection(key) {
   if (i < 0) { selectCard(cards[0]); return; }
   const next = cards[key === "ArrowRight" ? i + 1 : i - 1];
   if (next) selectCard(next);
+}
+// Up/Down move by a visual row. Rows top-align (align-items:flex-start), so cards
+// in a row share ~the same `top`; pick the row above/below and the nearest by centre-x.
+function moveSelectionVert(dir) {
+  const cur = selectedCardEl(); if (!cur) return;
+  const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
+  const cr = cur.getBoundingClientRect(), curMidX = cr.left + cr.width / 2, tol = 4;
+  const rows = cards.map((c) => ({ c, r: c.getBoundingClientRect() }));
+  let rowTop = null;                                   // nearest row in the wanted direction
+  for (const { r } of rows) {
+    if (dir === "down" && r.top > cr.top + tol) rowTop = rowTop === null ? r.top : Math.min(rowTop, r.top);
+    if (dir === "up" && r.top < cr.top - tol) rowTop = rowTop === null ? r.top : Math.max(rowTop, r.top);
+  }
+  if (rowTop === null) return;                         // already at the top/bottom row
+  let best = null, bestDx = Infinity;
+  for (const { c, r } of rows) {
+    if (Math.abs(r.top - rowTop) <= tol) {
+      const dx = Math.abs(r.left + r.width / 2 - curMidX);
+      if (dx < bestDx) { bestDx = dx; best = c; }
+    }
+  }
+  if (best) selectCard(best);
 }
 function toggleSelected() {
   const card = selectedCardEl();
@@ -920,6 +942,7 @@ document.addEventListener("keydown", (e) => {
   if (state.view !== "review" || state.finalize) return;
   if (e.target && e.target.tagName === "INPUT") return;   // let the size slider use arrows
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); moveSelection(e.key); }
+  else if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveSelectionVert(e.key === "ArrowDown" ? "down" : "up"); }
   else if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleSelected(); }   // the current selection
 });
 render();
