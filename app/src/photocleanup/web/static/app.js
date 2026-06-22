@@ -536,12 +536,30 @@ function cardHtml(layer, p, shot = false) {
     const dur = p.duration ? `${Math.floor(p.duration / 60)}:${String(Math.round(p.duration % 60)).padStart(2, "0")}` : "";
     overlay = `<div class="vplay">${icon("i-play")}</div>${dur ? `<span class="vdur">${dur}</span>` : ""}`;
   }
-  return `<div class="card ${shot ? "shot" : ""} ${v === "keep" ? "keep" : "remove"}" data-uuid="${p.uuid}" data-layer="${layer}">
+  // Cell sized to the image's aspect (uncropped): long side = --card, short side
+  // scaled by --fw/--fh. Estimated from metadata; corrected from the loaded thumb.
+  const w = p.width || 1, h = p.height || 1;
+  const fw = w >= h ? 1 : w / h, fh = w >= h ? h / w : 1;
+  return `<div class="card ${shot ? "shot" : ""} ${v === "keep" ? "keep" : "remove"}" data-uuid="${p.uuid}" data-layer="${layer}" style="--fw:${fw.toFixed(4)};--fh:${fh.toFixed(4)}">
     <div class="frame" tabindex="0" role="button" aria-pressed="${v === "keep"}">
-      <img src="${p.thumb}" loading="lazy" decoding="async" width="240" height="240" alt="">
+      <img src="${p.thumb}" loading="lazy" decoding="async" alt="" onload="fitAspect(this)">
       ${fav}${overlay}${badge}
     </div>
     <div class="fn">${escapeHtml(p.filename)} · ${fmtSize(p.size_mb)}</div></div>`;
+}
+
+// Correct a card's aspect from the actually-rendered (EXIF-applied) thumb, in case
+// the metadata dimensions were pre-rotation. No-op when the estimate already matches.
+function fitAspect(img) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || !h) return;
+  const card = img.closest(".card"); if (!card) return;
+  const fw = w >= h ? 1 : w / h, fh = w >= h ? h / w : 1;
+  if (Math.abs(parseFloat(card.style.getPropertyValue("--fw") || 1) - fw) > 0.02 ||
+      Math.abs(parseFloat(card.style.getPropertyValue("--fh") || 1) - fh) > 0.02) {
+    card.style.setProperty("--fw", fw.toFixed(4));
+    card.style.setProperty("--fh", fh.toFixed(4));
+  }
 }
 
 function escapeHtml(s) {
