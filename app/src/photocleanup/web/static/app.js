@@ -390,6 +390,7 @@ async function enterReview() {
   state.view = "review";
   state.candidates = {};
   state.decisions = {};
+  pvCache.clear();                 // drop cached preview images from the previous review
   app.innerHTML = chrome(`<div class="scroll"><div class="review"><div class="scanning">
       <div class="spinner"></div><h2>Loading review…</h2></div></div></div>`);
   const layers = CATS.map((c) => c.id).filter((id) => state.selected.has(id));
@@ -686,7 +687,24 @@ function selectCard(card, opts = {}) {
   fillPreview();
   if (opts.scroll !== false) card.scrollIntoView({ block: "nearest" });
 }
-let pvTimer = null;
+// Full-res preview elements kept in browser memory and reused, so navigating shows
+// the sharp image instantly (no blurry-thumb flash) and never re-fetches. We hold
+// the <img> elements (encoded ~1 MB each); the browser manages the decoded bitmaps.
+// ±2 in each direction are pre-loaded so arrow-scrolling lands on a ready image.
+const PREVIEW_PX = 2048;          // ≥ 2× any panel width → crisp on Retina, fine for pixel-peeping
+const PV_CACHE_MAX = 7;           // current + ~2 each side + a little slack
+const pvCache = new Map();        // uuid -> HTMLImageElement (LRU)
+function pvGet(uuid) {
+  let img = pvCache.get(uuid);
+  if (img) { pvCache.delete(uuid); pvCache.set(uuid, img); return img; }   // LRU bump
+  img = new Image();
+  img.decoding = "async"; img.alt = "";
+  img.src = `/api/thumb/${uuid}?px=${PREVIEW_PX}`;
+  pvCache.set(uuid, img);
+  while (pvCache.size > PV_CACHE_MAX) pvCache.delete(pvCache.keys().next().value);
+  return img;
+}
+let pvWarmTimer = null;
 function fillPreview() {
   const layer = state.selLayer, uuid = state.selUuid, p = photoOf(layer, uuid);
   const pvImg = $("#pvImg"); if (!pvImg || !p) return;
@@ -701,29 +719,29 @@ function fillPreview() {
   pvT.className = "btn pv-toggle " + (keep ? "btn-danger" : "btn-primary");
   $("#pvEmpty").hidden = true; $("#pvContent").hidden = false;
 
-  // (Re)load the image only when the previewed photo actually changes — never on a
-  // mere keep/remove toggle. The grid thumb is an instant placeholder; the high-res
-  // render is debounced so flicking through with ← / → stays snappy and only the
-  // photo you settle on is fetched at full size.
+  // Swap the image only when the previewed photo changes — never on a keep/remove
+  // toggle. Reuse the cached full-res element (instant + sharp if pre-loaded as a
+  // neighbour); the grid thumb is a soft placeholder for the rare cold case.
   if (pvImg.dataset.uuid === uuid) return;
   pvImg.dataset.uuid = uuid;
   pvImg.style.backgroundImage = `url("${p.thumb}")`;
-  pvImg.innerHTML = `<img decoding="async" alt="">` + (p.is_video ? `<div class="vplay">${icon("i-play")}</div>` : "");
-  const img = pvImg.querySelector("img");
-  img.onload = () => { if (pvImg.dataset.uuid === uuid) img.classList.add("ready"); };
-  clearTimeout(pvTimer);
-  pvTimer = setTimeout(() => {
-    if (state.selUuid !== uuid) return;          // moved on during the settle window
-    img.src = `${p.thumb}?px=2048`;
-    prefetchNeighbors();                          // warm the server cache for ← / →
-  }, 130);
+  const img = pvGet(uuid);
+  pvImg.innerHTML = "";
+  pvImg.appendChild(img);
+  if (img.complete && img.naturalWidth) img.classList.add("ready");        // already loaded → instant
+  else { img.classList.remove("ready"); img.addEventListener("load", () => { if (pvImg.dataset.uuid === uuid) img.classList.add("ready"); }, { once: true }); }
+  if (p.is_video) pvImg.insertAdjacentHTML("beforeend", `<div class="vplay">${icon("i-play")}</div>`);
+
+  // Pre-load ±2 in each direction (full-res) once settled, so the next moves are seamless.
+  clearTimeout(pvWarmTimer);
+  pvWarmTimer = setTimeout(() => { if (state.selUuid === uuid) warmNeighbors(2); }, 120);
 }
-function prefetchNeighbors() {
+function warmNeighbors(span) {
   const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
   const i = cards.findIndex((c) => c.dataset.uuid === state.selUuid);
-  for (const j of [i - 1, i + 1]) {
-    const c = cards[j];
-    if (c) fetch(`/api/thumb/${c.dataset.uuid}?px=2048`).catch(() => {});  // render into RAM cache
+  if (i < 0) return;
+  for (let d = 1; d <= span; d++) for (const c of [cards[i - d], cards[i + d]]) {
+    if (c) pvGet(c.dataset.uuid);    // loads full-res into the element cache + server RAM cache
   }
 }
 function moveSelection(key) {
