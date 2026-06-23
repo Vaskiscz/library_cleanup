@@ -263,6 +263,7 @@ button { font-family: inherit; cursor: pointer; }
 .pv-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
   opacity: 0; transition: opacity .12s ease; }   /* fade in over the thumb placeholder once the full-res decodes */
 .pv-img img.ready { opacity: 1; }
+.pv-img video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 .pv-img .vplay { width: 48px; height: 48px; }
 .pv-img .vplay svg { width: 20px; height: 20px; margin-left: 3px; }
 .pv-name { font-size: var(--pc-text-md); font-weight: var(--pc-weight-semibold); word-break: break-all; }

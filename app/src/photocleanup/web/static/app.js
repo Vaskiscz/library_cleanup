@@ -812,18 +812,24 @@ function fillPreview() {
   pvT.className = "btn pv-toggle " + (keep ? "btn-danger" : "btn-primary");
   $("#pvEmpty").hidden = true; $("#pvContent").hidden = false;
 
-  // Swap the image only when the previewed photo changes — never on a keep/remove
-  // toggle. Reuse the cached full-res element (instant + sharp if pre-loaded as a
-  // neighbour); the grid thumb is a soft placeholder for the rare cold case.
+  // Swap the media only when the previewed item changes — never on a keep/remove
+  // toggle (so a playing video isn't interrupted).
   if (pvImg.dataset.uuid === uuid) return;
   pvImg.dataset.uuid = uuid;
-  pvImg.style.backgroundImage = `url("${p.thumb}")`;
-  const img = pvGet(uuid);
-  pvImg.innerHTML = "";
-  pvImg.appendChild(img);
-  if (img.complete && img.naturalWidth) img.classList.add("ready");        // already loaded → instant
-  else { img.classList.remove("ready"); img.addEventListener("load", () => { if (pvImg.dataset.uuid === uuid) img.classList.add("ready"); }, { once: true }); }
-  if (p.is_video) pvImg.insertAdjacentHTML("beforeend", `<div class="vplay">${icon("i-play")}</div>`);
+  if (p.is_video) {
+    // real playback with native controls; the full-res frame is the poster
+    pvImg.style.backgroundImage = "";
+    pvImg.innerHTML = `<video controls playsinline preload="metadata" poster="${p.thumb}?px=${PREVIEW_PX}" src="/api/video/${uuid}"></video>`;
+  } else {
+    // reuse the cached full-res image element (instant + sharp if pre-loaded as a
+    // neighbour); the grid thumb is a soft placeholder for the rare cold case.
+    pvImg.style.backgroundImage = `url("${p.thumb}")`;
+    const img = pvGet(uuid);
+    pvImg.innerHTML = "";
+    pvImg.appendChild(img);
+    if (img.complete && img.naturalWidth) img.classList.add("ready");        // already loaded → instant
+    else { img.classList.remove("ready"); img.addEventListener("load", () => { if (pvImg.dataset.uuid === uuid) img.classList.add("ready"); }, { once: true }); }
+  }
 
   // Pre-load ±1 in each direction (full-res) once settled, so the next move is seamless.
   clearTimeout(pvWarmTimer);

@@ -149,6 +149,16 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         return Response(data, media_type="image/jpeg",
                         headers={"Cache-Control": "no-store"})
 
+    @app.get("/api/video/{uuid}")
+    def video(uuid: str):
+        """Stream the original video file for in-app playback. FileResponse honours
+        Range requests so the <video> element can seek/scrub. Stays on 127.0.0.1 and
+        is no-store, so nothing is copied off the device."""
+        rec = _engine().record(uuid)
+        if rec is None or not rec.is_movie or not rec.path or not os.path.exists(rec.path):
+            raise HTTPException(404, "no video")
+        return FileResponse(rec.path, headers={"Cache-Control": "no-store"})
+
     @app.post("/api/decisions")
     def decisions(body: DecisionsBody):
         if body.layer not in LAYERS:

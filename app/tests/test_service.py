@@ -3,7 +3,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from factories import make_stub_engine
+from factories import make_stub_engine, mkv
 from photocleanup.server import create_app
 from photocleanup.store import Store
 
@@ -73,6 +73,23 @@ def test_candidates_dedup(client):
     g = body["groups"][0]
     assert g["size"] == 3 and "title" in g
     assert all("decided" in p for p in g["photos"])
+
+
+def test_video_404_without_file(client):
+    assert client.get("/api/video/v1").status_code == 404   # stub video has no path on disk
+    assert client.get("/api/video/nope").status_code == 404
+
+
+def test_video_streams_with_range(tmp_path):
+    eng = make_stub_engine()
+    vid = tmp_path / "clip.mov"; vid.write_bytes(b"\x00\x01\x02\x03\x04")
+    eng._index["vx"] = mkv("vx", path=str(vid))
+    app = create_app(store=Store(":memory:"), engine=eng)
+    with TestClient(app) as c:
+        r = c.get("/api/video/vx")
+        assert r.status_code == 200 and r.content == b"\x00\x01\x02\x03\x04"
+        rng = c.get("/api/video/vx", headers={"Range": "bytes=1-2"})   # seeking
+        assert rng.status_code == 206 and rng.content == b"\x01\x02"
 
 
 def test_all_items_feed(client):
