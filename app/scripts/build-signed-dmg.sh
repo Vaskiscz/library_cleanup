@@ -36,6 +36,8 @@ codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2
 
 echo "[3/4] Building DMG ..."
 mkdir -p dist
+# Keep only the build we're about to make — delete any older DMGs.
+find dist -maxdepth 1 -name 'Library Cleanup-*.dmg' ! -name "$(basename "$DMG")" -print -delete
 STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
