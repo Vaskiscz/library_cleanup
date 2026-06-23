@@ -260,13 +260,16 @@ class Engine:
         #    the dialog and gets recorded as a denial); here we only CHECK it, and
         #    fail fast with a clear message rather than after a whole review.
         emit("Checking photo access…")
+        auth_status = None
         try:
-            from .delete import is_authorized
+            from .delete import authorization_status, is_authorized
             authorized = is_authorized()
+            if not authorized:
+                auth_status = authorization_status()   # 0=undecided 1=restricted 2=denied
         except Exception:
             authorized = True               # PhotoKit unavailable (e.g. tests) → don't block
         if not authorized:
-            raise PermissionError("photos-access")
+            raise PermissionError(f"photos-access (status={auth_status})")
 
         # 2) connect + load the scope
         emit("Connecting to your photo library…")

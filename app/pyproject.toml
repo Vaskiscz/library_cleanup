@@ -30,9 +30,11 @@ photo_library = "Library Cleanup removes only the duplicate and clutter photos a
 
 [tool.briefcase.app.photocleanup.macOS]
 universal_build = false
-# The app is NOT sandboxed, so the sandbox photo-library entitlement is inert —
-# drop it. PhotoKit access is driven solely by NSPhotoLibraryUsageDescription.
-entitlement."com.apple.security.personal-information.photo_library" = false
+# Hardened-runtime resource-access entitlement for Photos. Without it (or with the
+# old wrong key `…photo_library = false`), the hardened runtime blocks PhotoKit, so
+# the read-write authorization request never reaches TCC and no dialog appears.
+# Correct key is `photos-library` (plural, hyphen), and it must be TRUE.
+entitlement."com.apple.security.personal-information.photos-library" = true
 # Strip dead weight osxphotos drags in (its interactive REPL / pretty-print /
 # markdown / html tooling) that the app never imports at runtime — verified by
 # running a full analyze and checking sys.modules. Saves ~60 MB.
