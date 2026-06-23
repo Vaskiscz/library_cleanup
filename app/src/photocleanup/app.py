@@ -31,6 +31,15 @@ class PhotoCleanup(toga.App):
         self.main_window = toga.MainWindow(title=self.formal_name, size=(1200, 860))
         self.main_window.content = toga.Box(children=[self.web], style=Pack(direction=COLUMN, flex=1))
         self.main_window.show()
+        # Ask for Photos (read-write) access here, on the MAIN thread — the dialog
+        # can't be presented from the server's background thread (such a request is
+        # recorded as a denial and then sticks). Fire-and-forget; analyze just reads
+        # the resulting status later.
+        try:
+            from photocleanup.delete import request_access_async
+            request_access_async()
+        except Exception:  # noqa: BLE001 — PhotoKit may be unavailable; never block launch
+            pass
         # Navigate only once the server is actually accepting connections, so a
         # slow cold start never leaves a blank/error page.
         threading.Thread(target=self._open_when_ready, daemon=True).start()

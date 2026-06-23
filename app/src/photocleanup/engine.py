@@ -255,16 +255,16 @@ class Engine:
                      items_total or None,
                      (min(work, work_total) / work_total) if work_total else None)
 
-        # 1) privileges — get Photos read-write access NOW (deletion needs it). Fail
-        #    here with a clear message rather than after a whole review. If PhotoKit
-        #    isn't available (e.g. tests), don't block.
-        emit("Requesting photo access…")
+        # 1) privileges — deletion needs Photos read-write. The prompt is fired on
+        #    the app's MAIN thread at launch (a background-thread request can't show
+        #    the dialog and gets recorded as a denial); here we only CHECK it, and
+        #    fail fast with a clear message rather than after a whole review.
+        emit("Checking photo access…")
         try:
-            from .delete import ensure_access, is_authorized
-            ensure_access()                 # prompts for read-write if not yet decided
+            from .delete import is_authorized
             authorized = is_authorized()
         except Exception:
-            authorized = True               # PhotoKit unavailable → can't check, don't block
+            authorized = True               # PhotoKit unavailable (e.g. tests) → don't block
         if not authorized:
             raise PermissionError("photos-access")
 

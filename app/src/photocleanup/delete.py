@@ -40,6 +40,17 @@ def is_authorized() -> bool:
         int(P.PHAuthorizationStatusAuthorized), int(P.PHAuthorizationStatusLimited))
 
 
+def request_access_async() -> None:
+    """Fire the Photos read-write prompt without blocking. MUST be called on the
+    app's MAIN thread — macOS can't present the dialog from a background thread, and
+    a request that can't present is recorded as a denial (which then sticks). No-op
+    unless access is still undecided."""
+    P = _photos()
+    if authorization_status() == int(P.PHAuthorizationStatusNotDetermined):
+        P.PHPhotoLibrary.requestAuthorizationForAccessLevel_handler_(
+            P.PHAccessLevelReadWrite, lambda s: None)
+
+
 def _ensure_authorized(timeout: float = 120.0) -> int:
     P = _photos()
     status = authorization_status()
