@@ -255,13 +255,18 @@ class Engine:
                      items_total or None,
                      (min(work, work_total) / work_total) if work_total else None)
 
-        # 1) privileges — surface the Photos access request up front
+        # 1) privileges — get Photos read-write access NOW (deletion needs it). Fail
+        #    here with a clear message rather than after a whole review. If PhotoKit
+        #    isn't available (e.g. tests), don't block.
         emit("Requesting photo access…")
         try:
-            from .delete import ensure_access
-            ensure_access()
+            from .delete import ensure_access, is_authorized
+            ensure_access()                 # prompts for read-write if not yet decided
+            authorized = is_authorized()
         except Exception:
-            pass
+            authorized = True               # PhotoKit unavailable → can't check, don't block
+        if not authorized:
+            raise PermissionError("photos-access")
 
         # 2) connect + load the scope
         emit("Connecting to your photo library…")

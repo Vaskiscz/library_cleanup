@@ -115,12 +115,18 @@ function render() {
 function renderHome() {
   let body = "";
   if (state.phase === "idle") {
+    const photosErr = (state.errorMsg || "").includes("photos-access");
+    const errTtl = photosErr ? "Photos access needed" : "Couldn't read your photo library";
+    const errMsg = photosErr
+      ? `Library Cleanup needs permission to manage your <b>Photos</b> so it can remove the
+         items you pick. Open System Settings ▸ Privacy &amp; Security ▸ <b>Photos</b>, enable
+         <b>Library Cleanup</b>, then click Analyze again.`
+      : `Library Cleanup needs <b>Full Disk Access</b>. Open System Settings ▸ Privacy &amp;
+         Security ▸ <b>Full Disk Access</b>, enable <b>Library Cleanup</b>, then click Analyze again.`;
     const err = state.libStatus === "error" ? `
         <div class="errbox">
-          <div class="errttl">Couldn't read your photo library</div>
-          <div class="errmsg">Library Cleanup needs <b>Full Disk Access</b>. Open
-            System Settings ▸ Privacy &amp; Security ▸ <b>Full Disk Access</b>, enable
-            <b>Library Cleanup</b>, then click Analyze again.</div>
+          <div class="errttl">${errTtl}</div>
+          <div class="errmsg">${errMsg}</div>
           <div class="errrow">
             <button class="btn-secondary sm" id="openlog">Open log to send the developer</button>
           </div>
@@ -713,11 +719,13 @@ function bindReview() {
     $("#m-cancel").onclick = () => { state.finalize = null; renderReview(); };
     $("#m-go").onclick = doFinalize;
   } else if (state.finalize === "done") {
-    $("#m-new").onclick = () => {
+    const mn = $("#m-new"); if (mn) mn.onclick = () => {
       Object.assign(state, { view: "home", phase: "idle", finalize: null, done: null,
         candidates: {}, decisions: {}, selected: new Set(), summary: null, manual: false });
       render();
     };
+    // unauthorized: keep the review intact, just close the modal
+    const mb = $("#m-back"); if (mb) mb.onclick = () => { state.finalize = null; state.done = null; renderReview(); };
   }
 }
 
@@ -958,9 +966,9 @@ function doneHtml() {
       <div class="done-disc" style="background:var(--pc-warn)">${icon("i-lock")}</div>
       <h3>Photos access needed</h3>
       <p class="head-n">To remove items, allow Library Cleanup in System Settings ▸ Privacy &amp;
-        Security ▸ Photos, then run the review again.</p>
-      <p class="head-n" style="font-size:12px">Your keepers are already marked reviewed.</p>
-      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Back to start</button></div>
+        Security ▸ <b>Photos</b>, then try again.</p>
+      <p class="head-n" style="font-size:12px">Your review is kept — nothing was changed.</p>
+      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-back">Back to review</button></div>
     </div></div>`;
   }
   if (d.status && d.status !== "ok") {

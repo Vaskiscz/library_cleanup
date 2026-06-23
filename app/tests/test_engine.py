@@ -1,7 +1,18 @@
+import pytest
 from photo_cleanup.cluster import DuplicateGroup
 from photocleanup.engine import Engine
 
 from factories import mk, mkv
+
+
+def test_analyze_requires_photos_access(monkeypatch):
+    """Photos read-write must be granted at connection — fail fast (before any
+    scanning) rather than after a whole review."""
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "ensure_access", lambda timeout=120.0: 0)
+    monkeypatch.setattr(delete, "is_authorized", lambda: False)
+    with pytest.raises(PermissionError):
+        Engine().analyze(layers=["dedup"])
 
 
 def test_dedup_payload_shape():

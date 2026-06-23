@@ -33,6 +33,13 @@ def ensure_access(timeout: float = 120.0) -> int:
     return _ensure_authorized(timeout)
 
 
+def is_authorized() -> bool:
+    """True if Photos read-write access is currently granted (delete will work)."""
+    P = _photos()
+    return authorization_status() in (
+        int(P.PHAuthorizationStatusAuthorized), int(P.PHAuthorizationStatusLimited))
+
+
 def _ensure_authorized(timeout: float = 120.0) -> int:
     P = _photos()
     status = authorization_status()
