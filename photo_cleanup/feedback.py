@@ -413,6 +413,15 @@ _cached_model: Optional[KeeperModel] = None
 _loaded = False
 
 
+def reset_model_cache() -> None:
+    """Drop the in-process caches so a freshly trained model (and refreshed
+    expired-suppression list) take effect without restarting the process."""
+    global _cached_model, _loaded, _expired_suppressed
+    _cached_model = None
+    _loaded = False
+    _expired_suppressed = None
+
+
 def model_score(features: dict) -> Optional[float]:
     """Return the learned score for a feature dict, or None if no model/features."""
     global _cached_model, _loaded

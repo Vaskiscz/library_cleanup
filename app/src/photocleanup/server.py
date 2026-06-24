@@ -24,6 +24,30 @@ from .store import DISCARD, KEEP, Store
 LAYERS = ALL_LAYERS
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
 
+# Only one retrain runs at a time; extra finalizes while it's busy are skipped
+# (the next finalize learns from the full accumulated feedback anyway).
+_learning_lock = threading.Lock()
+
+
+def _start_learning(dbpath: Optional[str]) -> bool:
+    """Retrain the keeper model in the background from accumulated feedback.
+    Best-effort: failures never affect the review flow. Returns True if a run
+    was started, False if one was already in progress."""
+    if not _learning_lock.acquire(blocking=False):
+        return False
+
+    def run():
+        try:
+            from .learning import run_learning
+            run_learning(dbpath)
+        except Exception:
+            pass
+        finally:
+            _learning_lock.release()
+
+    threading.Thread(target=run, daemon=True, name="keeper-learn").start()
+    return True
+
 
 class DecisionIn(BaseModel):
     uuid: str
@@ -184,8 +208,11 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
             feedback_log = write_dedup_feedback(st, dbpath=_engine().dbpath)
 
         st.mark_reviewed(keep_ids)
+        # New keep/discard labels just landed — retrain the keeper model in the
+        # background so the next round's suggestions reflect this review.
+        learning_started = bool(feedback_log) and _start_learning(_engine().dbpath)
         return {"reviewed": len(keep_ids), "to_delete": discard_ids,
-                "feedback_log": feedback_log}
+                "feedback_log": feedback_log, "learning_started": learning_started}
 
     @app.post("/api/delete")
     def delete(body: DeleteBody):

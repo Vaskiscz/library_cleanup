@@ -58,8 +58,12 @@ def run_learning(dbpath: Optional[str] = None) -> dict:
     Reads the library (needs Full Disk Access) to know which photos still exist."""
     import osxphotos
 
-    from photo_cleanup.feedback import learn_and_save, learn_expired
+    from photo_cleanup.feedback import (learn_and_save, learn_expired,
+                                        reset_model_cache)
     db = osxphotos.PhotosDB(dbpath) if dbpath else osxphotos.PhotosDB()
     present = {p.uuid for p in db.photos()}
-    return {"dedup": learn_and_save(present, dbpath),
-            "expired": learn_expired(present)}
+    result = {"dedup": learn_and_save(present, dbpath),
+              "expired": learn_expired(present)}
+    # Drop in-process caches so the next round's suggestions use the new model.
+    reset_model_cache()
+    return result

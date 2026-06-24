@@ -142,7 +142,9 @@ def test_delete_endpoint(client, monkeypatch):
 
 def test_finalize_across_layers(client, monkeypatch):
     import photocleanup.learning as learning
+    import photocleanup.server as server
     monkeypatch.setattr(learning, "write_dedup_feedback", lambda *a, **k: "/tmp/fake.json")
+    monkeypatch.setattr(server, "_start_learning", lambda dbpath: True)  # don't touch the live library
 
     client.post("/api/decisions", json={"layer": "dedup", "decisions": [
         {"uuid": "a", "verdict": "keep"}, {"uuid": "b", "verdict": "discard"},
@@ -157,3 +159,55 @@ def test_finalize_across_layers(client, monkeypatch):
     assert sorted(body["to_delete"]) == ["b", "v2"]
     assert body["feedback_log"] == "/tmp/fake.json"
     assert client.get("/api/health").json()["counts"]["reviewed"] == 2
+
+
+def test_finalize_triggers_learning(client, monkeypatch):
+    """When dedup labels are written, finalize kicks off a background retrain."""
+    import photocleanup.learning as learning
+    import photocleanup.server as server
+    monkeypatch.setattr(learning, "write_dedup_feedback", lambda *a, **k: "/tmp/fake.json")
+    calls = []
+    monkeypatch.setattr(server, "_start_learning", lambda dbpath: calls.append(dbpath) or True)
+
+    client.post("/api/decisions", json={"layer": "dedup", "decisions": [
+        {"uuid": "a", "verdict": "keep"}, {"uuid": "b", "verdict": "discard"},
+    ]})
+    r = client.post("/api/finalize", json={"layers": ["dedup"]})
+    assert r.json()["learning_started"] is True
+    assert len(calls) == 1
+
+
+def test_finalize_without_dedup_skips_learning(client, monkeypatch):
+    """No dedup feedback -> no retrain triggered (learning_started is False)."""
+    import photocleanup.server as server
+    monkeypatch.setattr(server, "_start_learning", lambda dbpath: True)
+
+    client.post("/api/decisions", json={"layer": "videos", "decisions": [
+        {"uuid": "v1", "verdict": "keep"}, {"uuid": "v2", "verdict": "discard"},
+    ]})
+    r = client.post("/api/finalize", json={"layers": ["videos"]})
+    assert r.json()["learning_started"] is False
+
+
+def test_start_learning_is_serialized(monkeypatch):
+    """Only one retrain runs at a time; a concurrent request is skipped."""
+    import threading
+
+    import photocleanup.learning as learning
+    import photocleanup.server as server
+
+    gate = threading.Event()
+    started = []
+
+    def fake_run(dbpath=None):
+        started.append(dbpath)
+        gate.wait(2.0)
+
+    monkeypatch.setattr(learning, "run_learning", fake_run)
+
+    assert server._start_learning(None) is True       # acquires the lock, spawns thread
+    assert server._start_learning(None) is False       # busy -> skipped
+    gate.set()
+    server._learning_lock.acquire(timeout=2.0)          # wait for the thread to release
+    server._learning_lock.release()
+    assert started == [None]

@@ -3,7 +3,7 @@
 [tool.briefcase]
 project_name = "Library Cleanup"
 bundle = "cz.vaskiscz"
-version = "0.1.12"
+version = "0.1.13"
 license.file = "LICENSE"
 
 [tool.briefcase.app.photocleanup]
