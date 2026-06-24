@@ -88,7 +88,7 @@
   <!-- ============ HOME ============ -->
   <section class="screen active" data-screen="home" data-screen-label="Home">
     <div class="topbar">
-      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.5</span></div>
+      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.12</span></div>
       <div class="status"><span class="dot idle"></span>Library not connected</div>
     </div>
     <div class="scroll"><div class="home"><div class="hero">
@@ -124,7 +124,7 @@
   <!-- ============ SCANNING ============ -->
   <section class="screen" data-screen="scanning" data-screen-label="Scanning">
     <div class="topbar">
-      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.5</span></div>
+      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.12</span></div>
       <div class="status"><span class="dot ok"></span>Scanning…</div>
     </div>
     <div class="scroll"><div class="scanning">
@@ -139,7 +139,7 @@
   <!-- ============ CATEGORIES ============ -->
   <section class="screen" data-screen="categories" data-screen-label="Categories">
     <div class="topbar">
-      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.5</span></div>
+      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.12</span></div>
       <div class="status"><span class="dot ok"></span>Scan complete · 25,322 items</div>
     </div>
     <div class="scroll"><div class="home"><div class="results" style="padding-top:0">
@@ -196,6 +196,7 @@
       <div style="flex:1"></div>
       <div style="color:var(--pc-text-tertiary)">
         <span style="color:var(--pc-text);font-weight:var(--pc-weight-semibold)" id="barCats">3 categories</span> · <span id="barItems">1,713 items</span> · up to <span id="barGb">16.7 GB</span></div>
+      <button class="btn-secondary" data-nav="review" title="Browse every photo &amp; video in this date range; nothing pre-selected for removal">Review manually</button>
       <button class="btn btn-primary" id="cta">Review 1,713 items ›</button>
     </div>
   </section>
@@ -203,7 +204,7 @@
   <!-- ============ REVIEW ============ -->
   <section class="screen" data-screen="review" data-screen-label="Review">
     <div class="topbar">
-      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.5</span></div>
+      <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.12</span></div>
     </div>
     <div class="bar top">
       <span id="rvTotal">22 items in 3 categories</span>
@@ -211,7 +212,11 @@
       <span><span class="keep-n" id="rvKeepTop">Keeping 0</span> · <span class="rem-n" id="rvRemTop">Removing 0</span></span>
       <span class="sizer" title="Preview size">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
-        <input type="range" id="rvZoom" min="84" max="240" step="2" value="116" aria-label="Preview size">
+        <input type="range" id="rvZoom" min="84" max="240" step="2" value="120" aria-label="Preview size">
+      </span>
+      <span class="bulk">
+        <button class="btn-secondary sm" data-keepall-global title="Keep every suggestion in the review">Keep all</button>
+        <button class="btn-secondary sm" data-removeall-global title="Remove every suggestion in the review">Remove all</button>
       </span>
     </div>
     <div class="rv-main" id="rvMain">
@@ -281,6 +286,7 @@
         <button class="btn pv-toggle" id="pvToggle"></button>
       </div>
     </aside>
+    <div class="pv-resize" id="pvResize" title="Drag to resize · double-click to reset" role="separator" aria-orientation="vertical"></div>
     <button class="pv-reopen" id="pvReopen" title="Show preview" aria-label="Show preview">‹</button>
     </div>
     <div class="bar bottom">
@@ -332,20 +338,32 @@
     b.addEventListener('click', function () { show(b.dataset.nav); });
   });
 
-  /* ---------------- home → scan ---------------- */
-  var STEPS = ['Reading library…', 'Grouping photoshoots…', 'Comparing videos…', 'Finding screenshots…', 'Ranking the best shots…'];
+  /* ---------------- home → scan (one weighted bar across phases) ---------------- */
+  var PHASES = [
+    { label: 'Analyzing photos…', total: 13000, w: 0.55 },
+    { label: 'Detecting faces…', total: 900, w: 0.18 },
+    { label: 'Grouping photoshoots…', total: 0, w: 0.05 },
+    { label: 'Analyzing videos…', total: 212, w: 0.18 },
+    { label: 'Comparing video takes…', total: 0, w: 0.04 }
+  ];
   document.getElementById('goScan').addEventListener('click', function () {
     show('scanning');
     var bar = document.getElementById('scanBar'), cnt = document.getElementById('scanCount'), step = document.getElementById('scanStep');
-    var total = 25322, p = 0, t0 = Date.now(), DUR = 2600;
-    bar.style.width = '0%';
-    var iv = setInterval(function () {
-      p = Math.min(1, (Date.now() - t0) / DUR);
-      bar.style.width = (p * 100).toFixed(0) + '%';
-      cnt.textContent = Math.round(p * total).toLocaleString('en-US') + ' / ' + total.toLocaleString('en-US');
-      step.textContent = STEPS[Math.min(STEPS.length - 1, Math.floor(p * STEPS.length))];
-      if (p >= 1) { clearInterval(iv); setTimeout(function () { show('categories'); }, 350); }
-    }, 60);
+    step.textContent = 'Reading your library…'; cnt.textContent = ''; bar.style.width = '0%';
+    var pi = -1, base = 0;
+    setTimeout(nextPhase, 500);
+    function nextPhase() {
+      pi++;
+      if (pi >= PHASES.length) { return void setTimeout(function () { show('categories'); }, 350); }
+      var ph = PHASES[pi], t0 = Date.now(), DUR = 650;
+      step.textContent = ph.label;
+      var iv = setInterval(function () {
+        var p = Math.min(1, (Date.now() - t0) / DUR);
+        bar.style.width = ((base + ph.w * p) * 100).toFixed(0) + '%';
+        cnt.textContent = ph.total ? (Math.round(p * ph.total).toLocaleString('en-US') + ' / ' + ph.total.toLocaleString('en-US')) : '';
+        if (p >= 1) { clearInterval(iv); base += ph.w; nextPhase(); }
+      }, 50);
+    }
   });
 
   /* ---------------- categories: time filter + chart ---------------- */
@@ -420,6 +438,11 @@
 
   /* ---------------- review: toggle keep/remove ---------------- */
   var reviewBody = document.getElementById('reviewBody');
+  // demo aspect ratios — the real app sizes every cell to the photo/video (uncropped)
+  [].forEach.call(reviewBody.querySelectorAll('.card'), function (c, i) {
+    if (c.querySelector('.vplay')) { c.style.setProperty('--fw', 1); c.style.setProperty('--fh', 0.5625); }
+    else { var ar = [[1, 0.75], [0.75, 1], [1, 1]][i % 3]; c.style.setProperty('--fw', ar[0]); c.style.setProperty('--fh', ar[1]); }
+  });
   function fmtSize(mb) { return mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB'; }
   function renderReview() {
     var cards = reviewBody.querySelectorAll('.card');
@@ -503,6 +526,37 @@
 
   var rvZoom = document.getElementById('rvZoom');
   rvZoom.addEventListener('input', function () { reviewBody.style.setProperty('--card', rvZoom.value + 'px'); });
+
+  /* ---- whole-review keep/remove all ---- */
+  document.querySelector('[data-keepall-global]').addEventListener('click', function () {
+    reviewBody.querySelectorAll('.card').forEach(function (c) { setState(c, true); }); if (selectedCard) fillPreview(selectedCard); renderReview();
+  });
+  document.querySelector('[data-removeall-global]').addEventListener('click', function () {
+    reviewBody.querySelectorAll('.card').forEach(function (c) { setState(c, false); }); if (selectedCard) fillPreview(selectedCard); renderReview();
+  });
+
+  /* ---- drag the divider to resize the grid / preview split ---- */
+  var rz = document.getElementById('pvResize');
+  rz.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); rvMain.classList.add('resizing'); rz.setPointerCapture(e.pointerId);
+    var sx = e.clientX, sw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pv')) || 324;
+    function mv(ev) { document.documentElement.style.setProperty('--pv', Math.max(300, Math.min(rvMain.clientWidth - 320, sw + (sx - ev.clientX))) + 'px'); }
+    function up() { rvMain.classList.remove('resizing'); rz.removeEventListener('pointermove', mv); rz.removeEventListener('pointerup', up); }
+    rz.addEventListener('pointermove', mv); rz.addEventListener('pointerup', up);
+  });
+  rz.addEventListener('dblclick', function () { document.documentElement.style.setProperty('--pv', '324px'); });
+
+  /* ---- keyboard: ← / → move the selection, Space marks/unmarks (review only) ---- */
+  document.addEventListener('keydown', function (e) {
+    if (!screens.review.classList.contains('active')) return;
+    if (e.key === ' ') { e.preventDefault(); if (selectedCard) { setState(selectedCard, selectedCard.classList.contains('remove')); fillPreview(selectedCard); renderReview(); } return; }
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    var cards = [].slice.call(reviewBody.querySelectorAll('.group:not(.collapsed) .card')), i = cards.indexOf(selectedCard);
+    selectCard(cards[e.key === 'ArrowRight' ? Math.min(cards.length - 1, i + 1) : Math.max(0, i - 1)] || cards[0]);
+  });
+
+  selectCard(reviewBody.querySelector('.card'));   // default selection so the preview is populated
 
   /* ---------------- finalize overlay ---------------- */
   var backdrop = document.getElementById('backdrop'), mConfirm = document.getElementById('modalConfirm'),
