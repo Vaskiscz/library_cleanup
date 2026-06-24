@@ -387,7 +387,7 @@ async function pollProgress() {
   } else {
     // Library is connected the moment scanning gets past access/connect (real
     // counted progress) — reflect that in the top bar immediately, not at the end.
-    if (state.libStatus !== "connected" && (p.total || /^(Found|Analyzing|Grouping|Checking|Comparing|Finishing)/.test(p.message || ""))) {
+    if (state.libStatus !== "connected" && (p.total || /^(Analyzing|Detecting|Grouping|Comparing|Finishing)/.test(p.message || ""))) {
       state.libStatus = "connected";
       syncChromeStatus();
     }
@@ -399,13 +399,15 @@ function updateScanning(p) {
   const step = $("#step"), bar = $("#bar"), count = $("#count"), prog = $("#prog");
   if (!step) return;
   step.textContent = p.message || "Working…";
-  if (p.total) {
+  if (p.frac != null) {                       // determinate weighted bar across phases
     prog.classList.remove("indet");
-    // bar follows overall progress (incl. post-passes); the count is items scanned
-    const frac = (p.frac != null) ? p.frac : (p.done / p.total);
-    bar.style.width = Math.round(frac * 100) + "%";
+    bar.style.width = Math.round(p.frac * 100) + "%";
+    count.textContent = p.total ? `${fmtN(p.done)} / ${fmtN(p.total)}` : "";   // current-phase count
+  } else if (p.total) {                       // fallback: determinate from done/total
+    prog.classList.remove("indet");
+    bar.style.width = Math.round((p.done / p.total) * 100) + "%";
     count.textContent = `${fmtN(p.done)} / ${fmtN(p.total)}`;
-  } else {
+  } else {                                    // pre-scan / unknown → animated
     prog.classList.add("indet");
     bar.style.width = "100%";
     count.textContent = "";

@@ -5,6 +5,48 @@ from photocleanup.engine import Engine
 from factories import mk, mkv
 
 
+def test_analyze_progress_is_monotonic_and_phased(monkeypatch, tmp_path):
+    """The scan bar must never go backwards, must end at 100%, and the count must
+    reflect the current phase (Option A)."""
+    from photo_cleanup import cluster, embedding, expired, feedback, scan, screenshots, video
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "is_authorized", lambda: True)
+
+    vid = tmp_path / "v.mov"; vid.write_bytes(b"x")
+    photos = [mk(f"p{i}") for i in range(6)]
+    videos = [mkv(f"v{i}", path=str(vid)) for i in range(2)]
+    monkeypatch.setattr(scan, "ensure_records", lambda *a, **k: list(photos))
+    monkeypatch.setattr(scan, "scan_library", lambda *a, **k: list(videos))
+    monkeypatch.setattr(cluster, "time_gps_clusters",
+                        lambda recs, cfg: [recs[:2]] if recs and not recs[0].is_movie else [])
+
+    class _EC:
+        def __init__(self, *a): pass
+        def save(self): pass
+        def get(self, u): return None
+    monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
+    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec: None)
+    monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
+    monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
+    monkeypatch.setattr(feedback, "inject_face_quality",
+                        lambda records, progress=None: progress and progress(2, 2))
+    monkeypatch.setattr(cluster, "find_duplicate_groups",
+                        lambda recs, cfg, embeddings=None, progress=None: (progress and progress(2, 2)) or [])
+    monkeypatch.setattr(video, "duplicate_takes",
+                        lambda recs, cache, cfg, progress=None: (progress and progress(2, 2)) or [])
+
+    events = []
+    Engine().analyze(layers=["dedup", "screenshots", "expired", "videos"],
+                     progress=lambda msg, done, total, frac: events.append((msg, done, total, frac)))
+    fracs = [f for *_, f in events if f is not None]
+    assert fracs == sorted(fracs)          # monotonic, never regresses
+    assert fracs[-1] == 1.0                 # ends at 100%
+    labels = {m for m, *_ in events}
+    assert {"Analyzing photos…", "Detecting faces…", "Analyzing videos…"} <= labels
+    photo = [e for e in events if e[0] == "Analyzing photos…"][-1]
+    assert photo[1] == 6 and photo[2] == 6  # count = photos in that phase
+
+
 def test_analyze_requires_photos_access(monkeypatch):
     """Photos read-write must be granted at connection — fail fast (before any
     scanning) rather than after a whole review."""
