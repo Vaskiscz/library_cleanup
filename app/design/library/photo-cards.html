@@ -15,25 +15,27 @@
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z" fill="currentColor"/></symbol>
 </defs></svg>
 
-<div class="lbl">Photo cards — keeper (green check), remove (✕), favourite, video. State badge sits bottom-left.</div>
+<div class="lbl">Photo / video cards — shown at true aspect ratio, uncropped (landscape / portrait /
+square / 16∶9 video), centered per row. Keeper = green check, remove = ✕, favourite = ♥,
+video = play + duration. State badge sits bottom-left; the selected card gets a light ring.</div>
 <div class="gbody">
-  <div class="card keep">
+  <div class="card keep selected" style="--fw:1;--fh:.75">
     <div class="frame"><div style="width:100%;height:100%" class="ph1"></div><span class="badge">
       <svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
     <div class="fn">IMG_0299.JPG · 2.4 MB</div>
   </div>
-  <div class="card remove">
+  <div class="card remove" style="--fw:.75;--fh:1">
     <div class="frame"><div style="width:100%;height:100%" class="ph2"></div><span class="badge">
       <svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
-    <div class="fn">IMG_0301.JPG · 2.5 MB</div>
+    <div class="fn">IMG_0301.HEIC · 2.5 MB</div>
   </div>
-  <div class="card keep">
+  <div class="card keep" style="--fw:1;--fh:1">
     <div class="frame"><div style="width:100%;height:100%" class="ph1"></div>
       <svg class="fav" viewBox="0 0 24 24"><use href="#i-heart"/></svg>
       <span class="badge"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
     <div class="fn">IMG_0305.HEIC · 1.9 MB ♥</div>
   </div>
-  <div class="card keep">
+  <div class="card keep" style="--fw:1;--fh:.5625">
     <div class="frame"><div style="width:100%;height:100%" class="ph3"></div>
       <div class="vplay"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></div>
       <span class="vdur">0:12</span>

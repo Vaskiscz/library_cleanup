@@ -30,7 +30,7 @@
     <div class="status"><span class="dot ok"></span>Library connected · 24,118 photos · 1,204 videos</div></div>
 </div>
 <div class="win" style="margin-top:10px"><div class="topbar"><div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
-  <div class="status"><span class="dot idle"></span>Not scanned yet</div></div></div>
+  <div class="status"><span class="dot idle"></span>Library not connected</div></div></div>
 <div class="win" style="margin-top:10px"><div class="topbar"><div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
   <div class="status"><span class="dot err"></span>Library access needed</div></div></div>
 
@@ -41,11 +41,13 @@
   <span><span class="keep-n">Keeping 8</span> · <span class="rem-n">Removing 13</span></span>
 </div></div>
 
-<div class="lbl">Scanning — phase + counted/total</div>
+<div class="lbl">Scanning — one weighted bar across phases (Reading → Analyzing photos → Detecting
+  faces → Grouping → Analyzing videos → Comparing takes → Finishing); the count is
+  per-phase, the label says what it is.</div>
 <div class="win" style="padding:40px"><div class="scanning" style="padding:0">
   <div class="spinner"></div>
   <h2>Analyzing your library…</h2>
-  <div class="step">Comparing photoshoots…</div>
-  <div class="progress"><span style="width:67%"></span></div>
-  <div class="count">11,000 / 16,453</div>
+  <div class="step">Detecting faces…</div>
+  <div class="progress"><span style="width:62%"></span></div>
+  <div class="count">240 / 900</div>
 </div></div>
