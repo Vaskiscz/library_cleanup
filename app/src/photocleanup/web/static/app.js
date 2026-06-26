@@ -289,9 +289,21 @@ function buildHistogram() {
   });
   chart.innerHTML = ""; chart.appendChild(bars);
   const tickFrag = document.createDocumentFragment();
-  [...new Set(axis.map((m) => m.slice(0, 4)))].forEach((y) => {
-    const idx = axis.findIndex((m) => m.startsWith(y));
-    const sp = document.createElement("span"); sp.textContent = y;
+  const years = [...new Set(axis.map((m) => m.slice(0, 4)))], n = years.length;
+  // Skip year labels so they never overlap: pick a "nice" step (1/2/5/10…) that
+  // fits the available width (~58px per 4-digit label), label round-number years,
+  // and always keep both endpoints — dropping any interior label that would
+  // crowd an endpoint, so the gaps stay even.
+  const avail = ticks.clientWidth || chart.clientWidth || 640;
+  const maxLabels = Math.max(2, Math.floor(avail / 58));
+  const step = [1, 2, 5, 10, 25, 50, 100].find((s) => Math.ceil(n / s) <= maxLabels) || n;
+  const show = new Set([0, n - 1]);
+  for (let i = 0; i < n; i++) if (+years[i] % step === 0) show.add(i);
+  const minGap = Math.max(1, Math.floor(step / 2));
+  [...show].sort((a, b) => a - b).forEach((i) => {
+    if (i !== 0 && i !== n - 1 && (i < minGap || i > n - 1 - minGap)) return;  // too near an end
+    const idx = axis.findIndex((m) => m.startsWith(years[i]));
+    const sp = document.createElement("span"); sp.textContent = years[i];
     sp.style.left = (idx / (axis.length - 1) * 100) + "%"; tickFrag.appendChild(sp);
   });
   ticks.innerHTML = ""; ticks.appendChild(tickFrag);
