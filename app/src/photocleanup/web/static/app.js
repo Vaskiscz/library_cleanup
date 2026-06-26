@@ -339,7 +339,7 @@ function updateResultsBar() {
 }
 
 function bindHome() {
-  const a = $("#analyze"); if (a) a.onclick = startAnalyze;
+  const a = $("#analyze"); if (a) a.onclick = () => startAnalyze();   // full-library scan
   const ol = $("#openlog"); if (ol) ol.onclick = () => api.post("/api/open-log").catch(() => {});
   const c = $("#cancel"); if (c) c.onclick = () => { state.cancelled = true; state.phase = "idle"; render(); };
   const rs = $("#rescan"); if (rs) rs.onclick = () => { state.phase = "idle"; render(); };
@@ -367,12 +367,13 @@ function bindHome() {
   }
 }
 
-async function startAnalyze() {
+async function startAnalyze(range) {
   state.phase = "scanning";
   state.cancelled = false;
   render();
   try {
-    await api.post("/api/analyze", { layers: CATS.map((c) => c.id) });
+    await api.post("/api/analyze", { layers: CATS.map((c) => c.id),
+      since: range?.since ?? null, until: range?.until ?? null });
   } catch (e) {
     state.phase = "idle"; render(); alert("Couldn't start analysis: " + e.message); return;
   }
@@ -736,14 +737,17 @@ function bindReview() {
     const wasManual = state.manual;
     const mn = $("#m-new"); if (mn) mn.onclick = () => {
       if (wasManual) {
-        // Manual flow: return to the categories picker (keep the scan summary),
-        // not the intro screen.
-        Object.assign(state, { view: "home", phase: "results", finalize: null, done: null,
-          candidates: {}, decisions: {}, manual: false });
-      } else {
-        Object.assign(state, { view: "home", phase: "idle", finalize: null, done: null,
-          candidates: {}, decisions: {}, selected: new Set(), summary: null, manual: false });
+        // Manual flow: re-scan the period the user just reviewed (faster than a
+        // full library scan) and land back on the categories picker with fresh
+        // counts. Capture the range before clearing review state.
+        const range = rangeDates();
+        Object.assign(state, { view: "home", finalize: null, done: null,
+          candidates: {}, decisions: {}, manual: false, range: null });
+        startAnalyze(range);
+        return;
       }
+      Object.assign(state, { view: "home", phase: "idle", finalize: null, done: null,
+        candidates: {}, decisions: {}, selected: new Set(), summary: null, manual: false });
       render();
     };
     // unauthorized: keep the review intact, just close the modal
