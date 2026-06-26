@@ -550,7 +550,7 @@ function renderReview() {
       <div style="flex:1"></div>
       <div style="color:var(--pc-text-tertiary)">
         <span class="keep-n">Keeping ${fmtN(c.keep)}</span> ·
-        <span class="rem-n">Removing ${fmtN(c.rem)}</span> · Frees ${fmtSave(c.bytes)}</div>
+        <span class="rem-n">Removing ${fmtN(c.rem)}</span> · Frees <span class="frees-n">${fmtSave(c.bytes)}</span></div>
       <button class="btn btn-primary" id="finalize" ${c.rem ? "" : "disabled"}>Review &amp; Finalize</button>
     </div>`;
   app.innerHTML = chrome(body) + (state.finalize ? modalHtml() : "");
@@ -733,9 +733,17 @@ function bindReview() {
     $("#m-cancel").onclick = () => { state.finalize = null; renderReview(); };
     $("#m-go").onclick = doFinalize;
   } else if (state.finalize === "done") {
+    const wasManual = state.manual;
     const mn = $("#m-new"); if (mn) mn.onclick = () => {
-      Object.assign(state, { view: "home", phase: "idle", finalize: null, done: null,
-        candidates: {}, decisions: {}, selected: new Set(), summary: null, manual: false });
+      if (wasManual) {
+        // Manual flow: return to the categories picker (keep the scan summary),
+        // not the intro screen.
+        Object.assign(state, { view: "home", phase: "results", finalize: null, done: null,
+          candidates: {}, decisions: {}, manual: false });
+      } else {
+        Object.assign(state, { view: "home", phase: "idle", finalize: null, done: null,
+          candidates: {}, decisions: {}, selected: new Set(), summary: null, manual: false });
+      }
       render();
     };
     // unauthorized: keep the review intact, just close the modal
@@ -906,6 +914,7 @@ function updateBars() {
   const pct = c.items ? Math.round(((c.keep + c.rem) / c.items) * 100) : 0;
   app.querySelectorAll(".keep-n").forEach((e) => e.textContent = `Keeping ${fmtN(c.keep)}`);
   app.querySelectorAll(".rem-n").forEach((e) => e.textContent = `Removing ${fmtN(c.rem)}`);
+  app.querySelectorAll(".frees-n").forEach((e) => e.textContent = fmtSave(c.bytes));
   const mp = $(".mini-prog > span"); if (mp) mp.style.width = pct + "%";
   const fin = $("#finalize"); if (fin) fin.disabled = !c.rem;
 }
@@ -975,6 +984,7 @@ async function doFinalize() {
 
 function doneHtml() {
   const d = state.done || {};
+  const doneCta = state.manual ? "Back to categories" : "Start a new review";
   if (d.status === "unauthorized") {
     return `<div class="backdrop"><div class="modal center">
       <div class="done-disc" style="background:var(--pc-warn)">${icon("i-lock")}</div>
@@ -991,7 +1001,7 @@ function doneHtml() {
       <h3>Nothing was removed</h3>
       <p class="head-n">${d.status === "error" ? "Removal was cancelled." : "No matching items were found."}
         Your keepers are marked reviewed.</p>
-      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Start a new review</button></div>
+      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">${doneCta}</button></div>
     </div></div>`;
   }
   return `<div class="backdrop"><div class="modal center">
@@ -999,7 +1009,7 @@ function doneHtml() {
     <h3>All done</h3>
     <p class="head-n">Removed ${fmtN(d.deleted)} · kept ${fmtN(d.kept)} · freed up to ${fmtSave(d.bytes)}.</p>
     <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
-    <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">Start a new review</button></div>
+    <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">${doneCta}</button></div>
   </div></div>`;
 }
 
