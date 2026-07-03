@@ -8,6 +8,8 @@ Built for two jobs:
 
 **Guiding rule: when in doubt, keep.** A one-of-a-kind photo is *never* flagged. The tool only proposes removing something that has a better near-duplicate, or a high-confidence work screenshot.
 
+🖥️ **Prefer an app over a CLI?** The same engine ships as **Library Cleanup**, a native Mac app (scan → pick categories → review grid → delete via PhotoKit) in [app/](app/) — see [USAGE.md § Running the Mac app](USAGE.md#running-the-mac-app-library-cleanup).
+
 📖 **[USAGE.md](USAGE.md) — exact step-by-step runbook** (setup, the full tag → review → rescue → delete sequence, tuning, troubleshooting).
 
 ## Everything stays on your Mac

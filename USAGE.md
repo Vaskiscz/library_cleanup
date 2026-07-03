@@ -9,6 +9,52 @@ A practical runbook for `photo-cleanup`. Commands assume the project lives at
 
 ---
 
+## Running the Mac app (Library Cleanup)
+
+The graphical way to do everything below — no Terminal needed. The app lives in
+[app/](app/) (Briefcase/Toga shell + local FastAPI + WebView; everything stays
+on-device).
+
+**Build & install**
+
+```sh
+bash app/scripts/setup-signing.sh      # once: create the self-signed identity
+bash app/scripts/build-signed-dmg.sh   # bumps the patch version, signs, builds the DMG
+open "app/dist/Library Cleanup-<version>.dmg"   # drag to Applications
+```
+
+**Permissions (one-time)** — the app asks for **Photos** access at first launch
+(needed to delete). It also needs **Full Disk Access** to read the library
+database: System Settings ▸ Privacy & Security ▸ Full Disk Access ▸ enable
+*Library Cleanup*. If a scan fails, the home screen shows which permission is
+missing and an "Open log" button (`~/Library/Logs/Library Cleanup/`).
+
+**Flow**
+
+1. **Analyze Library** — one weighted progress bar across phases (reading,
+   analyzing photos, faces, grouping, videos, takes).
+2. **Categories** — pick layers (burst clones / repeat takes / screenshots /
+   expired), optionally narrow the time period with the histogram sliders.
+3. **Review** — grid of true-aspect cards grouped per photoshoot. Click or use
+   ←/→/↑/↓ to move, **Space** to toggle keep/remove; per-group and global
+   Keep all / Remove all; draggable high-res preview panel with video playback.
+4. **Review & Finalize** — records your keeps (marked `reviewed:keep`, hidden
+   from future scans), then deletes via PhotoKit (macOS confirms; items go to
+   Recently Deleted for 30 days).
+
+**Review manually** (secondary button on Categories) shows *everything* in the
+range — including singles and already-kept items — as one chronological feed,
+all pre-selected keep; finalizing only removes what you unmarked (nothing is
+locked as reviewed).
+
+Decisions are mirrored to browser storage as you review: if the app quits
+mid-review, the home screen offers **Resume review** on next launch.
+
+Every finalized dedup review retrains the keeper model in the background
+(same model as the CLI `learn` command), so suggestions improve with use.
+
+---
+
 ## Running it yourself (no Claude needed)
 
 Everything is a normal CLI you run in **Terminal.app** (already authorized to
