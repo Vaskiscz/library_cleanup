@@ -13,11 +13,14 @@ Fully on-device: features are Apple's stored scores; training is plain numpy.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 from typing import Optional
 
 import numpy as np
+
+log = logging.getLogger("photo_cleanup")
 
 # Apple ScoreInfo sub-scores (the learnable "small details") + measured sharpness.
 FEATURE_KEYS = [
@@ -49,7 +52,8 @@ def face_capture_quality(path: str) -> float:
         qs = [float(o.faceCaptureQuality() or 0.0) for o in (req.results() or [])
               if o.faceCaptureQuality() is not None]
         return max(qs) if qs else 0.0
-    except Exception:
+    except Exception as e:
+        log.debug("face capture quality failed for %s: %s", path, e)
         return 0.0
 
 MODEL_PATH = os.path.expanduser("~/.cache/photo-cleanup/keeper_model.json")
@@ -110,8 +114,8 @@ def build_feature_store(uuids, dbpath: Optional[str] = None, sharpness=None,
                 _face_set(face_cache, p.uuid, path)
             f["face_capture_quality"] = _face_quality_of(face_cache.get(p.uuid))
             store[p.uuid] = f
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning("feature store: skipping %s: %s", p.uuid, e)
         if progress:
             progress(i, len(targets))
     os.makedirs(os.path.dirname(FACE_CACHE), exist_ok=True)
@@ -302,7 +306,8 @@ def learn_expired(present_uuids: set) -> dict:
     for fp in glob.glob(os.path.join(FEEDBACK_DIR, "expired_*.json")):
         try:
             d = json.load(open(fp))
-        except Exception:
+        except Exception as e:
+            log.warning("learn_expired: unreadable feedback file %s: %s", fp, e)
             continue
         for it in d.get("expired", []):
             k = it.get("kind", "generic")
@@ -370,7 +375,8 @@ def gather_training(present_uuids: set, dbpath=None) -> tuple[list, set, dict]:
     for fp in files:
         try:
             d = json.load(open(fp))
-        except Exception:
+        except Exception as e:
+            log.warning("gather_training: unreadable feedback file %s: %s", fp, e)
             continue
         labels = "kept" in d
         log_kept = set(d.get("kept", []))

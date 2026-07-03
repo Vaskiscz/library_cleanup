@@ -15,6 +15,11 @@ from .model import Record
 
 
 def _safe(fn, default=None):
+    """Per-attribute fallback for osxphotos accessors. Intentionally silent:
+    it's called dozens of times per photo and failures (attr absent in this
+    library/osxphotos version) are expected — logging here would be pure noise.
+    Real failures surface in the aggregate (empty scan) and via the callers
+    that do log (embedding, feedback)."""
     try:
         return fn()
     except Exception:

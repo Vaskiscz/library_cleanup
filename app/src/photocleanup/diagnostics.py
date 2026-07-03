@@ -33,6 +33,12 @@ def setup_logging() -> logging.Logger:
         handler.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-7s %(message)s"))
         log.addHandler(handler)
         log.setLevel(logging.INFO)
+        # The core library logs its swallowed-but-interesting failures (Vision
+        # errors, unreadable feedback files, …) to "photo_cleanup" — capture them
+        # in the same file so app diagnostics show the whole story.
+        core = logging.getLogger("photo_cleanup")
+        core.addHandler(handler)
+        core.setLevel(logging.INFO)
     except Exception:
         pass  # never let logging setup crash the app
     return log
