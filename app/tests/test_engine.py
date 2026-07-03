@@ -216,3 +216,34 @@ def test_thumb_bytes_high_res_prefers_original(tmp_path):
     # detail preview: sourced from the 1600px original (not the 160px derivative),
     # and never upscaled past the source
     assert longest(eng.thumb_bytes("x", px=2048)) == 1600
+
+
+def test_load_records_drops_stale_paths(monkeypatch, tmp_path):
+    """A cached record whose local original vanished (purged from the library)
+    must not be suggested; iCloud-only records (path=None) are kept.
+    (ensure_records is stubbed — hitting the real cache would fall back to a
+    live library scan on a machine where the test shell lacks Full Disk Access.)"""
+    from photo_cleanup import scan
+    good = tmp_path / "img.jpg"; good.write_bytes(b"x")
+    recs = [mk("ok", path=str(good)),
+            mk("gone", path=str(tmp_path / "missing.jpg")),
+            mk("icloud", path=None)]
+    monkeypatch.setattr(scan, "ensure_records", lambda *a, **k: list(recs))
+    got = {r.uuid for r in Engine().load_records()}
+    assert got == {"ok", "icloud"}
+
+
+def test_analyze_rolls_back_state_on_failure(monkeypatch):
+    """An aborted scan must not leave stale candidates/records behind."""
+    eng = Engine()
+    eng._index["stale"] = mk("stale")
+    eng._candidates["dedup"] = [{"group_key": "g"}]
+
+    def boom(*a, **k):
+        eng._index["partial"] = mk("partial")   # simulate mid-scan population
+        raise RuntimeError("scan died")
+    monkeypatch.setattr(eng, "_analyze", boom)
+
+    with pytest.raises(RuntimeError):
+        eng.analyze()
+    assert eng._index == {} and eng._candidates == {}

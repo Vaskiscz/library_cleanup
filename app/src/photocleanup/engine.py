@@ -74,6 +74,9 @@ class Engine:
         self.dbpath = dbpath
         self._index: dict[str, Record] = {}
         self._candidates: dict[str, list] = {}   # layer -> payload (from analyze)
+        # One lock guards _index + _candidates: they're mutated by the analyze
+        # thread and read by request threads (thumbs, candidates) + the warmer.
+        self._state_lock = threading.RLock()
         self._video_count: Optional[int] = None
         # Rendered thumbnails/previews live ONLY here, in RAM — never written to
         # disk. Bounded LRU (evicts oldest past the byte budget); cleared on quit.
@@ -99,8 +102,13 @@ class Engine:
                     and KW_REVIEWED not in (r.keywords or []) and r.uuid not in excluded]
         else:
             recs = [r for r in recs if not r.is_hidden]
-        for r in recs:
-            self._index[r.uuid] = r
+        # Drop stale cache entries whose local original vanished (photo purged from
+        # the library since the cache was written). iCloud-only records (path=None)
+        # can't be pre-checked and are kept — PhotoKit can still delete them.
+        recs = [r for r in recs if not r.path or os.path.exists(r.path)]
+        with self._state_lock:
+            for r in recs:
+                self._index[r.uuid] = r
         return recs
 
     def load_videos(self, since=None, until=None, excluded: Optional[set] = None,
@@ -114,12 +122,14 @@ class Engine:
                     and r.uuid not in excluded and r.path and os.path.exists(r.path)]
         else:
             recs = [r for r in recs if not r.is_hidden and r.path and os.path.exists(r.path)]
-        for r in recs:
-            self._index[r.uuid] = r
+        with self._state_lock:
+            for r in recs:
+                self._index[r.uuid] = r
         return recs
 
     def record(self, uuid: str) -> Optional[Record]:
-        return self._index.get(uuid)
+        with self._state_lock:
+            return self._index.get(uuid)
 
     # ---- candidate builders (delegate to photo_cleanup) --------------------
     def dedup_groups(self, records, progress=None):
@@ -219,14 +229,32 @@ class Engine:
         return self._flat_payload(items, "expired", "Expired utility photos", 90)
 
     # ---- analyze (the heavy pass) + summary --------------------------------
+    def reset_state(self) -> None:
+        """Drop the per-scan candidate payloads and record index."""
+        with self._state_lock:
+            self._index = {}
+            self._candidates = {}
+
     def analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None,
                 progress=None):
         """Compute candidates for each requested layer, cache the payloads, and
         return a per-layer summary (counts + reclaimable bytes) for the picker.
 
+        Starts from a clean slate and rolls back to one on failure, so an aborted
+        scan can never leave stale candidates/records for the UI to act on.
+
         `progress(message, done, total)` is called throughout so the UI can show
         the access request, library connection, and counted/total processing.
         """
+        self.reset_state()
+        try:
+            return self._analyze(since, until, layers, excluded, progress)
+        except BaseException:
+            self.reset_state()
+            raise
+
+    def _analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None,
+                 progress=None):
         from photo_cleanup.cluster import find_duplicate_groups, time_gps_clusters
         from photo_cleanup.embedding import EmbeddingCache, embed_records
         from photo_cleanup.expired import classify_expired
@@ -236,7 +264,6 @@ class Engine:
 
         layers = [l for l in (layers or ALL_LAYERS) if l in ALL_LAYERS]
         excluded = excluded or set()
-        self._candidates = {}
         photo_layers = [l for l in layers if l in ("dedup", "screenshots", "expired")]
 
         # ---- progress: ONE monotonic bar split into cost-weighted phases. The
@@ -327,11 +354,13 @@ class Engine:
             groups = find_duplicate_groups(photos, self.cfg, embeddings=ec,
                                            progress=lambda i, n: emit_phase("Grouping photoshoots…", group_cost, i, n))
             done_frac += group_cost / total_cost
-            self._candidates["dedup"] = self.dedup_payload(groups)
-        if "screenshots" in layers:
-            self._candidates["screenshots"] = self.screenshot_payload(shots)
-        if "expired" in layers:
-            self._candidates["expired"] = self.expired_payload(exp)
+            with self._state_lock:
+                self._candidates["dedup"] = self.dedup_payload(groups)
+        with self._state_lock:
+            if "screenshots" in layers:
+                self._candidates["screenshots"] = self.screenshot_payload(shots)
+            if "expired" in layers:
+                self._candidates["expired"] = self.expired_payload(exp)
 
         # 5) videos: embed poster frames, then group same-scene takes
         if videos_on:
@@ -345,13 +374,15 @@ class Engine:
             vgroups = duplicate_takes(videos, ec, self.cfg,
                                       progress=lambda i, n: emit_phase("Comparing video takes…", takes_cost, i, n))
             done_frac += takes_cost / total_cost
-            self._candidates["videos"] = self.video_payload(vgroups)
+            with self._state_lock:
+                self._candidates["videos"] = self.video_payload(vgroups)
 
         if progress:
             progress("Finishing up…", None, None, 1.0)
-        return {"since": since, "until": until,
-                "summary": {l: self._summarize(self._candidates.get(l, []), grouped=(l in ("dedup", "videos")))
-                            for l in layers}}
+        with self._state_lock:
+            return {"since": since, "until": until,
+                    "summary": {l: self._summarize(self._candidates.get(l, []), grouped=(l in ("dedup", "videos")))
+                                for l in layers}}
 
     @staticmethod
     def _summarize(payload, grouped: bool = True) -> dict:
@@ -395,8 +426,9 @@ class Engine:
     def candidates(self, layer, since=None, until=None, excluded: Optional[set] = None):
         """Return cached candidates for a layer; compute that one layer if the
         analyze pass didn't cover it."""
-        if layer in self._candidates:
-            return self._candidates[layer]
+        with self._state_lock:
+            if layer in self._candidates:
+                return self._candidates[layer]
         excluded = excluded or set()
         if layer == "videos":
             pl = self.video_payload(self.video_groups(self.load_videos(since, until, excluded)))
@@ -410,7 +442,8 @@ class Engine:
                 pl = self.expired_payload(self.expired_items(photos))
             else:
                 raise ValueError(f"unknown layer {layer!r}")
-        self._candidates[layer] = pl
+        with self._state_lock:
+            self._candidates[layer] = pl
         return pl
 
     def all_items(self, since=None, until=None) -> list[dict]:
@@ -456,7 +489,7 @@ class Engine:
         return data
 
     def _render_thumb(self, uuid: str, px: int) -> Optional[bytes]:
-        rec = self._index.get(uuid)
+        rec = self.record(uuid)
         if rec is None:
             return None
         try:
@@ -495,7 +528,9 @@ class Engine:
         self._warming = True
         try:
             seen = set()
-            for payload in list(self._candidates.values()):
+            with self._state_lock:                       # snapshot; analyze may swap it
+                payloads = list(self._candidates.values())
+            for payload in payloads:
                 for g in payload:
                     for p in g["photos"]:
                         u = p["uuid"]
