@@ -72,6 +72,29 @@ const state = {
 
 // (analysis runs as a background job; the UI polls /api/progress)
 
+/* ---- review persistence (survives quit/crash/reload) ----------------------- */
+// Decisions are mirrored to localStorage on every change; the home screen offers
+// to resume. Only uuids + verdicts are stored — never image data.
+const REVIEW_SAVE_KEY = "pc-review-v1";
+function saveReviewState() {
+  if (state.view !== "review" || state.finalize === "done") return;
+  try {
+    localStorage.setItem(REVIEW_SAVE_KEY, JSON.stringify({
+      manual: state.manual, layers: reviewLayers(), decisions: state.decisions,
+      dates: state.reviewDates || { since: null, until: null }, savedAt: Date.now(),
+    }));
+  } catch { /* storage unavailable — persistence is best-effort */ }
+}
+function loadReviewState() {
+  try {
+    const d = JSON.parse(localStorage.getItem(REVIEW_SAVE_KEY) || "null");
+    if (!d || !d.decisions || Date.now() - (d.savedAt || 0) > 7 * 864e5) return null;
+    const items = Object.values(d.decisions).reduce((s, m) => s + Object.keys(m).length, 0);
+    return items ? { ...d, items } : null;
+  } catch { return null; }
+}
+function clearReviewState() { try { localStorage.removeItem(REVIEW_SAVE_KEY); } catch {} }
+
 /* ---- chrome --------------------------------------------------------------- */
 // The status dot/text reflect REAL state: grey until we've read the library, green
 // once connected, red if access failed.
@@ -144,6 +167,15 @@ function renderHome() {
           <div class="check-card"><span class="ic">${icon("i-video")}</span><span class="ct">Repeat takes</span><span class="cd">Ten tries at the same clip. The steady one wins.</span></div>
           <div class="check-card"><span class="ic">${icon("i-shot")}</span><span class="ct">Screenshot pile</span><span class="cd">Snapped once, never opened again. Buh-bye.</span></div>
         </div>
+        ${(() => {
+          const sv = loadReviewState();
+          return sv ? `
+        <div class="resume-box">
+          <div class="resume-txt"><b>Unfinished review</b> — ${fmtN(sv.items)} decision${sv.items === 1 ? "" : "s"} saved${sv.manual ? " (manual review)" : ""}.</div>
+          <button class="btn btn-primary sm" id="resumeReview">Resume review</button>
+          <button class="btn-secondary sm" id="discardReview">Discard</button>
+        </div>` : "";
+        })()}
         <button class="btn btn-primary" id="analyze">Analyze Library</button>
         <div class="past">Takes a minute. No commitment — nothing's deleted until you say so.</div>
       </div></div></div>
@@ -343,8 +375,10 @@ function bindHome() {
   const ol = $("#openlog"); if (ol) ol.onclick = () => api.post("/api/open-log").catch(() => {});
   const c = $("#cancel"); if (c) c.onclick = () => { state.cancelled = true; state.phase = "idle"; render(); };
   const rs = $("#rescan"); if (rs) rs.onclick = () => { state.phase = "idle"; render(); };
-  const rv = $("#review"); if (rv) rv.onclick = enterReview;
-  const mn = $("#manual"); if (mn) mn.onclick = enterManualReview;
+  const rv = $("#review"); if (rv) rv.onclick = () => enterReview();
+  const mn = $("#manual"); if (mn) mn.onclick = () => enterManualReview();
+  const rr = $("#resumeReview"); if (rr) rr.onclick = resumeSavedReview;
+  const dr = $("#discardReview"); if (dr) dr.onclick = () => { clearReviewState(); render(); };
   app.querySelectorAll(".cat[data-cat]").forEach((btn) => {
     btn.onclick = () => {
       const id = btn.dataset.cat;
@@ -391,7 +425,15 @@ async function pollProgress() {
     state.summary = p.summary;
     state.selected = new Set(CATS.filter((c) => p.summary[c.id]?.items > 0).map((c) => c.id));
     api.get("/api/library-stats").then((s) => { state.lib = s; render(); }).catch(() => {});
-    state.phase = "results"; render();
+    state.phase = "results";
+    const saved = state.pendingResume;                 // resuming a curated review?
+    if (saved) {
+      state.pendingResume = null;
+      state.selected = new Set(saved.layers.filter((l) => CAT[l]));
+      await enterReview(saved.decisions, saved.dates);
+      return;
+    }
+    render();
   } else if (p.status === "error") {
     state.libStatus = "error";
     state.errorMsg = p.error || "Something went wrong.";
@@ -437,14 +479,30 @@ function rangeDates() {
   return { since: `${lo}-01`, until: `${hi}-${String(lastDay).padStart(2, "0")}` };
 }
 
+// Resume a saved review after a quit/crash. Manual feeds reload directly; a
+// curated review needs candidates first, so re-run the (scoped) scan and merge
+// the saved decisions once it lands (see pollProgress).
+async function resumeSavedReview() {
+  const saved = loadReviewState();
+  if (!saved) { render(); return; }
+  if (saved.manual) {
+    await enterManualReview(saved.dates, saved.decisions.all || {});
+  } else {
+    state.pendingResume = saved;
+    startAnalyze(saved.dates);
+  }
+}
+
 // Manual review: every photo & video in range as one chronological feed, all kept.
-async function enterManualReview() {
+// `dates`/`savedDecisions` are only passed when resuming a saved review.
+async function enterManualReview(dates, savedDecisions) {
   state.view = "review"; state.manual = true;
   state.candidates = {}; state.decisions = {};
   pvCache.clear();
   app.innerHTML = chrome(`<div class="scroll"><div class="review"><div class="scanning">
       <div class="spinner"></div><h2>Loading your photos…</h2></div></div></div>`);
-  const { since, until } = rangeDates();
+  const { since, until } = dates || rangeDates();
+  state.reviewDates = { since, until };     // what saveReviewState records
   const qs = new URLSearchParams();
   if (since) qs.set("since", since);
   if (until) qs.set("until", until);
@@ -453,16 +511,21 @@ async function enterManualReview() {
     state.candidates.all = res.groups;
     const d = {};
     res.groups.forEach((g) => g.photos.forEach((p) => (d[p.uuid] = "keep")));  // all keep by default
+    if (savedDecisions) {                    // resume: overlay saved verdicts
+      for (const [u, v] of Object.entries(savedDecisions)) if (u in d) d[u] = v;
+    }
     state.decisions.all = d;
   } catch (e) {
     state.view = "home"; state.manual = false; render(); alert("Couldn't load photos: " + e.message); return;
   }
   state.selUuid = null; state.selLayer = null; state.pvCollapsed = false;
   renderReview();
+  saveReviewState();
 }
 
-async function enterReview() {
+async function enterReview(savedDecisions, dates) {
   state.view = "review"; state.manual = false;
+  state.reviewDates = dates || rangeDates();     // what saveReviewState records
   state.candidates = {};
   state.decisions = {};
   pvCache.clear();                 // drop cached preview images from the previous review
@@ -490,10 +553,14 @@ async function enterReview() {
       d[p.uuid] = p.decided ? (p.decided === "keep" ? "keep" : "remove")
         : (p.suggested_keep ? "keep" : "remove");
     }));
+    if (savedDecisions && savedDecisions[layer]) {   // resume: overlay saved verdicts
+      for (const [u, v] of Object.entries(savedDecisions[layer])) if (u in d) d[u] = v;
+    }
     state.decisions[layer] = d;
   }
   state.selUuid = null; state.selLayer = null; state.pvCollapsed = false;
   renderReview();
+  saveReviewState();
 }
 
 function counts() {
@@ -652,7 +719,8 @@ function escapeHtml(s) {
 }
 
 function bindReview() {
-  $("#back").onclick = () => { state.view = "home"; state.phase = "results"; state.manual = false; render(); };
+  // No summary happens after a cold-start resume — land on the intro, not an empty picker.
+  $("#back").onclick = () => { state.view = "home"; state.phase = state.summary ? "results" : "idle"; state.manual = false; render(); };
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
   const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
 
@@ -740,7 +808,7 @@ function bindReview() {
         // Manual flow: re-scan the period the user just reviewed (faster than a
         // full library scan) and land back on the categories picker with fresh
         // counts. Capture the range before clearing review state.
-        const range = rangeDates();
+        const range = state.reviewDates || rangeDates();
         Object.assign(state, { view: "home", finalize: null, done: null,
           candidates: {}, decisions: {}, manual: false, range: null });
         startAnalyze(range);
@@ -921,6 +989,7 @@ function updateBars() {
   app.querySelectorAll(".frees-n").forEach((e) => e.textContent = fmtSave(c.bytes));
   const mp = $(".mini-prog > span"); if (mp) mp.style.width = pct + "%";
   const fin = $("#finalize"); if (fin) fin.disabled = !c.rem;
+  saveReviewState();   // mirror every decision change so a quit/crash loses nothing
 }
 
 /* ---- finalize ------------------------------------------------------------- */
@@ -978,8 +1047,10 @@ async function doFinalize() {
     }
     const del = await api.post("/api/delete", { uuids: toDelete });
     state.done = { status: del.status, deleted: del.deleted || 0,
-                   kept: snapshot.keep, bytes: snapshot.bytes };
+                   kept: snapshot.keep, bytes: snapshot.bytes,
+                   unmatched: (del.unmatched || []).length };
     state.finalize = "done";
+    if (del.status === "ok" || del.status === "no-match") clearReviewState();
     renderReview();
   } catch (e) {
     state.finalize = null; renderReview(); alert("Finalize failed: " + e.message);
@@ -1012,6 +1083,7 @@ function doneHtml() {
     <div class="done-disc">${icon("i-check")}</div>
     <h3>All done</h3>
     <p class="head-n">Removed ${fmtN(d.deleted)} · kept ${fmtN(d.kept)} · freed up to ${fmtSave(d.bytes)}.</p>
+    ${d.unmatched ? `<p class="head-n" style="font-size:12px;color:var(--pc-warn)">${fmtN(d.unmatched)} item${d.unmatched === 1 ? " was" : "s were"} no longer in the library and ${d.unmatched === 1 ? "was" : "were"} skipped.</p>` : ""}
     <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
     <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">${doneCta}</button></div>
   </div></div>`;
