@@ -32,9 +32,11 @@ missing and an "Open log" button (`~/Library/Logs/Library Cleanup/`).
 **Flow**
 
 1. **Analyze Library** — one weighted progress bar across phases (reading,
-   analyzing photos, faces, grouping, videos, takes).
+   analyzing photos, faces, grouping, videos, takes). Cancel genuinely stops
+   the scan (server-side), not just the progress screen.
 2. **Categories** — pick layers (burst clones / repeat takes / screenshots /
-   expired), optionally narrow the time period with the histogram sliders.
+   expired), optionally narrow the time period with the histogram sliders
+   (or click a bar to focus that month).
 3. **Review** — grid of true-aspect cards grouped per photoshoot. Click or use
    ←/→/↑/↓ to move, **Space** to toggle keep/remove; per-group and global
    Keep all / Remove all; draggable high-res preview panel with video playback.
@@ -50,8 +52,11 @@ locked as reviewed).
 Decisions are mirrored to browser storage as you review: if the app quits
 mid-review, the home screen offers **Resume review** on next launch.
 
-Every finalized dedup review retrains the keeper model in the background
-(same model as the CLI `learn` command), so suggestions improve with use.
+Every finalized review retrains the learning loops in the background (same
+models as the CLI `learn` command): dedup keeps refining the keeper model, and
+the screenshots/expired layers learn per-signal keep-rates — a kind you
+consistently keep (say, `parking/boarding` photos or `document` screenshots)
+stops being flagged after ~5 consistent keeps.
 
 ---
 

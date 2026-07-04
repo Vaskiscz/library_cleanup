@@ -46,16 +46,13 @@ codesign --force --deep --options runtime --timestamp=none \
 codesign --verify --strict --verbose=1 "$APP"
 codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2
 
-echo "[3/4] Building DMG ..."
+echo "[3/4] Building DMG (dmgbuild: background + drag-to-Applications layout) ..."
 mkdir -p dist
 # Keep only the build we're about to make — delete any older DMGs.
 find dist -maxdepth 1 -name 'Library Cleanup-*.dmg' ! -name "$(basename "$DMG")" -print -delete
-STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
-cp -R "$APP" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
 rm -f "$DMG"
-hdiutil create -volname "$VOL" -srcfolder "$STAGE" -ov -format UDBZ "$DMG" >/dev/null
-[ -s "$DMG" ] || fail "hdiutil finished but $DMG is missing or empty"
+uvx dmgbuild -s scripts/dmg-settings.py -D app="$APP" -D bg="$PWD/assets/dmg-background.png" \
+  "$VOL" "$DMG" >/dev/null
+[ -s "$DMG" ] || fail "dmgbuild finished but $DMG is missing or empty"
 
 echo "[4/4] Done -> $DMG"
