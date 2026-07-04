@@ -22,3 +22,4 @@ poc_*.py
 
 # macOS
 .DS_Store
+app/design/library/.claude/

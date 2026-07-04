@@ -8,12 +8,13 @@
   .stage { position: relative; background: rgba(20,20,22,.36); border-radius: 12px;
            padding: 28px; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
   .stage .modal { position: static; }
+  .warn-line { color: var(--pc-warn); }
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12 l5 5 l9 -10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 
-<div class="lbl">Finalize — confirm and done</div>
+<div class="lbl">Finalize — confirm, done, and the edge states (skipped items · manual-flow return)</div>
 <div class="stage">
   <div class="modal">
     <h3>Review &amp; Finalize</h3>
@@ -21,16 +22,35 @@
     <div class="rows">
       <div class="row"><svg class="tick" viewBox="0 0 24 24"><use href="#i-check"/></svg><span>macOS will ask you to confirm before anything is removed.</span></div>
       <div class="row"><svg class="tick" viewBox="0 0 24 24"><use href="#i-check"/></svg><span>Removed items go to Recently Deleted — recoverable for 30 days.</span></div>
-      <div class="row"><svg class="tick" viewBox="0 0 24 24"><use href="#i-check"/></svg><span>Kept items are marked reviewed. Nothing leaves your Mac.</span></div>
+      <div class="row"><svg class="tick" viewBox="0 0 24 24"><use href="#i-check"/></svg><span>Kept items are marked reviewed and won't be shown again. Nothing leaves your Mac.</span></div>
     </div>
     <div class="actions"><button class="btn-secondary">Go back</button><button class="btn btn-danger">Remove 39</button></div>
   </div>
 
+  <!-- Confirm with an inline finalize error (delete failed / cancelled) — decisions stay intact, "Remove N" is the retry. -->
+  <div class="modal">
+    <h3>Review &amp; Finalize</h3>
+    <p class="head-n warn-line">Finalize failed: removal was cancelled — your decisions are intact, try again.</p>
+    <p class="head-n">Keeping 10 · removing 39 items · frees 1.1 GB</p>
+    <div class="actions"><button class="btn-secondary">Go back</button><button class="btn btn-danger">Remove 39</button></div>
+  </div>
+
+  <!-- Done — curated flow, with some items already gone from the library (skipped). -->
   <div class="modal center">
     <div class="done-disc"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div>
     <h3>All done</h3>
-    <p class="head-n">Removed 39 · kept 10 · freed 1.1 GB.</p>
+    <p class="head-n">Removed 37 · kept 10 · freed up to 1.1 GB.</p>
+    <p class="head-n warn-line" style="font-size:12px">2 items were no longer in the library and were skipped.</p>
     <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
     <div class="actions" style="justify-content:center"><button class="btn btn-primary">Start a new review</button></div>
+  </div>
+
+  <!-- Done — manual-review flow returns to the categories picker (re-scans that period). -->
+  <div class="modal center">
+    <div class="done-disc"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div>
+    <h3>All done</h3>
+    <p class="head-n">Removed 39 · kept 10 · freed up to 1.1 GB.</p>
+    <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
+    <div class="actions" style="justify-content:center"><button class="btn btn-primary">Back to categories</button></div>
   </div>
 </div>
