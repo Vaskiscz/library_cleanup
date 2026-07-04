@@ -18,9 +18,10 @@ The Library Cleanup page has a download button pointing at the placeholder
 `DOWNLOAD_URL` (3 places in `library-cleanup/index.html`). Replace it with the
 real `.dmg` link — the simplest host is a **GitHub Release asset**:
 
-1. In a GitHub repo, create a Release and attach `Library Cleanup-0.1.20.dmg`.
+1. In a GitHub repo, create a Release (tag it with the public version, e.g.
+   `v0.2.0`) and attach the build's `Library-Cleanup.dmg`.
 2. Copy the asset URL (looks like
-   `https://github.com/<you>/<repo>/releases/download/v0.1.20/Library.Cleanup-0.1.20.dmg`).
+   `https://github.com/<you>/<repo>/releases/download/v0.2.0/Library-Cleanup.dmg`).
 3. Find/replace `DOWNLOAD_URL` with it in `library-cleanup/index.html`.
 
 ## Option A — Git + Netlify (recommended: auto-deploys on every push)
