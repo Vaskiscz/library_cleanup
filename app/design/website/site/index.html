@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Václav Trnka — IT Product Manager</title>
+<meta name="description" content="Václav Trnka — IT product manager. An economist by training, a product manager by trade, a builder by habit. Projects: Library Cleanup and Dům v pořádku.">
+<meta property="og:title" content="Václav Trnka — IT Product Manager">
+<meta property="og:description" content="An economist by training, a product manager by trade, a builder by habit.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vaclavtrnka.cz/">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#0f1114}
+  img,svg{vertical-align:middle}
+</style>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#0f1114; --surface:#161920; --surface-2:#1c2027;
+    --line:#262b33; --line-2:#343a44;
+    --text:#eef0f3; --text-2:#a3a9b3; --text-3:#6c737e;
+    --accent:#e6a93a; --accent-2:#f2c469; --accent-ink:#2a1d05;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,"Segoe UI",Helvetica,sans-serif;
+    --mono:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --ease:cubic-bezier(.22,.61,.36,1);
+    --maxw:920px;
+  }
+  .site{
+    font-family:var(--font); background:var(--bg); color:var(--text);
+    -webkit-font-smoothing:antialiased; line-height:1.55; font-size:17px;
+    overflow-x:hidden; min-height:100vh; display:flex; flex-direction:column;
+  }
+  .site *{box-sizing:border-box;}
+  .site a:not(.btn){color:inherit; text-decoration:none;}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 32px; width:100%;}
+  .site h1,.site h2,.site h3{margin:0; letter-spacing:-.025em; text-wrap:balance;}
+  .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0;}
+
+  /* ---- top bar ---- */
+  .nav{position:sticky; top:0; z-index:20; backdrop-filter:saturate(1.4) blur(12px); background:rgba(15,17,20,.72); border-bottom:1px solid var(--line);}
+  .nav .wrap{display:flex; align-items:center; justify-content:space-between; height:64px;}
+  .nav .mark{display:flex; align-items:center; gap:11px; font-weight:600; font-size:15.5px; letter-spacing:-.01em;}
+  .badge{width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;}
+  .nav .links{display:flex; gap:28px; font-size:14.5px; color:var(--text-2);}
+  .nav .links a{transition:color .15s ease;}
+  .nav .links a:hover{color:var(--text);}
+
+  /* ---- hero ---- */
+  .hero{position:relative; padding:96px 0 60px;}
+  .hero::before{content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:radial-gradient(46% 60% at 84% 0%, rgba(230,169,58,.13), transparent 60%);}
+  .hero .wrap{position:relative; z-index:1;}
+  .hero .eyebrow{animation:rise .6s var(--ease) both;}
+  .hero h1{font-size:clamp(38px,6vw,60px); font-weight:700; line-height:1.02; letter-spacing:-.04em; margin:18px 0 0; animation:rise .6s var(--ease) .05s both;}
+  .hero .lede{font-size:clamp(17px,2vw,20px); color:var(--text-2); line-height:1.5; max-width:56ch; margin:20px 0 0; text-wrap:pretty; animation:rise .6s var(--ease) .1s both;}
+  .hero-cta{margin-top:30px; animation:rise .6s var(--ease) .15s both;}
+
+  .btn{display:inline-flex; align-items:center; gap:10px; font-weight:600; font-size:15.5px; border-radius:11px; padding:12px 22px; border:1px solid transparent; cursor:pointer; text-decoration:none; transition:transform .12s var(--ease),background .15s ease,border-color .15s ease;}
+  .btn:active{transform:scale(.98);}
+  .btn-linkedin{background:#0a66c2; color:#fff;}
+  .btn-linkedin:hover{background:#004182;}
+  .btn-linkedin svg{fill:#fff;}
+
+  /* ---- projects ---- */
+  .projects-sec{padding:44px 0 88px; flex:1;}
+  .sec-head{margin-bottom:28px;}
+  .sec-head h2{font-size:clamp(22px,3vw,30px); font-weight:700;}
+  .projects{display:flex; flex-direction:column; gap:14px;}
+  .proj{display:grid; grid-template-columns:auto 1fr auto; gap:24px; align-items:center; padding:26px 28px; border:1px solid var(--line); border-radius:18px; background:var(--surface); transition:border-color .2s ease,background .2s ease,transform .2s ease;}
+  .proj:hover{border-color:var(--accent); background:var(--surface-2); transform:translateY(-2px);}
+  .proj .logo{width:58px; height:58px; border-radius:15px; overflow:hidden; display:flex; align-items:center; justify-content:center; flex:none; box-shadow:0 6px 16px rgba(0,0,0,.35);}
+  .proj .logo.house{background:#f2ede1;}
+  .proj .logo.house svg{width:42px; height:auto;}
+  .proj .logo.app svg{width:100%; height:100%; display:block;}
+  .proj .meta .tags{display:flex; gap:8px; margin-bottom:7px; flex-wrap:wrap;}
+  .proj .tag{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); border:1px solid var(--line-2); border-radius:999px; padding:3px 10px;}
+  .proj .meta h3{font-size:19px; font-weight:600; margin-bottom:5px;}
+  .proj .meta p{font-size:14.5px; color:var(--text-2); margin:0; line-height:1.5; max-width:58ch;}
+  .proj .go{width:42px; height:42px; border-radius:50%; border:1px solid var(--line-2); flex:none; display:flex; align-items:center; justify-content:center; color:var(--text-2); transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease;}
+  .proj:hover .go{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); transform:translate(2px,-2px);}
+  .proj .go svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+
+  /* ---- footer ---- */
+  .foot{border-top:1px solid var(--line); padding:30px 0;}
+  .foot .wrap{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; font-size:13.5px; color:var(--text-3);}
+  .foot .mark{display:flex; align-items:center; gap:9px; color:var(--text-2); font-weight:600;}
+  .foot .mark .badge{width:24px; height:24px; border-radius:7px; font-size:11px;}
+  .foot .r{display:flex; align-items:center; gap:20px;}
+  .foot .r a{transition:color .15s ease;}
+  .foot .r a:hover{color:var(--text);}
+
+  @keyframes rise{from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion:reduce){.site *{animation:none !important;}}
+  @media (max-width:560px){
+    .proj{grid-template-columns:auto 1fr; gap:18px;}
+    .proj .go{display:none;}
+    .hero{padding:60px 0 40px;}
+    .wrap{padding:0 22px;}
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="gCanvas" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ab6a6"/><stop offset=".55" stop-color="#1f9e86"/><stop offset="1" stop-color="#2f9e5f"/></linearGradient>
+  <linearGradient id="gCanvasTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <clipPath id="pfc"><rect x="268" y="260" width="489" height="489" rx="73"/></clipPath>
+  <symbol id="m-app" viewBox="88 88 848 848">
+    <rect x="88" y="88" width="848" height="848" rx="196" fill="url(#gCanvas)"/>
+    <rect x="88" y="88" width="848" height="848" rx="196" fill="url(#gCanvasTop)"/>
+    <g transform="rotate(-10 512 512)"><rect x="236" y="231" width="489" height="489" rx="73" fill="#fff" opacity=".32"/></g>
+    <g transform="rotate(6 512 512)"><rect x="294" y="278" width="489" height="489" rx="73" fill="#fff" opacity=".6"/></g>
+    <rect x="268" y="260" width="489" height="489" rx="73" fill="#fff"/>
+    <g clip-path="url(#pfc)"><circle cx="382" cy="382" r="60" fill="#15a89a"/>
+      <path d="M268 749 L457 512 L613 749 Z" fill="#2f9e5f"/><path d="M512 749 L668 559 L756 668 L756 749 Z" fill="#1f9e86"/></g>
+    <circle cx="743" cy="743" r="120" fill="#fff"/><circle cx="743" cy="743" r="99" fill="#2e7d32"/>
+    <path d="M694 743 L730 782 L795 704" fill="none" stroke="#fff" stroke-width="29" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="m-house" viewBox="0 0 620 420">
+    <rect x="40" y="360" width="500" height="14" fill="#003B24"/>
+    <path d="M110 340V210L170 165V340H110Z" fill="#C9AE84"/>
+    <path d="M190 340V120L280 50V340H190Z" fill="#003B24"/>
+    <path d="M300 340V50L390 120V340H300Z" fill="#6E8479"/>
+    <rect x="445" y="285" width="14" height="75" fill="#003B24"/>
+    <circle cx="452" cy="250" r="42" fill="#003B24"/>
+  </symbol>
+  <symbol id="i-linkedin" viewBox="0 0 24 24"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm6 0h3.8v1.7h.05c.53-1 1.83-2.05 3.76-2.05C20.4 8.65 21 11 21 14.1V21h-4v-6.1c0-1.45-.03-3.3-2-3.3-2 0-2.3 1.57-2.3 3.2V21H9V9Z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M6 12 h12 M13 6 l6 6 -6 6"/></symbol>
+</defs></svg>
+
+<div class="site">
+
+  <nav class="nav">
+    <div class="wrap">
+      <a class="mark" href="#top"><span class="badge">VT</span> Václav Trnka</a>
+      <div class="links">
+        <a href="#projects">Projects</a>
+        <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ---- HERO ---- -->
+  <header class="hero" id="top">
+    <div class="wrap">
+      <p class="eyebrow">IT Product Manager</p>
+      <h1>Václav Trnka</h1>
+      <p class="lede">An economist by training, a product manager by trade, and a builder by habit. This is where my projects live.</p>
+      <div class="hero-cta">
+        <a class="btn btn-linkedin" href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" width="19" height="19"><use href="#i-linkedin"/></svg>
+          Connect on LinkedIn
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ---- PROJECTS ---- -->
+  <section class="projects-sec" id="projects">
+    <div class="wrap">
+      <div class="sec-head"><h2>My projects</h2></div>
+      <div class="projects">
+
+        <a class="proj" href="/library-cleanup/">
+          <span class="logo app"><svg viewBox="0 0 1024 1024"><use href="#m-app"/></svg></span>
+          <div class="meta">
+            <div class="tags"><span class="tag">macOS App</span><span class="tag">On-device</span></div>
+            <h3>Library Cleanup</h3>
+            <p>A native Mac app that finds the duplicates, burst clones, and screenshot clutter hiding in Apple Photos — then removes them safely, all on-device.</p>
+          </div>
+          <span class="go"><svg viewBox="0 0 24 24"><use href="#i-arrow"/></svg></span>
+        </a>
+
+        <a class="proj" href="https://dumvporadku.cz" target="_blank" rel="noopener noreferrer">
+          <span class="logo house"><svg viewBox="0 0 620 420"><use href="#m-house"/></svg></span>
+          <div class="meta">
+            <div class="tags"><span class="tag">Service</span><span class="tag">Founder</span></div>
+            <h3>Dům v pořádku</h3>
+            <p>A service that cuts the operating costs of Czech residential building associations (SVJ), built from the real experience of running a 130+ unit building.</p>
+          </div>
+          <span class="go"><svg viewBox="0 0 24 24"><use href="#i-arrow"/></svg></span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="wrap">
+      <span class="mark"><span class="badge">VT</span> Václav Trnka</span>
+      <span class="r">
+        <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <span>© 2026 · vaclavtrnka.cz</span>
+      </span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

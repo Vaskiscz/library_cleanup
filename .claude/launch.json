@@ -23,6 +23,18 @@
         "app/design/library"
       ],
       "port": 8788
+    },
+    {
+      "name": "website",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8790",
+        "--directory",
+        "app/design/website/site"
+      ],
+      "port": 8790
     }
   ]
 }

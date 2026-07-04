@@ -1,0 +1,20 @@
+# Netlify config for the vaclavtrnka.cz static site.
+# The site is plain HTML — no build step. Publish this folder as-is.
+
+[build]
+  publish = "."
+  command = ""
+
+# Sensible security headers for a static marketing site.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+
+# Long-cache the SVG favicons (they rarely change).
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
