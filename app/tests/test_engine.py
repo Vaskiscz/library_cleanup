@@ -148,8 +148,11 @@ def test_grouping_reports_progress():
 
     va, vb = mkv("va", timestamp=2000.0), mkv("vb", timestamp=2001.0)
     vemb = {"va": np.array([1.0, 0]), "vb": np.array([1.0, 0])}
+    vcache = type("C", (), {"get": lambda s, u: vemb.get(u),
+                            "put": lambda s, k, v: vemb.__setitem__(k, v),
+                            "__contains__": lambda s, k: k in vemb})()
     vcalls = []
-    duplicate_takes([va, vb], type("C", (), {"get": lambda s, u: vemb.get(u)})(), cfg,
+    duplicate_takes([va, vb], vcache, cfg,
                     progress=lambda i, n: vcalls.append((i, n)))
     assert vcalls and vcalls[-1][0] == vcalls[-1][1]
 
@@ -247,3 +250,24 @@ def test_analyze_rolls_back_state_on_failure(monkeypatch):
     with pytest.raises(RuntimeError):
         eng.analyze()
     assert eng._index == {} and eng._candidates == {}
+
+
+def test_request_cancel_aborts_analyze(monkeypatch):
+    """A cancelled scan raises AnalysisCancelled at the next checkpoint and
+    rolls back to a clean slate."""
+    from photo_cleanup import scan
+    from photocleanup.engine import AnalysisCancelled
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "is_authorized", lambda: True)
+    photos = [mk(f"p{i}") for i in range(10)]
+    monkeypatch.setattr(scan, "ensure_records", lambda *a, **k: list(photos))
+    monkeypatch.setattr(scan, "scan_library", lambda *a, **k: [])
+
+    eng = Engine()
+    eng.request_cancel()             # cancel before the loop starts
+    with pytest.raises(AnalysisCancelled):
+        eng._analyze(layers=["screenshots"])
+    # analyze() (the public wrapper) also clears the cancel flag for a NEW scan
+    monkeypatch.setattr(eng, "_analyze", lambda *a, **k: {"summary": {}})
+    eng.request_cancel()
+    assert eng.analyze() == {"summary": {}}     # cleared flag -> runs fine

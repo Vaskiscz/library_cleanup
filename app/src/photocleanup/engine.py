@@ -26,6 +26,10 @@ ALL_LAYERS = ("dedup", "videos", "screenshots", "expired")
 GROUPED_LAYERS = ("dedup", "videos")
 
 
+class AnalysisCancelled(Exception):
+    """Raised inside analyze() when the user cancels the scan."""
+
+
 def _filter_by_date(records, since: Optional[str], until: Optional[str]):
     if not since and not until:
         return records
@@ -85,6 +89,7 @@ class Engine:
         self._thumb_used = 0
         self._thumb_budget = 192 * 1024 * 1024
         self._warming = False
+        self._cancel = threading.Event()   # set by request_cancel(), checked mid-scan
 
     # ---- record loading ----------------------------------------------------
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
@@ -131,6 +136,11 @@ class Engine:
         with self._state_lock:
             return self._index.get(uuid)
 
+    def cached_candidates(self, layer: str) -> Optional[list]:
+        """The layer's payload from the last analyze, or None — never computes."""
+        with self._state_lock:
+            return self._candidates.get(layer)
+
     # ---- candidate builders (delegate to photo_cleanup) --------------------
     def dedup_groups(self, records, progress=None):
         from photo_cleanup.cluster import find_duplicate_groups, time_gps_clusters
@@ -149,9 +159,10 @@ class Engine:
         from photo_cleanup.video import duplicate_takes
         ec = EmbeddingCache(self.emb_cache)
         emb_prog = (lambda i, n: progress("Comparing videos", i, n)) if progress else None
-        if embed_records(videos, ec, progress=emb_prog):
-            ec.save()
-        return duplicate_takes(videos, ec, self.cfg)
+        embed_records(videos, ec, progress=emb_prog)
+        groups = duplicate_takes(videos, ec, self.cfg)
+        ec.save()          # persists poster + sampled-frame vectors (no-op if clean)
+        return groups
 
     def screenshot_items(self, records):
         from photo_cleanup.screenshots import classify_screenshot
@@ -215,7 +226,9 @@ class Engine:
         for rec, verdict in items:
             snippet = (rec.detected_text or "").strip().replace("\n", " ")[:snippet_len]
             sub = " · ".join(verdict.reasons) + (f" — “{snippet}…”" if snippet else "")
-            photos.append(self.photo_dict(rec, suggested_keep=False, subtitle=sub))
+            p = self.photo_dict(rec, suggested_keep=False, subtitle=sub)
+            p["kind"] = getattr(verdict, "kind", "") or "generic"   # for the learning loop
+            photos.append(p)
         if not photos:
             return []
         return [{"group_key": key, "title": title, "date_label": "",
@@ -247,11 +260,17 @@ class Engine:
         the access request, library connection, and counted/total processing.
         """
         self.reset_state()
+        self._cancel.clear()
         try:
             return self._analyze(since, until, layers, excluded, progress)
         except BaseException:
             self.reset_state()
             raise
+
+    def request_cancel(self) -> None:
+        """Ask a running analyze to stop at the next checkpoint. The scan thread
+        raises AnalysisCancelled and rolls back to a clean slate."""
+        self._cancel.set()
 
     def _analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None,
                  progress=None):
@@ -314,9 +333,16 @@ class Engine:
         total_cost = (photo_cost + face_cost + group_cost + video_cost + takes_cost) or 1.0
         done_frac = 0.0   # bar fraction filled by completed phases
 
+        def check_cancel():
+            if self._cancel.is_set():
+                raise AnalysisCancelled()
+
         def emit_phase(label, cost, frac_done, frac_total, count_done=None, count_total=None):
             """Overall bar = finished phases + this phase's share × its sub-progress.
-            `count_*` (optional) drive the on-screen 'x / y' for this phase."""
+            `count_*` (optional) drive the on-screen 'x / y' for this phase.
+            Doubles as the cancellation checkpoint: every progress callback from
+            the heavy passes (faces, grouping, takes) funnels through here."""
+            check_cancel()
             if not progress:
                 return
             f = done_frac + (cost / total_cost) * (min(frac_done, frac_total) / frac_total if frac_total else 1.0)
@@ -330,6 +356,7 @@ class Engine:
         shots, exp, cand_recs = [], [], []
         photo_work = 0.0
         for i, rec in enumerate(photos, 1):
+            check_cancel()
             is_cand = rec.uuid in cand
             if is_cand:
                 embed_records([rec], ec)
@@ -365,6 +392,7 @@ class Engine:
         # 5) videos: embed poster frames, then group same-scene takes
         if videos_on:
             for i, rec in enumerate(videos, 1):
+                check_cancel()
                 embed_records([rec], ec)
                 if i % 20 == 0 or i == nvideos:
                     emit_phase("Analyzing videos…", video_cost, i, nvideos, i, nvideos)
@@ -373,6 +401,7 @@ class Engine:
             emit_phase("Comparing video takes…", takes_cost, 0, 1)
             vgroups = duplicate_takes(videos, ec, self.cfg,
                                       progress=lambda i, n: emit_phase("Comparing video takes…", takes_cost, i, n))
+            ec.save()      # sampled-frame vectors computed during takes (no-op if clean)
             done_frac += takes_cost / total_cost
             with self._state_lock:
                 self._candidates["videos"] = self.video_payload(vgroups)

@@ -124,6 +124,7 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
             job.update({"message": message, "done": done, "total": total, "frac": frac})
 
         def run():
+            from .engine import AnalysisCancelled
             try:
                 eng = _engine()
                 res = eng.analyze(body.since, body.until, layers,
@@ -132,6 +133,8 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                 # Pre-render grid thumbs into the RAM cache so Review scrolls
                 # instantly — like Photos having its thumbnails ready.
                 threading.Thread(target=eng.warm_thumbnails, daemon=True).start()
+            except AnalysisCancelled:
+                job.update({"status": "cancelled", "message": "Cancelled"})
             except Exception as e:  # noqa: BLE001
                 from .diagnostics import LOG_PATH, log_failure
                 log_failure("analyze", e)
@@ -139,6 +142,14 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
 
         threading.Thread(target=run, daemon=True).start()
         return {"started": True}
+
+    @app.post("/api/cancel")
+    def cancel():
+        """Stop a running scan: the analyze thread aborts at its next checkpoint
+        and rolls the engine back to a clean slate (frees CPU/battery — the old
+        Cancel only flipped the UI while the scan kept running)."""
+        _engine().request_cancel()
+        return {"cancelling": True}
 
     @app.get("/api/progress")
     def progress():
@@ -206,11 +217,21 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         if "dedup" in layers:
             from .learning import write_dedup_feedback
             feedback_log = write_dedup_feedback(st, dbpath=_engine().dbpath)
+        # Flat layers learn from explicit verdicts too: which flagged kinds the
+        # user keeps (false positives) drives per-kind suppression.
+        wrote_flat = False
+        for flat in ("screenshots", "expired"):
+            if flat in layers:
+                from .learning import write_flat_feedback
+                payload = _engine().cached_candidates(flat) or []
+                kind_map = {p["uuid"]: p.get("kind", "generic")
+                            for g in payload for p in g["photos"]}
+                wrote_flat = bool(write_flat_feedback(st, flat, kind_map)) or wrote_flat
 
         st.mark_reviewed(keep_ids)
         # New keep/discard labels just landed — retrain the keeper model in the
         # background so the next round's suggestions reflect this review.
-        learning_started = bool(feedback_log) and _start_learning(_engine().dbpath)
+        learning_started = bool(feedback_log or wrote_flat) and _start_learning(_engine().dbpath)
         return {"reviewed": len(keep_ids), "to_delete": discard_ids,
                 "feedback_log": feedback_log, "learning_started": learning_started}
 

@@ -211,3 +211,33 @@ def test_start_learning_is_serialized(monkeypatch):
     server._learning_lock.acquire(timeout=2.0)          # wait for the thread to release
     server._learning_lock.release()
     assert started == [None]
+
+
+def test_cancel_endpoint(client):
+    import photocleanup.server as server
+    eng = server  # silence linter
+    r = client.post("/api/cancel")
+    assert r.status_code == 200 and r.json()["cancelling"] is True
+
+
+def test_finalize_writes_flat_feedback(client, monkeypatch, tmp_path):
+    """Deciding on a flat layer (screenshots/expired) at finalize writes an
+    explicit-labels feedback file and kicks off learning."""
+    from photo_cleanup import feedback
+    import photocleanup.server as server
+    monkeypatch.setattr(feedback, "FEEDBACK_DIR", str(tmp_path / "fb"))
+    calls = []
+    monkeypatch.setattr(server, "_start_learning", lambda dbpath: calls.append(1) or True)
+
+    client.post("/api/decisions", json={"layer": "expired", "decisions": [
+        {"uuid": "a", "verdict": "keep"}, {"uuid": "b", "verdict": "discard"},
+    ]})
+    r = client.post("/api/finalize", json={"layers": ["expired"]})
+    assert r.json()["learning_started"] is True
+    assert calls == [1]
+    import glob, json as _json
+    files = glob.glob(str(tmp_path / "fb" / "expired_*.json"))
+    assert len(files) == 1
+    d = _json.load(open(files[0]))
+    assert d["kept"] == ["a"]
+    assert {it["uuid"] for it in d["expired"]} == {"a", "b"}
