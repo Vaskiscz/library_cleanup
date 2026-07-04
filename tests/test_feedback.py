@@ -42,3 +42,19 @@ def test_low_confidence_stays_near_seed():
 def test_empty_pairs_safe():
     m = KeeperModel()
     assert train(m, [])["pairs"] == 0
+
+
+def test_gather_training_skips_flat_layer_logs(tmp_path, monkeypatch):
+    """Dedup training must ignore expired_*/screenshots_* files — they're a
+    different format and belong to the flat-layer suppression loop."""
+    import json
+    from photo_cleanup import feedback
+    fb = tmp_path / "fb"; fb.mkdir()
+    monkeypatch.setattr(feedback, "FEEDBACK_DIR", str(fb))
+    monkeypatch.setattr(feedback, "FEATURE_STORE", str(tmp_path / "store.json"))
+    (fb / "screenshots_app_1.json").write_text(json.dumps(
+        {"screenshots": [{"uuid": "s1", "kind": "words"}], "kept": []}))
+    (fb / "expired_app_1.json").write_text(json.dumps(
+        {"expired": [{"uuid": "e1", "kind": "wifi"}], "kept": []}))
+    bursts, kept, store = feedback.gather_training(present_uuids=set())
+    assert bursts == [] and kept == set()

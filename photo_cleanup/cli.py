@@ -99,6 +99,8 @@ def apply(cache, rescan, do_apply, limit):
     if not uuids:
         return
     if do_apply:
+        from .feedback import log_screenshots
+        log_screenshots(findings.work_screenshots, None, None)  # learn from corrections
         click.echo("Driving the Photos app via AppleScript… (Photos will open)")
 
     def prog(i, n):
@@ -583,7 +585,7 @@ def learn():
     """Train the keeper model from your keep/discard choices in past iterations.
     Read-only: reads feedback logs + the current library; updates the local model."""
     import osxphotos
-    from .feedback import learn_and_save, learn_expired
+    from .feedback import learn_and_save, learn_expired, learn_screenshots
     click.echo("Reading library to see which suggestions you kept vs discarded…")
     db = osxphotos.PhotosDB()
     present = {p.uuid for p in db.photos()}
@@ -607,6 +609,15 @@ def learn():
             click.echo(f"  learned to STOP flagging (you keep these): {', '.join(e['suppressed'])}")
     else:
         click.echo("Expired: no flagged history yet — run an expired --apply iteration first.")
+
+    s = learn_screenshots(present)
+    if s["types"]:
+        rates = ", ".join(f"{k} {s['keep_rate'][k]*100:.0f}%kept" for k in sorted(s["types"]))
+        click.echo(f"Screenshots layer: per-signal keep-rates — {rates}")
+        if s["suppressed"]:
+            click.echo(f"  learned to STOP flagging (you keep these): {', '.join(s['suppressed'])}")
+    else:
+        click.echo("Screenshots: no flagged history yet — run an apply iteration first.")
 
 
 @cli.command()

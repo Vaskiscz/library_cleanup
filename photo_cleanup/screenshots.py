@@ -37,6 +37,7 @@ class ScreenshotVerdict:
     reasons: list[str]
     work_score: int = 0
     private_score: int = 0
+    kind: str = ""                # dominant work signal (drives the learning loop)
 
 
 def _tokens(text: str) -> set[str]:
@@ -68,8 +69,9 @@ def classify_screenshot(rec: Record, cfg: Config) -> ScreenshotVerdict:
     if priv_app:
         return ScreenshotVerdict(False, [f"private-app: {', '.join(sorted(priv_app))}"])
     work_app_chat = tokens.intersection(WORK_CHAT_APPS)
-    if work_app_chat:
-        return ScreenshotVerdict(True, [f"work-chat-app: {', '.join(sorted(work_app_chat))}"])
+    if work_app_chat and not _suppressed("chat-app"):
+        return ScreenshotVerdict(True, [f"work-chat-app: {', '.join(sorted(work_app_chat))}"],
+                                 kind="chat-app")
 
     # work signal
     data_hits = labels.intersection(cfg.work_labels)
@@ -94,9 +96,17 @@ def classify_screenshot(rec: Record, cfg: Config) -> ScreenshotVerdict:
         reasons.append(f"private-signal: {', '.join(priv)}")
     reasons.append(f"score work={work_score} vs private={private_score}")
 
+    # The dominant signal names the "kind" the learning loop tracks: if past
+    # reviews show you consistently KEEP screenshots flagged for this reason,
+    # the kind is suppressed and no longer flagged.
+    kind = "app" if app_hits else ("label" if data_hits else "words")
+
     # (2) Clear, dominant work signal -> remove.
     if work_score >= cfg.work_min_score and work_score > private_score:
-        return ScreenshotVerdict(True, reasons, work_score, private_score)
+        if _suppressed(kind):
+            reasons.append(f"{kind}: learned-keep (you usually keep these)")
+            return ScreenshotVerdict(False, reasons, work_score, private_score, kind)
+        return ScreenshotVerdict(True, reasons, work_score, private_score, kind)
 
     # (3) Any personal markers -> keep (this is what protects private chats).
     if private_score > 0:
@@ -104,12 +114,17 @@ def classify_screenshot(rec: Record, cfg: Config) -> ScreenshotVerdict:
 
     # (4) Fallback: an impersonal, picture-less, dense text document reads as
     #     a work/informational document. (No personal markers reached here.)
-    if cfg.enable_doc_fallback:
+    if cfg.enable_doc_fallback and not _suppressed("document"):
         chars = len(rec.detected_text.strip())
         words = len(tokens)
         is_doc = ("document" in labels) or bool(data_hits)
         if is_doc and chars >= cfg.doc_fallback_min_chars and words >= cfg.doc_fallback_min_words:
             reasons.append(f"impersonal text document ({chars} chars, {words} words)")
-            return ScreenshotVerdict(True, reasons, work_score, private_score)
+            return ScreenshotVerdict(True, reasons, work_score, private_score, "document")
 
     return ScreenshotVerdict(False, reasons, work_score, private_score)
+
+
+def _suppressed(kind: str) -> bool:
+    from .feedback import screenshot_suppressed_kinds
+    return kind in screenshot_suppressed_kinds()

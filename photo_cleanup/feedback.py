@@ -281,60 +281,98 @@ def pairs_from_bursts(bursts: list[dict], kept: set, store: dict,
 # ---- scoring hook used by keeper_score ------------------------------------
 
 EXPIRED_CORRECTIONS = os.path.expanduser("~/.cache/photo-cleanup/expired_corrections.json")
+SCREENSHOT_CORRECTIONS = os.path.expanduser("~/.cache/photo-cleanup/screenshot_corrections.json")
 
 
-def log_expired(flagged, since, until) -> str:
-    """Record an `expired --apply` iteration: each flagged photo's uuid + the
-    utility type that triggered it. Correctness is recovered at learn time from
-    which flagged photos the user deleted (correct) vs kept (false positive)."""
-    items = [{"uuid": r.uuid, "kind": v.kind} for r, v in flagged]
+def _log_flat(prefix: str, items: list[dict], since, until, kept=None) -> str:
+    """Persist one iteration of a flat layer (expired/screenshots): each flagged
+    photo's uuid + the kind that triggered it. `kept` (explicit uuids the user
+    chose to keep — the app knows them) beats presence-inference at learn time."""
     os.makedirs(FEEDBACK_DIR, exist_ok=True)
-    path = os.path.join(FEEDBACK_DIR, f"expired_{since or 'x'}_{until or 'x'}.json")
+    path = os.path.join(FEEDBACK_DIR, f"{prefix}_{since or 'x'}_{until or 'x'}.json")
+    payload = {prefix: items}
+    if kept is not None:
+        payload["kept"] = sorted(kept)
     with open(path, "w") as f:
-        json.dump({"expired": items}, f)
+        json.dump(payload, f)
     return path
 
 
-def learn_expired(present_uuids: set) -> dict:
-    """For every logged expired flag, outcome = deleted (correct) if the photo is
-    gone, or kept (false positive) if it's still there. Learn per-type keep-rate;
-    a type the user keeps too often gets suppressed from future flagging."""
+def log_expired(flagged, since, until, kept=None) -> str:
+    """Record an expired iteration (see _log_flat)."""
+    return _log_flat("expired", [{"uuid": r.uuid, "kind": v.kind} for r, v in flagged],
+                     since, until, kept)
+
+
+def log_screenshots(flagged, since, until, kept=None) -> str:
+    """Record a screenshots iteration (see _log_flat)."""
+    return _log_flat("screenshots",
+                     [{"uuid": r.uuid, "kind": v.kind or "generic"} for r, v in flagged],
+                     since, until, kept)
+
+
+def _learn_flat(prefix: str, corrections_path: str, present_uuids: set) -> dict:
+    """For every logged flag, outcome = removed (correct) or kept (false
+    positive). Files with an explicit 'kept' list (written by the app, which
+    knows the user's verdicts) use it; older CLI files infer kept = still in
+    the library. Kinds the user keeps too often get suppressed from flagging."""
     import glob
     from collections import defaultdict
     kept = defaultdict(int)
     total = defaultdict(int)
-    for fp in glob.glob(os.path.join(FEEDBACK_DIR, "expired_*.json")):
+    for fp in glob.glob(os.path.join(FEEDBACK_DIR, f"{prefix}_*.json")):
         try:
             d = json.load(open(fp))
         except Exception as e:
-            log.warning("learn_expired: unreadable feedback file %s: %s", fp, e)
+            log.warning("learn %s: unreadable feedback file %s: %s", prefix, fp, e)
             continue
-        for it in d.get("expired", []):
+        explicit = set(d["kept"]) if "kept" in d else None
+        for it in d.get(prefix, []):
             k = it.get("kind", "generic")
             total[k] += 1
-            if it["uuid"] in present_uuids:   # survived review => false positive
+            was_kept = (it["uuid"] in explicit) if explicit is not None \
+                else (it["uuid"] in present_uuids)   # survived review => false positive
+            if was_kept:
                 kept[k] += 1
     rates = {k: kept[k] / total[k] for k in total}
     # Suppress a type only with enough evidence and a clear majority kept.
     suppressed = sorted(k for k in total if total[k] >= 5 and rates[k] >= 0.6)
-    os.makedirs(os.path.dirname(EXPIRED_CORRECTIONS), exist_ok=True)
+    os.makedirs(os.path.dirname(corrections_path), exist_ok=True)
     json.dump({"keep_rate": rates, "totals": dict(total), "suppressed": suppressed},
-              open(EXPIRED_CORRECTIONS, "w"))
+              open(corrections_path, "w"))
     return {"types": dict(total), "keep_rate": rates, "suppressed": suppressed}
 
 
+def learn_expired(present_uuids: set) -> dict:
+    return _learn_flat("expired", EXPIRED_CORRECTIONS, present_uuids)
+
+
+def learn_screenshots(present_uuids: set) -> dict:
+    return _learn_flat("screenshots", SCREENSHOT_CORRECTIONS, present_uuids)
+
+
 _expired_suppressed = None
+_screenshot_suppressed = None
+
+
+def _suppressed_kinds(cache_name: str, path: str) -> set:
+    g = globals()
+    if g[cache_name] is None:
+        try:
+            g[cache_name] = set(json.load(open(path)).get("suppressed", []))
+        except Exception:
+            g[cache_name] = set()
+    return g[cache_name]
 
 
 def expired_suppressed_kinds() -> set:
     """Types the learning loop found you systematically keep — stop flagging them."""
-    global _expired_suppressed
-    if _expired_suppressed is None:
-        try:
-            _expired_suppressed = set(json.load(open(EXPIRED_CORRECTIONS)).get("suppressed", []))
-        except Exception:
-            _expired_suppressed = set()
-    return _expired_suppressed
+    return _suppressed_kinds("_expired_suppressed", EXPIRED_CORRECTIONS)
+
+
+def screenshot_suppressed_kinds() -> set:
+    """Screenshot signals the learning loop found you systematically keep."""
+    return _suppressed_kinds("_screenshot_suppressed", SCREENSHOT_CORRECTIONS)
 
 
 def log_apply(groups, since, until) -> str:
@@ -370,7 +408,7 @@ def gather_training(present_uuids: set, dbpath=None) -> tuple[list, set, dict]:
     # appearance in older logs (so re-deduping an event doesn't double-count it,
     # and the latest grouping/outcome wins).
     files = sorted((f for f in glob.glob(os.path.join(FEEDBACK_DIR, "*.json"))
-                    if not os.path.basename(f).startswith("expired_")),
+                    if not os.path.basename(f).startswith(("expired_", "screenshots_"))),
                    key=os.path.getmtime, reverse=True)
     for fp in files:
         try:
@@ -421,11 +459,12 @@ _loaded = False
 
 def reset_model_cache() -> None:
     """Drop the in-process caches so a freshly trained model (and refreshed
-    expired-suppression list) take effect without restarting the process."""
-    global _cached_model, _loaded, _expired_suppressed
+    suppression lists) take effect without restarting the process."""
+    global _cached_model, _loaded, _expired_suppressed, _screenshot_suppressed
     _cached_model = None
     _loaded = False
     _expired_suppressed = None
+    _screenshot_suppressed = None
 
 
 def model_score(features: dict) -> Optional[float]:
