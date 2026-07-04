@@ -335,8 +335,8 @@ function buildHistogram() {
   axis.forEach((m, i) => {
     const bar = document.createElement("div"); bar.className = "tf-bar";
     bar.style.height = (8 + vals[i] / max * 92) + "%";
-    bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])} — click to focus this month`;
-    bar.onclick = () => {            // snap the range to the clicked month
+    bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])} — click to focus this month, then drag a handle to widen`;
+    bar.onclick = () => {            // select exactly this one month; both thumbs land here
       state.range = { lo: i, hi: i };
       const rStart = $("#rStart"), rEnd = $("#rEnd");
       if (rStart) rStart.value = i;
@@ -346,23 +346,36 @@ function buildHistogram() {
     bars.appendChild(bar);
   });
   chart.innerHTML = ""; chart.appendChild(bars);
+  // Year ticks. Pick a "nice" step (round years) sized to width, anchor each
+  // label to the MIDDLE of its year's months (January-anchoring made them look
+  // shifted left of their bars), center all labels, then drop any that would
+  // collide — the two endpoints always win, so a partial first/last year can't
+  // strand a stray label next to the edge.
   const tickFrag = document.createDocumentFragment();
   const years = [...new Set(axis.map((m) => m.slice(0, 4)))], n = years.length;
-  // Skip year labels so they never overlap: pick a "nice" step (1/2/5/10…) that
-  // fits the available width (~58px per 4-digit label), label round-number years,
-  // and always keep both endpoints — dropping any interior label that would
-  // crowd an endpoint, so the gaps stay even.
   const avail = ticks.clientWidth || chart.clientWidth || 640;
-  const maxLabels = Math.max(2, Math.floor(avail / 58));
-  const step = [1, 2, 5, 10, 25, 50, 100].find((s) => Math.ceil(n / s) <= maxLabels) || n;
-  const show = new Set([0, n - 1]);
-  for (let i = 0; i < n; i++) if (+years[i] % step === 0) show.add(i);
-  const minGap = Math.max(1, Math.floor(step / 2));
-  [...show].sort((a, b) => a - b).forEach((i) => {
-    if (i !== 0 && i !== n - 1 && (i < minGap || i > n - 1 - minGap)) return;  // too near an end
-    const idx = axis.findIndex((m) => m.startsWith(years[i]));
-    const sp = document.createElement("span"); sp.textContent = years[i];
-    sp.style.left = (idx / (axis.length - 1) * 100) + "%"; tickFrag.appendChild(sp);
+  const step = [1, 2, 5, 10, 25, 50, 100].find((s) => Math.ceil(n / s) <= Math.max(2, Math.floor(avail / 58))) || n;
+  const denom = axis.length - 1 || 1, HALF = 3.2, MINGAP = 46 / avail * 100;
+  const midPct = (yi) => {                       // % of the year's mid-month (months are contiguous)
+    let a = axis.findIndex((m) => m.startsWith(years[yi])), b = a;
+    while (b + 1 < axis.length && axis[b + 1].startsWith(years[yi])) b++;
+    return (a + b) / 2 / denom * 100;
+  };
+  const cand = new Set([0, n - 1]);
+  for (let i = 0; i < n; i++) if (+years[i] % step === 0) cand.add(i);
+  let items = [...cand].sort((a, b) => a - b).map((yi) => ({ yi, leftPct: midPct(yi) }));
+  if (items.length > 1) {
+    items[0].leftPct = Math.max(items[0].leftPct, HALF);                        // keep edges un-clipped
+    items[items.length - 1].leftPct = Math.min(items[items.length - 1].leftPct, 100 - HALF);
+    const last = items[items.length - 1], kept = [items[0]];                    // greedy; endpoints win
+    for (let k = 1; k < items.length - 1; k++)
+      if (items[k].leftPct - kept[kept.length - 1].leftPct >= MINGAP) kept.push(items[k]);
+    while (kept.length > 1 && last.leftPct - kept[kept.length - 1].leftPct < MINGAP) kept.pop();
+    kept.push(last); items = kept;
+  }
+  items.forEach(({ yi, leftPct }) => {
+    const sp = document.createElement("span"); sp.textContent = years[yi];
+    sp.style.left = leftPct + "%"; tickFrag.appendChild(sp);
   });
   ticks.innerHTML = ""; ticks.appendChild(tickFrag);
 }
@@ -424,8 +437,17 @@ function bindHome() {
   if (state.phase === "results" && state.months.length > 1) {
     buildHistogram();
     const rStart = $("#rStart"), rEnd = $("#rEnd");
-    if (rStart) rStart.oninput = () => { if (+rStart.value > +rEnd.value) rStart.value = rEnd.value; state.range.lo = +rStart.value; updateFilter(); };
-    if (rEnd) rEnd.oninput = () => { if (+rEnd.value < +rStart.value) rEnd.value = rStart.value; state.range.hi = +rEnd.value; updateFilter(); };
+    // Derive lo/hi from the min/max of the two thumbs (no clamping). After a
+    // single-column click stacks both thumbs on one month, dragging either one
+    // then grows a range out from that month instead of being stuck (the old
+    // clamp pinned the top thumb against the bottom one).
+    const onThumb = () => {
+      const a = +rStart.value, b = +rEnd.value;
+      state.range = { lo: Math.min(a, b), hi: Math.max(a, b) };
+      updateFilter();
+    };
+    if (rStart) rStart.oninput = onThumb;
+    if (rEnd) rEnd.oninput = onThumb;
     const rst = $("#tfReset"); if (rst) rst.onclick = () => {
       state.range = { lo: 0, hi: state.months.length - 1 };
       rStart.value = 0; rEnd.value = state.months.length - 1; updateFilter();

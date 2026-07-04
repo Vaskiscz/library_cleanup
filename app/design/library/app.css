@@ -166,8 +166,8 @@ button { font-family: inherit; cursor: pointer; }
 .range-wrap #rEnd { z-index: 2; }
 .ticks { position: relative; height: 16px; margin-top: 6px; }
 .ticks span { position: absolute; transform: translateX(-50%); font-size: 10px; color: var(--pc-text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ticks span:first-child { transform: none; }
-.ticks span:last-child { transform: translateX(-100%); }
+/* every label centers on its year's midpoint; buildHistogram clamps the two
+   edge labels so they never clip the container (no first/last transform hack). */
 
 /* ---- sticky bars ---------------------------------------------------------- */
 .bar {
