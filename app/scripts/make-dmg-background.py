@@ -1,22 +1,31 @@
 #!/usr/bin/env python3
 """Generate the DMG background (app/assets/dmg-background.png).
 
-Dark canvas matching the app's palette, with a drag arrow between where
-dmg-settings.py places the app icon (x=160) and the Applications alias (x=480),
-plus an install hint. Run once and commit the PNG; re-run only to restyle.
+LIGHT canvas: Finder draws the icon labels ("Library Cleanup" / "Applications")
+in black in Light mode (what most testers run) and we can't override that, so a
+dark background would leave the labels unreadable. A light background keeps them
+legible. Brand teal is kept for the drag arrow + heading accent.
+
+Drag arrow sits between where dmg-settings.py places the app icon (x=160) and
+the Applications alias (x=480). Run once and commit the PNG; re-run to restyle.
 """
 import os
 
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 640, 400
-BG = (28, 30, 33)          # --pc-bg dark
-TXT = (241, 242, 244)      # --pc-text
-SUB = (154, 160, 170)      # secondary
+TOP = (251, 251, 252)      # light gradient top
+BOT = (238, 240, 243)      # light gradient bottom
+TXT = (28, 30, 33)         # near-black heading (readable on light)
+SUB = (110, 116, 124)      # secondary grey
 BRAND = (31, 158, 134)     # app-icon teal/green
 
-img = Image.new("RGB", (W, H), BG)
+img = Image.new("RGB", (W, H))
 d = ImageDraw.Draw(img)
+for yy in range(H):                      # subtle vertical gradient
+    t = yy / (H - 1)
+    d.line([(0, yy), (W, yy)],
+           fill=tuple(round(TOP[i] + (BOT[i] - TOP[i]) * t) for i in range(3)))
 
 
 def font(size, bold=False):
