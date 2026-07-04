@@ -68,6 +68,10 @@ const state = {
   pvCollapsed: false,       // review: preview panel hidden
   pvWidth: 324,             // review: preview panel width (px), user-draggable
   manual: false,            // review: manual "all photos & videos" feed (vs. curated)
+  update: null,             // {current, latest, notes, ...} when a newer release exists
+  updateStatus: "prompt",   // prompt | working | relaunching | error
+  updateJob: null,          // {status, frac, message} while downloading/installing
+  updateErr: "",
 };
 
 // (analysis runs as a background job; the UI polls /api/progress)
@@ -212,8 +216,86 @@ function renderHome() {
   } else {
     body = categoriesBody();
   }
-  app.innerHTML = chrome(body);
+  app.innerHTML = chrome(body) + (state.update ? updateModalHtml() : "");
   bindHome();
+}
+
+/* ---- self-update prompt ---------------------------------------------------- */
+function updateModalHtml() {
+  const u = state.update || {};
+  if (state.updateStatus === "working" || state.updateStatus === "relaunching") {
+    const j = state.updateJob || {};
+    const relaunching = state.updateStatus === "relaunching" || j.status === "relaunching";
+    const pct = j.frac != null ? Math.round(j.frac * 100) : null;
+    const msg = relaunching ? "Relaunching…" : (j.message || "Downloading update…");
+    const bar = (j.status === "downloading" && pct != null)
+      ? `<div class="progress" style="margin:2px auto 0"><span style="width:${pct}%"></span></div>`
+      : `<div class="progress indet" style="margin:2px auto 0"><span style="width:100%"></span></div>`;
+    return `<div class="backdrop"><div class="modal center">
+      <h3>${relaunching ? "Updating Library Cleanup" : `Updating to v${escapeHtml(u.latest || "")}`}</h3>
+      <div class="working"><div class="spinner sm"></div>
+        <div style="color:var(--pc-text-secondary)">${escapeHtml(msg)}${pct != null && !relaunching ? ` · ${pct}%` : ""}</div>
+        ${bar}
+        <div style="font-size:12px;color:var(--pc-text-tertiary)">${relaunching ? "The app will reopen in a moment." : "Please keep the app open until it relaunches."}</div>
+      </div></div></div>`;
+  }
+  if (state.updateStatus === "error") {
+    return `<div class="backdrop"><div class="modal center">
+      <div class="done-disc" style="background:var(--pc-warn)">${icon("i-x")}</div>
+      <h3>Update failed</h3>
+      <p class="head-n">${escapeHtml(state.updateErr || "Something went wrong.")} You can try again or download it manually.</p>
+      <div class="actions" style="justify-content:center">
+        <button class="btn-secondary" id="u-page">Open release page</button>
+        <button class="btn btn-primary" id="u-retry">Try again</button>
+      </div></div></div>`;
+  }
+  // prompt
+  const notes = (u.notes || "").split("\n").filter(Boolean).slice(0, 4);
+  return `<div class="backdrop"><div class="modal">
+    <h3>Update available</h3>
+    <p class="head-n">A newer version of Library Cleanup is ready.
+      <b>v${escapeHtml(u.current || "")}</b> → <b>v${escapeHtml(u.latest || "")}</b>${u.size ? ` · ${fmtSave(u.size)}` : ""}</p>
+    ${notes.length ? `<div class="rows">${notes.map((n) => `<div class="row">${tick()}<span>${escapeHtml(n.replace(/^[-*]\s*/, ""))}</span></div>`).join("")}</div>` : ""}
+    <div class="row" style="font-size:12px;color:var(--pc-text-tertiary);margin-bottom:16px">Downloads from GitHub, installs, and relaunches. Only the update is fetched — your photos never leave this Mac.</div>
+    <div class="actions">
+      <button class="btn-secondary" id="u-later">Later</button>
+      <button class="btn btn-primary" id="u-go">Download &amp; install</button>
+    </div></div></div>`;
+}
+
+function bindUpdate() {
+  const later = $("#u-later"); if (later) later.onclick = () => { state.update = null; render(); };
+  const go = $("#u-go"); if (go) go.onclick = startUpdate;
+  const retry = $("#u-retry"); if (retry) retry.onclick = startUpdate;
+  const page = $("#u-page"); if (page) page.onclick = () => api.post("/api/update/open-page").catch(() => {});
+}
+
+async function startUpdate() {
+  state.updateStatus = "working";
+  state.updateJob = { status: "downloading", message: "Starting…" };
+  state.updateErr = "";
+  render();
+  let res;
+  try { res = await api.post("/api/update/apply"); }
+  catch (e) { state.updateStatus = "error"; state.updateErr = e.message; return void render(); }
+  if (res && res.started === false) {
+    if (res.can_install === false) { api.post("/api/update/open-page").catch(() => {}); state.update = null; return void render(); }
+    state.updateStatus = "error";
+    state.updateErr = res.error || "Update is no longer available.";
+    return void render();
+  }
+  pollUpdate();
+}
+
+async function pollUpdate() {
+  let s;
+  try { s = await api.get("/api/update/status"); }
+  catch { return void setTimeout(pollUpdate, 800); }   // server may be relaunching
+  state.updateJob = s;
+  if (s.status === "error") { state.updateStatus = "error"; state.updateErr = s.error || "Update failed."; return void render(); }
+  if (s.status === "relaunching") { state.updateStatus = "relaunching"; render(); return; }  // app will quit & reopen
+  render();
+  setTimeout(pollUpdate, 500);
 }
 
 /* ---- categories (post-scan picker + reclaim banner + time filter) --------- */
@@ -410,6 +492,7 @@ function updateResultsBar() {
 }
 
 function bindHome() {
+  if (state.update) bindUpdate();
   const a = $("#analyze"); if (a) a.onclick = () => startAnalyze();   // full-library scan
   const ol = $("#openlog"); if (ol) ol.onclick = () => api.post("/api/open-log").catch(() => {});
   const c = $("#cancel"); if (c) c.onclick = () => {
@@ -1189,6 +1272,12 @@ setPreviewWidth(state.pvWidth);
 // health is library-free (reads only the app's own SQLite) — safe at boot;
 // used to show the version in the footer.
 api.get("/api/health").then((h) => { state.version = h.version || ""; render(); }).catch(() => {});
+// Check GitHub for a newer release (anonymous; no library data sent). Only prompts
+// on the home screen so an in-progress review is never interrupted; "Later"
+// dismisses until the next launch.
+api.get("/api/update/check").then((u) => {
+  if (u && u.available && state.view === "home") { state.update = u; state.updateStatus = "prompt"; render(); }
+}).catch(() => {});
 document.addEventListener("wheel", (e) => {
   if (!e.metaKey || state.view !== "review") return;
   e.preventDefault();                          // don't let the page zoom

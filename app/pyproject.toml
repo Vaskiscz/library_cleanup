@@ -24,6 +24,9 @@ requires = [
     # local API service (binds to localhost only — nothing leaves the device)
     "fastapi>=0.137",
     "uvicorn>=0.49",
+    # CA bundle for the self-updater's HTTPS calls to GitHub (bundled Python
+    # can't rely on system CAs). Also pulled in transitively via osxphotos.
+    "certifi",
 ]
 
 [tool.briefcase.app.photocleanup.permission]

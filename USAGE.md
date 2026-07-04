@@ -58,6 +58,15 @@ the screenshots/expired layers learn per-signal keep-rates — a kind you
 consistently keep (say, `parking/boarding` photos or `document` screenshots)
 stops being flagged after ~5 consistent keeps.
 
+**Auto-update.** On launch the app asks GitHub whether a newer release exists
+(anonymous check to the public Releases API — no account, no telemetry, nothing
+about your library is sent). If there is, the home screen shows an **Update
+available** prompt: choose **Later** (asked again next launch) or **Download &
+install** — it downloads the release DMG, swaps the app in place, and relaunches
+itself. Because the app keeps a stable self-signed identity, your Full Disk
+Access / Photos grants survive the update. From source (dev) the prompt instead
+opens the release page, since there's no bundle to replace.
+
 ---
 
 ## Running it yourself (no Claude needed)

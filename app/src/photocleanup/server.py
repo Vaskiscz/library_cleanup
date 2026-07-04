@@ -88,6 +88,7 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()
     app.state.job = {"status": "idle"}   # analyze progress (single job at a time)
+    app.state.update_job = {"status": "idle"}   # self-update download/install progress
 
     def _store() -> Store:
         return app.state.store
@@ -263,6 +264,62 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     def learn():
         from .learning import run_learning
         return run_learning(_engine().dbpath)
+
+    # ---- self-update -------------------------------------------------------
+    @app.get("/api/update/check")
+    def update_check():
+        """Compare the running version to GitHub's latest release. Contacts only
+        GitHub's public API; never sends anything about the library."""
+        from .updater import check
+        return check()
+
+    @app.post("/api/update/apply")
+    def update_apply():
+        """Download the latest release DMG and install it in the background, then
+        relaunch. The UI polls /api/update/status. The asset URL is re-derived
+        server-side from a fresh check() — never taken from the client."""
+        from . import updater
+        job = app.state.update_job
+        if job.get("status") in ("downloading", "installing", "relaunching"):
+            return {"started": False, "running": True}
+        info = updater.check()
+        if not info.get("available") or not info.get("url"):
+            return {"started": False, "available": False, "error": info.get("error")}
+        if not info.get("can_install"):     # dev/source run — offer the page instead
+            return {"started": False, "can_install": False, "html_url": info.get("html_url")}
+
+        job.clear()
+        job.update({"status": "downloading", "frac": 0.0, "message": "Downloading update…"})
+
+        def prog(done, total):
+            job.update({"frac": (done / total) if total else None,
+                        "done": done, "total": total})
+
+        def run():
+            try:
+                dmg = updater.download_dmg(info["url"], progress=prog)
+                job.update({"status": "installing", "frac": 1.0, "message": "Installing…"})
+                updater.apply_update(dmg)          # spawns helper + schedules our exit
+                job.update({"status": "relaunching", "message": "Relaunching…"})
+            except Exception as e:  # noqa: BLE001
+                from .diagnostics import log_failure
+                log_failure("update", e)
+                job.update({"status": "error", "error": str(e)})
+
+        threading.Thread(target=run, daemon=True, name="self-update").start()
+        return {"started": True}
+
+    @app.get("/api/update/status")
+    def update_status():
+        return app.state.update_job
+
+    @app.post("/api/update/open-page")
+    def update_open_page():
+        """Open the release page in the browser (manual-download fallback)."""
+        from .updater import check, open_release_page
+        info = check()
+        url = info.get("html_url")
+        return {"opened": bool(url) and open_release_page(url), "html_url": url}
 
     # ---- static UI (served last so /api/* wins) ----------------------------
     if os.path.isdir(os.path.join(WEB_DIR, "static")):
