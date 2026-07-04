@@ -153,8 +153,9 @@ button { font-family: inherit; cursor: pointer; }
 .tf-reset.show { opacity: 1; pointer-events: auto; }
 .tf-chart { display: flex; align-items: flex-end; gap: 1px; height: 46px; margin-bottom: 7px; }
 .tf-bar { flex: 1 1 0; min-height: 2px; border-radius: 1.5px 1.5px 0 0; background: var(--pc-surface-sunken);
-  transition: background var(--pc-dur-fast) var(--pc-ease); }
+  transition: background var(--pc-dur-fast) var(--pc-ease); cursor: pointer; }
 .tf-bar.in { background: var(--pc-brand); }
+.tf-bar:hover { background: var(--pc-brand-hover, var(--pc-brand)); }
 .range-wrap { position: relative; height: 24px; }
 .rtrack { position: absolute; top: 50%; left: 0; right: 0; height: 5px; transform: translateY(-50%); border-radius: 999px; background: var(--pc-surface-sunken); }
 .rfill { position: absolute; top: 50%; height: 5px; transform: translateY(-50%); border-radius: 999px; background: var(--pc-brand); }

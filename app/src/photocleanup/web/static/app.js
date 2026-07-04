@@ -95,6 +95,16 @@ function loadReviewState() {
 }
 function clearReviewState() { try { localStorage.removeItem(REVIEW_SAVE_KEY); } catch {} }
 
+/* ---- in-page error banner (replaces blocking alert()s) --------------------- */
+let flashRetry = null;    // closure re-running the failed action (not serializable state)
+function showFlash(title, msg, retry) {
+  state.flash = { title, msg };
+  flashRetry = retry || null;
+  state.view = "home";
+  if (state.phase === "scanning") state.phase = "idle";
+  render();
+}
+
 /* ---- chrome --------------------------------------------------------------- */
 // The status dot/text reflect REAL state: grey until we've read the library, green
 // once connected, red if access failed.
@@ -167,6 +177,15 @@ function renderHome() {
           <div class="check-card"><span class="ic">${icon("i-video")}</span><span class="ct">Repeat takes</span><span class="cd">Ten tries at the same clip. The steady one wins.</span></div>
           <div class="check-card"><span class="ic">${icon("i-shot")}</span><span class="ct">Screenshot pile</span><span class="cd">Snapped once, never opened again. Buh-bye.</span></div>
         </div>
+        ${state.flash ? `
+        <div class="errbox">
+          <div class="errttl">${escapeHtml(state.flash.title)}</div>
+          <div class="errmsg">${escapeHtml(state.flash.msg || "")}</div>
+          <div class="errrow">
+            ${flashRetry ? `<button class="btn btn-primary sm" id="flashRetry">Try again</button>` : ""}
+            <button class="btn-secondary sm" id="flashDismiss">Dismiss</button>
+          </div>
+        </div>` : ""}
         ${(() => {
           const sv = loadReviewState();
           return sv ? `
@@ -316,7 +335,14 @@ function buildHistogram() {
   axis.forEach((m, i) => {
     const bar = document.createElement("div"); bar.className = "tf-bar";
     bar.style.height = (8 + vals[i] / max * 92) + "%";
-    bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])}`;
+    bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])} — click to focus this month`;
+    bar.onclick = () => {            // snap the range to the clicked month
+      state.range = { lo: i, hi: i };
+      const rStart = $("#rStart"), rEnd = $("#rEnd");
+      if (rStart) rStart.value = i;
+      if (rEnd) rEnd.value = i;
+      updateFilter();
+    };
     bars.appendChild(bar);
   });
   chart.innerHTML = ""; chart.appendChild(bars);
@@ -373,12 +399,19 @@ function updateResultsBar() {
 function bindHome() {
   const a = $("#analyze"); if (a) a.onclick = () => startAnalyze();   // full-library scan
   const ol = $("#openlog"); if (ol) ol.onclick = () => api.post("/api/open-log").catch(() => {});
-  const c = $("#cancel"); if (c) c.onclick = () => { state.cancelled = true; state.phase = "idle"; render(); };
+  const c = $("#cancel"); if (c) c.onclick = () => {
+    api.post("/api/cancel").catch(() => {});   // actually stop the scan server-side
+    state.cancelled = true; state.phase = "idle"; render();
+  };
   const rs = $("#rescan"); if (rs) rs.onclick = () => { state.phase = "idle"; render(); };
   const rv = $("#review"); if (rv) rv.onclick = () => enterReview();
   const mn = $("#manual"); if (mn) mn.onclick = () => enterManualReview();
   const rr = $("#resumeReview"); if (rr) rr.onclick = resumeSavedReview;
   const dr = $("#discardReview"); if (dr) dr.onclick = () => { clearReviewState(); render(); };
+  const fr = $("#flashRetry"); if (fr) fr.onclick = () => {
+    const retry = flashRetry; state.flash = null; flashRetry = null; retry && retry();
+  };
+  const fd = $("#flashDismiss"); if (fd) fd.onclick = () => { state.flash = null; flashRetry = null; render(); };
   app.querySelectorAll(".cat[data-cat]").forEach((btn) => {
     btn.onclick = () => {
       const id = btn.dataset.cat;
@@ -404,12 +437,20 @@ function bindHome() {
 async function startAnalyze(range) {
   state.phase = "scanning";
   state.cancelled = false;
+  state.flash = null; flashRetry = null;
   render();
+  let res;
   try {
-    await api.post("/api/analyze", { layers: CATS.map((c) => c.id),
+    res = await api.post("/api/analyze", { layers: CATS.map((c) => c.id),
       since: range?.since ?? null, until: range?.until ?? null });
   } catch (e) {
-    state.phase = "idle"; render(); alert("Couldn't start analysis: " + e.message); return;
+    showFlash("Couldn't start the scan", e.message, () => startAnalyze(range));
+    return;
+  }
+  if (res && res.started === false) {   // a previous scan is still winding down
+    showFlash("A scan is already running",
+      "Give it a moment to stop, then try again.", () => startAnalyze(range));
+    return;
   }
   pollProgress();
 }
@@ -439,6 +480,8 @@ async function pollProgress() {
     state.errorMsg = p.error || "Something went wrong.";
     state.errorLog = p.log || "";
     state.phase = "idle"; render();
+  } else if (p.status === "cancelled") {
+    state.phase = "idle"; render();     // scan stopped server-side; back to start
   } else {
     // Library is connected the moment scanning gets past access/connect (real
     // counted progress) — reflect that in the top bar immediately, not at the end.
@@ -516,7 +559,9 @@ async function enterManualReview(dates, savedDecisions) {
     }
     state.decisions.all = d;
   } catch (e) {
-    state.view = "home"; state.manual = false; render(); alert("Couldn't load photos: " + e.message); return;
+    state.manual = false;
+    showFlash("Couldn't load photos", e.message, () => enterManualReview(dates, savedDecisions));
+    return;
   }
   state.selUuid = null; state.selLayer = null; state.pvCollapsed = false;
   renderReview();
@@ -799,8 +844,8 @@ function bindReview() {
 
   // finalize modal buttons
   if (state.finalize === "confirm") {
-    $("#m-cancel").onclick = () => { state.finalize = null; renderReview(); };
-    $("#m-go").onclick = doFinalize;
+    $("#m-cancel").onclick = () => { state.finalize = null; state.finalizeErr = null; renderReview(); };
+    $("#m-go").onclick = () => { state.finalizeErr = null; doFinalize(); };
   } else if (state.finalize === "done") {
     const wasManual = state.manual;
     const mn = $("#m-new"); if (mn) mn.onclick = () => {
@@ -1000,6 +1045,7 @@ function modalHtml() {
   if (state.finalize === "confirm") {
     return `<div class="backdrop"><div class="modal">
       <h3>Review &amp; Finalize</h3>
+      ${state.finalizeErr ? `<p class="head-n" style="color:var(--pc-warn)">Finalize failed: ${escapeHtml(state.finalizeErr)} — your decisions are intact, try again.</p>` : ""}
       <p class="head-n">Keeping ${fmtN(c.keep)} · removing ${fmtN(c.rem)} items · frees ${fmtSave(c.bytes)}</p>
       <div class="rows">
         <div class="row">${tick()}<span>macOS will ask you to confirm before anything is removed.</span></div>
@@ -1053,7 +1099,11 @@ async function doFinalize() {
     if (del.status === "ok" || del.status === "no-match") clearReviewState();
     renderReview();
   } catch (e) {
-    state.finalize = null; renderReview(); alert("Finalize failed: " + e.message);
+    // Back to the confirm modal with the error inline — decisions are intact,
+    // "Remove N" doubles as the retry.
+    state.finalizeErr = e.message;
+    state.finalize = "confirm";
+    renderReview();
   }
 }
 
