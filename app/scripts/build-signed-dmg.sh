@@ -25,11 +25,18 @@ security unlock-keychain -p "$KCPW" "$KC" \
 security find-identity -p codesigning "$KC" | grep -q "$IDENTITY" \
   || fail "identity '$IDENTITY' not found in $KC — run app/scripts/setup-signing.sh"
 
-echo "[0/4] Bumping patch version ..."
-VERSION="$(python3 scripts/bump-version.py)"
+# Public release: `build-signed-dmg.sh --minor` bumps the MINOR digit and resets
+# patch to 0, so the artifact lands on exactly x.y.0. Default = patch bump.
+case "${1:-}" in
+  --minor|--release) echo "[0/4] Bumping MINOR version (public release) ..."
+                     VERSION="$(python3 scripts/bump-version.py --minor)" ;;
+  "")                echo "[0/4] Bumping patch version ..."
+                     VERSION="$(python3 scripts/bump-version.py)" ;;
+  *)                 fail "unknown flag '$1' (use --minor for a public release, or no flag for a normal build)" ;;
+esac
 echo "  -> v$VERSION"
-VOL="Library Cleanup $VERSION"
-DMG="dist/Library Cleanup-$VERSION.dmg"
+VOL="Library Cleanup $VERSION"           # volume label (Finder) stays versioned
+DMG="dist/Library-Cleanup.dmg"           # file name is STABLE across builds
 
 echo "[1/4] Building (briefcase, ad-hoc; output -> $BUILD_LOG) ..."
 rm -rf build
@@ -48,8 +55,9 @@ codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2
 
 echo "[3/4] Building DMG (dmgbuild: background + drag-to-Applications layout) ..."
 mkdir -p dist
-# Keep only the build we're about to make — delete any older DMGs.
-find dist -maxdepth 1 -name 'Library Cleanup-*.dmg' ! -name "$(basename "$DMG")" -print -delete
+# Stable file name: wipe every prior DMG (incl. legacy versioned ones) so only
+# the fresh Library-Cleanup.dmg remains.
+find dist -maxdepth 1 -name '*.dmg' -print -delete
 rm -f "$DMG"
 uvx dmgbuild -s scripts/dmg-settings.py -D app="$APP" -D bg="$PWD/assets/dmg-background.png" \
   "$VOL" "$DMG" >/dev/null
