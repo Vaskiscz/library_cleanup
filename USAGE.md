@@ -1,7 +1,7 @@
 # USAGE — step-by-step
 
 A practical runbook for `photo-cleanup`. Commands assume the project lives at
-`~/Projects/apple_photo_cleanup` (adjust to wherever you cloned it) and that
+`~/Projects/library_cleanup` (adjust to wherever you cloned it) and that
 you run them with `uv` (no manual venv activation needed).
 
 > **Keep this file current.** Whenever a command, flag, or workflow step
@@ -66,7 +66,7 @@ Everything is a normal CLI you run in **Terminal.app** (already authorized to
 control Photos). A whole year of dedup is just two commands + your review:
 
 ```sh
-cd ~/Projects/apple_photo_cleanup
+cd ~/Projects/library_cleanup
 
 # 1) tag the year's near-duplicate photoshoots (keepers pre-♥)
 uv run photo-cleanup dedup --since 2023-01-01 --until 2023-12-31 --apply
@@ -109,7 +109,7 @@ Everything runs on-device. No uploads, no cloud APIs.
 
 ### 1a. Install dependencies
 ```sh
-cd ~/Projects/apple_photo_cleanup
+cd ~/Projects/library_cleanup
 uv sync
 ```
 
