@@ -250,13 +250,11 @@ function updateModalHtml() {
       </div></div></div>`;
   }
   // prompt
-  const notes = (u.notes || "").split("\n").filter(Boolean).slice(0, 4);
   return `<div class="backdrop"><div class="modal">
     <h3>Update available</h3>
     <p class="head-n">A newer version of Library Cleanup is ready.
       <b>v${escapeHtml(u.current || "")}</b> → <b>v${escapeHtml(u.latest || "")}</b>${u.size ? ` · ${fmtSave(u.size)}` : ""}</p>
-    ${notes.length ? `<div class="rows">${notes.map((n) => `<div class="row">${tick()}<span>${escapeHtml(n.replace(/^[-*]\s*/, ""))}</span></div>`).join("")}</div>` : ""}
-    <div class="row" style="font-size:12px;color:var(--pc-text-tertiary);margin-bottom:16px">Downloads from GitHub, installs, and relaunches. Only the update is fetched — your photos never leave this Mac.</div>
+    <div class="row" style="font-size:12px;color:var(--pc-text-tertiary);margin:6px 0 16px">Downloads, installs, and relaunches automatically. Only the update is fetched — your photos never leave this Mac.</div>
     <div class="actions">
       <button class="btn-secondary" id="u-later">Later</button>
       <button class="btn btn-primary" id="u-go">Download &amp; install</button>
