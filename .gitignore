@@ -22,4 +22,7 @@ poc_*.py
 
 # macOS
 .DS_Store
-app/design/library/.claude/
+
+# Local tooling config — useful on disk, not needed in the public repo
+.claude/
+.design-sync/

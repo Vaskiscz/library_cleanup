@@ -1,7 +1,0 @@
-{
-  "projectId": "f4d6ab29-069e-452b-8a12-230dcabfb36d",
-  "projectName": "Library Cleanup",
-  "shape": "manual",
-  "source": "app/design/library",
-  "note": "Hand-authored @dsCard component library (tokens.css + app.css + preview cards). Not the converter pipeline — this app's UI is vanilla HTML/CSS/JS, pushed as preview cards + tokens for Claude Design reference."
-}
