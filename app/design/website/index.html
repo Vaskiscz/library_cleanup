@@ -105,33 +105,59 @@
     display:flex; align-items:center; gap:8px; justify-content:center;
     margin-right:52px;
   }
-  .shot-title svg{width:16px; height:16px;}
-  .shot-body{padding:38px 34px 40px; text-align:center;}
-  .shot-body .app-icon{width:64px; height:64px; margin:0 auto 16px; filter:drop-shadow(0 5px 12px rgba(0,0,0,.14));}
-  .shot-body h3{font-size:21px; font-weight:600;}
-  .shot-body .sub{color:var(--text-2); font-size:14.5px; margin:8px 0 4px;}
-  .checks-lbl{
-    font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
-    color:var(--text-3); margin:28px 0 14px;
-  }
-  .checks{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
-  .check{
-    text-align:left; padding:16px 15px; border:1px solid var(--separator);
-    border-radius:14px; background:var(--surface); box-shadow:var(--shadow-1);
-    display:flex; flex-direction:column; gap:10px;
-  }
-  .check .ic{
-    width:34px; height:34px; border-radius:10px; background:rgba(31,158,134,.09);
-    display:flex; align-items:center; justify-content:center; color:var(--brand);
-  }
-  .check .ic svg{width:19px; height:19px;}
-  .check .ct{font-size:14px; font-weight:600;}
-  .check .cd{font-size:12px; color:var(--text-2); line-height:1.45;}
-  .shot-cta{
-    margin-top:26px; display:inline-flex; align-items:center; gap:9px;
-    background:var(--grad); color:#fff; font-weight:600; font-size:15px;
-    padding:12px 26px; border-radius:11px; box-shadow:0 6px 16px rgba(31,158,134,.3);
-  }
+  /* ---- app review screen (faithful to app.js) ---- */
+  /* app top bar: brand + live library status */
+  .rv-topbar{display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:9px 16px; background:var(--surface); border-bottom:1px solid var(--separator);}
+  .rv-topbar .brand{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; white-space:nowrap;}
+  .rv-topbar .brand svg{width:18px; height:18px; flex:none;}
+  .rv-topbar .status{display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .rv-topbar .status .dot{width:7px; height:7px; border-radius:50%; background:var(--keep); flex:none;}
+  /* review action bar: counts · progress · keeping/removing · bulk */
+  .rv-actions{display:flex; align-items:center; gap:12px; padding:8px 16px; font-size:12px; color:var(--text-2);
+    background:var(--surface-2); border-bottom:1px solid var(--separator);}
+  .rv-actions .prog{flex:1; min-width:50px; height:5px; border-radius:999px; background:var(--sunken); overflow:hidden;}
+  .rv-actions .prog i{display:block; height:100%; width:64%; background:var(--grad); border-radius:999px;}
+  .rv-actions .keep{color:var(--keep); font-weight:600;}
+  .rv-actions .rem{color:var(--clear); font-weight:600;}
+  .rv-actions .sizer{color:var(--text-3); display:flex; align-items:center;}
+  .rv-actions .sizer svg{width:14px; height:14px;}
+  .rv-actions .bulk{display:flex; gap:6px;}
+  .mini{border:1px solid var(--border); background:var(--surface); border-radius:7px; padding:3px 10px;
+    font-size:11px; font-weight:600; color:var(--text-2); white-space:nowrap;}
+  /* review body */
+  .rv-body{padding:14px 16px 16px; text-align:left;}
+  .rv-sec + .rv-sec{margin-top:16px;}
+  .rv-sec h4{font-size:14px; font-weight:600; margin:0;}
+  .rv-sum{font-size:11.5px; color:var(--text-3); margin:3px 0 11px;}
+  .rv-group + .rv-group{margin-top:12px;}
+  .ghead{display:flex; align-items:center; gap:8px; margin:0 0 8px;}
+  .ghead .gt{font-size:12.5px; font-weight:600;}
+  .ghead .gm{font-size:11.5px; color:var(--text-3);}
+  .ghead .sp{flex:1;}
+  .ghead .chev{color:var(--text-3); font-size:11px;}
+  .gbody{display:flex; gap:8px; flex-wrap:wrap;}
+  .rvc{position:relative; height:82px; border-radius:9px; overflow:hidden; background:var(--sunken); box-shadow:var(--shadow-1);}
+  .rvc .scene{position:absolute; inset:0; width:100%; height:100%; display:block;}
+  .rvc .tag{position:absolute; top:5px; right:5px; width:20px; height:20px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 1px 4px rgba(0,0,0,.4); z-index:2;}
+  .rvc .tag svg{width:12px; height:12px;}
+  .rvc.keep{outline:2.5px solid var(--brand); outline-offset:-2px;}
+  .rvc.keep .tag{background:var(--keep);}
+  .rvc.rem .scene{filter:saturate(.82) brightness(.92);}
+  .rvc.rem::after{content:""; position:absolute; inset:0; background:rgba(12,14,17,.12); z-index:1;}
+  .rvc.rem .tag{background:var(--clear);}
+  .rvc .fav{position:absolute; top:5px; left:5px; width:13px; height:13px; color:#fff; z-index:2; filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
+  .rvc .play{position:absolute; inset:0; margin:auto; width:30px; height:30px; border-radius:50%;
+    background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; color:#fff; z-index:1;}
+  .rvc .play svg{width:13px; height:13px; margin-left:2px;}
+  .rvc .dur{position:absolute; left:5px; bottom:5px; z-index:2; font-size:10px; font-weight:600; color:#fff;
+    background:rgba(0,0,0,.55); padding:1px 6px; border-radius:6px;}
+  /* bottom bar */
+  .rv-foot{display:flex; align-items:center; gap:10px; padding:9px 16px; background:var(--surface); border-top:1px solid var(--separator);}
+  .rv-foot .tally{flex:1; text-align:right; font-size:11.5px; color:var(--text-3);}
+  .rv-foot .tally .keep{color:var(--keep); font-weight:600;} .rv-foot .tally .rem{color:var(--clear); font-weight:600;}
+  .rv-foot .fin{background:var(--grad); color:#fff; font-weight:600; font-size:12.5px; padding:8px 16px; border-radius:9px;}
 
   /* ================= SECTION HEADS ================= */
   .head{text-align:center; max-width:38ch; margin:0 auto 56px;}
@@ -258,14 +284,15 @@
   }
 
   @media (max-width:860px){
-    .checks,.steps,.install-grid,.priv-grid{grid-template-columns:repeat(2,1fr);}
+    .steps,.install-grid,.priv-grid{grid-template-columns:repeat(2,1fr);}
     .split{grid-template-columns:1fr; gap:32px;}
     .safe-grid{grid-template-columns:1fr;}
     .band{padding:72px 0;}
   }
   @media (max-width:540px){
-    .checks,.steps,.install-grid,.priv-grid,.safe-grid{grid-template-columns:1fr;}
-    .shot-body{padding:28px 18px;}
+    .steps,.install-grid,.priv-grid,.safe-grid{grid-template-columns:1fr;}
+    .rv{padding:12px 12px 14px;}
+    .rv-grid{gap:6px;}
     .wrap{padding:0 20px;}
   }
 </style>
@@ -297,6 +324,49 @@
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 l4.5 4.5 L19 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 L22 20 H2 Z M12 10 v5 M12 18 h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-linkedin" viewBox="0 0 24 24"><path fill="currentColor" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm6 0h3.8v1.7h.05c.53-1 1.83-2.05 3.76-2.05C20.4 8.65 21 11 21 14.1V21h-4v-6.1c0-1.45-.03-3.3-2-3.3-2 0-2.3 1.57-2.3 3.2V21H9V9Z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z" fill="currentColor"/></symbol>
+
+  <!-- vivid, Apple-stock-style placeholder scenes -->
+  <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2a63"/><stop offset=".5" stop-color="#ff7a4d"/><stop offset="1" stop-color="#ffd479"/></linearGradient>
+  <radialGradient id="gSunGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff4c4"/><stop offset="1" stop-color="#ffce6b" stop-opacity="0"/></radialGradient>
+  <linearGradient id="gSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d98a52"/><stop offset="1" stop-color="#5f2c48"/></linearGradient>
+  <linearGradient id="gWaveSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d5f3f2"/><stop offset="1" stop-color="#79c7c7"/></linearGradient>
+  <linearGradient id="gWaveSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2aa6ac"/><stop offset="1" stop-color="#0c4f60"/></linearGradient>
+
+  <symbol id="sc-sun" viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice">
+    <rect width="120" height="90" fill="url(#gSky)"/>
+    <g opacity=".2" fill="#fff"><ellipse cx="30" cy="20" rx="17" ry="3.5"/><ellipse cx="88" cy="14" rx="12" ry="3"/><ellipse cx="60" cy="26" rx="10" ry="2.5"/></g>
+    <circle cx="60" cy="50" r="27" fill="url(#gSunGlow)"/>
+    <circle cx="60" cy="50" r="10.5" fill="#fff3c0"/>
+    <rect y="54" width="120" height="36" fill="url(#gSea)"/>
+    <rect x="55" y="54" width="10" height="36" fill="#ffdd93" opacity=".5"/>
+    <path d="M0 55 L22 43 L40 55 Z" fill="#2b1636" opacity=".9"/>
+    <path d="M120 55 L96 40 L76 55 Z" fill="#1c0e29" opacity=".92"/>
+  </symbol>
+
+  <linearGradient id="gMtnSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe0ef"/><stop offset="1" stop-color="#edf5f3"/></linearGradient>
+  <linearGradient id="gMtnLake" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a7488"/><stop offset="1" stop-color="#24485c"/></linearGradient>
+  <symbol id="sc-mtn" viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice">
+    <rect width="120" height="90" fill="url(#gMtnSky)"/>
+    <circle cx="96" cy="20" r="9" fill="#fff7e0" opacity=".9"/>
+    <path d="M0 54 L30 26 L54 54 Z" fill="#7d93a0"/>
+    <path d="M32 54 L66 18 L100 54 Z" fill="#556f7d"/>
+    <path d="M58 30 L66 18 L74 32 L69 29 L64 33 Z" fill="#eef4f6"/>
+    <rect y="53" width="120" height="9" fill="#3c5a45"/>
+    <rect y="60" width="120" height="30" fill="url(#gMtnLake)"/>
+    <path d="M32 60 L66 30 L100 60 Z" fill="#6a8593" opacity=".28"/>
+  </symbol>
+
+  <symbol id="sc-wave" viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice">
+    <rect width="120" height="90" fill="url(#gWaveSea)"/>
+    <rect width="120" height="32" fill="url(#gWaveSky)"/>
+    <path d="M0 30 Q30 24 60 30 T120 30 V40 H0 Z" fill="#8fd3d3" opacity=".55"/>
+    <path d="M0 43 Q22 37 44 43 T88 43 T132 43 V56 H0 Z" fill="#2ea6b0" opacity=".7"/>
+    <ellipse cx="82" cy="64" rx="20" ry="4.5" fill="#fff" opacity=".45"/>
+    <path d="M0 60 Q30 54 60 60 T120 60" stroke="#eafcff" stroke-width="2.4" fill="none" opacity=".8"/>
+    <path d="M0 75 Q30 69 60 75 T120 75" stroke="#eafcff" stroke-width="3" fill="none" opacity=".85"/>
+  </symbol>
 </defs></svg>
 
 <div class="site">
@@ -318,41 +388,68 @@
         <b>Free</b><span class="sep">·</span>
         <b>Apple Silicon</b><span class="sep">·</span>
         <b>macOS 13 Ventura or later</b><span class="sep">·</span>
-        <span>Version 0.1.23 · ~43&nbsp;MB</span>
+        <span>~43&nbsp;MB</span>
       </p>
 
       <!-- faithful re-creation of the app's home window -->
-      <div class="shot" role="img" aria-label="The Library Cleanup app window">
+      <div class="shot" role="img" aria-label="Reviewing near-duplicate photos and videos in Library Cleanup">
         <div class="shot-bar">
           <span class="light r"></span><span class="light y"></span><span class="light g"></span>
-          <span class="shot-title"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</span>
         </div>
-        <div class="shot-body">
-          <svg class="app-icon" viewBox="0 0 1024 1024"><use href="#appicon"/></svg>
-          <h3>Ready when you are</h3>
-          <p class="sub">Scan your library and see what's worth a second look.</p>
-          <div class="checks-lbl">On the hunt for</div>
-          <div class="checks">
-            <div class="check">
-              <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-stack"/></svg></span>
-              <span class="ct">Burst clones</span>
-              <span class="cd">Fifty shots of one sunset. The sharpest survives.</span>
+        <div class="rv-topbar">
+          <span class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</span>
+          <span class="status"><span class="dot"></span>Library connected · 13,759 photos · 212 videos</span>
+        </div>
+        <div class="rv-actions">
+          <span>10 items in 2 categories</span>
+          <span class="prog"><i></i></span>
+          <span><span class="keep">Keeping 4</span> · <span class="rem">Removing 6</span></span>
+          <span class="sizer"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg></span>
+          <span class="bulk"><span class="mini">Keep all</span><span class="mini">Remove all</span></span>
+        </div>
+
+        <div class="rv-body">
+          <div class="rv-sec">
+            <h4>Duplicate photoshoots</h4>
+            <div class="rv-sum">2 bursts · keeping 2 · removing 4</div>
+            <div class="rv-group">
+              <div class="ghead"><span class="gt">Jul 14, 2024</span><span class="gm">· 3 shots · keep 1 · remove 2</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
+              <div class="gbody">
+                <div class="rvc rem" style="width:109px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(-3%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc keep" style="width:109px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-sun"/></svg><svg class="fav"><use href="#i-heart"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                <div class="rvc rem" style="width:62px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateY(-3%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+              </div>
             </div>
-            <div class="check">
-              <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-video"/></svg></span>
-              <span class="ct">Repeat takes</span>
-              <span class="cd">Ten tries at the same clip. The steady one wins.</span>
-            </div>
-            <div class="check">
-              <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-shot"/></svg></span>
-              <span class="ct">Screenshot pile</span>
-              <span class="cd">Snapped once, never opened again. Buh-bye.</span>
+            <div class="rv-group">
+              <div class="ghead"><span class="gt">Aug 30, 2024</span><span class="gm">· 3 shots · keep 1 · remove 2</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
+              <div class="gbody">
+                <div class="rvc keep" style="width:109px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                <div class="rvc rem" style="width:62px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:109px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(3%)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+              </div>
             </div>
           </div>
-          <span class="shot-cta">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4a7 7 0 1 0 4.5 12.4l4 4"/></svg>
-            Analyze library
-          </span>
+
+          <div class="rv-sec">
+            <h4>Duplicate videos</h4>
+            <div class="rv-sum">2 sets · keeping 2 · removing 2</div>
+            <div class="rv-group">
+              <div class="ghead"><span class="gt">Sep 1, 2024</span><span class="gm">· 2 clips · keep 1 · remove 1</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
+              <div class="gbody">
+                <div class="rvc keep" style="width:146px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:14</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                <div class="rvc rem" style="width:146px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(2%)"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:15</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+              </div>
+            </div>
+            <div class="rv-group">
+              <div class="ghead"><span class="gt">May 5, 2024</span><span class="gm">· 2 clips · keep 1 · remove 1</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▸</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rv-foot">
+          <span class="mini">‹ Back</span>
+          <span class="tally"><span class="keep">Keeping 4</span> · <span class="rem">Removing 6</span> · Frees 342 MB</span>
+          <span class="fin">Review &amp; Finalize</span>
         </div>
       </div>
     </div>
@@ -407,7 +504,7 @@
         <div class="priv-card">
           <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-cloud-off"/></svg></span>
           <h3>No cloud, no account</h3>
-          <p>The app talks only to itself, on <code>127.0.0.1</code> — your own computer. No sign-up, no servers, no uploads, no analytics on your images.</p>
+          <p>Everything happens on your own Mac. No sign-up, no servers, no uploads, and no analytics on your images.</p>
         </div>
         <div class="priv-card">
           <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-lock"/></svg></span>
@@ -530,7 +627,7 @@
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 v12 M7 11 l5 5 5 -5 M5 20 h14"/></svg>
         Download for macOS
       </a>
-      <p class="req"><b>Free</b><span class="sep">·</span><b>Apple Silicon</b><span class="sep">·</span><b>macOS 13 Ventura or later</b><span class="sep">·</span><span>v0.1.23 · ~43&nbsp;MB</span></p>
+      <p class="req"><b>Free</b><span class="sep">·</span><b>Apple Silicon</b><span class="sep">·</span><b>macOS 13 Ventura or later</b><span class="sep">·</span><span>~43&nbsp;MB</span></p>
     </div>
   </section>
 
@@ -542,6 +639,7 @@
         <a href="#how">How it works</a>
         <a href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">Download</a>
         <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">Contact</a>
+        <a href="/privacy/">Privacy</a>
       </nav>
       <p class="fine">Runs entirely on your Mac — nothing is ever uploaded. Not affiliated with Apple. Apple, macOS, and Photos are trademarks of Apple Inc.</p>
     </div>

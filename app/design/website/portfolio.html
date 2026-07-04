@@ -41,9 +41,12 @@
 
   .btn{display:inline-flex; align-items:center; gap:10px; font-weight:600; font-size:15.5px; border-radius:11px; padding:12px 22px; border:1px solid transparent; cursor:pointer; text-decoration:none; transition:transform .12s var(--ease),background .15s ease,border-color .15s ease;}
   .btn:active{transform:scale(.98);}
-  .btn-linkedin{background:#0a66c2; color:#fff;}
-  .btn-linkedin:hover{background:#004182;}
+  .btn-linkedin{
+    background:#0a66c2; color:#fff; border-radius:999px; padding:13px 26px 13px 22px;
+    box-shadow:0 8px 22px rgba(10,102,194,.28);
+  }
   .btn-linkedin svg{fill:#fff;}
+  .btn-linkedin:hover{background:#004182; filter:none;}
 
   /* ---- projects ---- */
   .projects-sec{padding:44px 0 88px; flex:1;}
@@ -172,6 +175,7 @@
       <span class="mark"><span class="badge">VT</span> Václav Trnka</span>
       <span class="r">
         <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <a href="/privacy/">Privacy</a>
         <span>© 2026 · vaclavtrnka.cz</span>
       </span>
     </div>

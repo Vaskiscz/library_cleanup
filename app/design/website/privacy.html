@@ -1,0 +1,89 @@
+<style>
+  :root{
+    --bg:#0f1114; --surface:#161920; --line:#262b33; --line-2:#343a44;
+    --text:#eef0f3; --text-2:#a3a9b3; --text-3:#6c737e;
+    --accent:#e6a93a;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,"Segoe UI",Helvetica,sans-serif;
+  }
+  .site{font-family:var(--font); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; font-size:17px; min-height:100vh; display:flex; flex-direction:column;}
+  .site *{box-sizing:border-box;}
+  .site a{color:var(--accent); text-decoration:none;}
+  .site a:hover{text-decoration:underline;}
+  .wrap{max-width:680px; margin:0 auto; padding:0 28px; width:100%;}
+  .site h1{margin:0; font-size:clamp(30px,5vw,44px); font-weight:700; letter-spacing:-.03em;}
+  .site h2{margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em;}
+
+  .nav{border-bottom:1px solid var(--line);}
+  .nav .wrap{display:flex; align-items:center; height:64px;}
+  .nav .mark{display:flex; align-items:center; gap:11px; font-weight:600; font-size:15.5px; color:var(--text);}
+  .nav .badge{width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,#e6a93a,#f2c469); color:#2a1d05; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;}
+
+  main{flex:1; padding:64px 0 40px;}
+  .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
+  .updated{color:var(--text-3); font-size:14px; margin:14px 0 0;}
+  .block{margin-top:40px;}
+  .block h2{margin-bottom:10px;}
+  .block p{color:var(--text-2); margin:0 0 14px;}
+  .block ul{color:var(--text-2); margin:0 0 14px; padding-left:20px;}
+  .block li{margin:6px 0;}
+  .callout{border:1px solid var(--line-2); background:var(--surface); border-radius:14px; padding:20px 22px; margin-top:16px;}
+  .callout p{margin:0; color:var(--text-2);}
+  .callout strong{color:var(--text);}
+
+  .foot{border-top:1px solid var(--line); padding:28px 0; font-size:13.5px; color:var(--text-3);}
+  .foot .wrap{display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+  .foot a{color:var(--text-2);}
+  @media(max-width:520px){.wrap{padding:0 22px;} main{padding:44px 0;}}
+</style>
+
+<div class="site">
+  <nav class="nav">
+    <div class="wrap"><a class="mark" href="/"><span class="badge">VT</span> Václav Trnka</a></div>
+  </nav>
+
+  <main>
+    <div class="wrap">
+      <p class="eyebrow">Privacy</p>
+      <h1>Privacy notice</h1>
+      <p class="updated">Last updated 4 July 2026</p>
+
+      <div class="block">
+        <p>This notice explains how the website <strong style="color:var(--text)">vaclavtrnka.cz</strong> — including the Library Cleanup page — handles your data when you visit it.</p>
+      </div>
+
+      <div class="block">
+        <h2>Analytics</h2>
+        <p>This website uses <a href="https://clarity.microsoft.com/" target="_blank" rel="noopener noreferrer">Microsoft Clarity</a> to understand how visitors use the pages, so the site can be improved. Clarity collects anonymised usage data and may set cookies, including:</p>
+        <ul>
+          <li>pages visited, clicks, scrolling, and mouse movement (session replay and heatmaps);</li>
+          <li>standard technical details such as browser, device type, operating system, and an approximate location derived from your IP address.</li>
+        </ul>
+        <p>This data is processed by Microsoft as described in the <a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noopener noreferrer">Microsoft Privacy Statement</a>. It is used only to improve this website. It is never sold, and no advertising profiles are built from it.</p>
+      </div>
+
+      <div class="block">
+        <h2>The Library Cleanup app is separate</h2>
+        <div class="callout">
+          <p>The analytics above apply only to <strong>browsing this website</strong>. The Library Cleanup <strong>app itself</strong> contains no tracking of any kind: it runs entirely on your Mac, processes your photos on-device, and never uploads your library or any usage data. Downloading and using the app is not tracked by Clarity.</p>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2>Your choices</h2>
+        <p>You can opt out of this analytics by blocking cookies or third-party scripts in your browser settings, using a tracking blocker, or enabling your browser's “Do Not Track” / privacy features. The website works the same either way.</p>
+      </div>
+
+      <div class="block">
+        <h2>Contact</h2>
+        <p>Questions about privacy on this site? Reach me on <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">LinkedIn</a>.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <a href="/">← Back to vaclavtrnka.cz</a>
+      <span>© 2026 · vaclavtrnka.cz</span>
+    </div>
+  </footer>
+</div>
