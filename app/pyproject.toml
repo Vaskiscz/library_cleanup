@@ -3,7 +3,7 @@
 [tool.briefcase]
 project_name = "Library Cleanup"
 bundle = "cz.vaskiscz"
-version = "0.1.21"
+version = "0.1.22"
 license.file = "LICENSE"
 
 [tool.briefcase.app.photocleanup]
@@ -16,8 +16,11 @@ sources = ["src/photocleanup"]
 requires = [
     # osxphotos pins bitmath<2.0.0, which is sdist-only on PyPI; briefcase
     # installs wheels-only, so we vendor a locally-built wheel for it.
-    "bitmath @ file:///Users/vaclavtrnka/Projects/apple_photo_cleanup/app/wheels/bitmath-1.4.0.1-py3-none-any.whl",
-    "photo-cleanup @ file:///Users/vaclavtrnka/Projects/apple_photo_cleanup",
+    # (Relative paths resolve against this pyproject's directory, so the repo
+    # builds from any clone location.)
+    "./wheels/bitmath-1.4.0.1-py3-none-any.whl",
+    # the backend package = the repo root
+    "..",
     # local API service (binds to localhost only — nothing leaves the device)
     "fastapi>=0.137",
     "uvicorn>=0.49",

@@ -98,3 +98,8 @@ The read path (`scan`, `rescue-plan`, `fav-baseline`) works anywhere with Full D
 | `analyze.py` | orchestrates findings |
 | `report.py` | self-contained local HTML report |
 | `cli.py` | `photo-cleanup` command |
+
+## License
+
+[MIT](LICENSE) — free to use, modify, and redistribute; keep the copyright
+notice crediting the original author (Václav Trnka).
