@@ -35,6 +35,10 @@ class Config:
     # (and good — see the quality gate) to be added; the cap is only reached when
     # that many truly qualify, never padded.
     keeper_diversity_min: float = 0.30
+    # The floor adapts DOWN in tight bursts (scaled to the burst's own embedding
+    # spread) so they can still keep 2+ genuinely-different-for-that-burst frames;
+    # this is the hard minimum it never drops below (~true-duplicate territory).
+    keeper_diversity_abs_min: float = 0.15
 
     # --- work-screenshot classifier (CONTENT-BASED) ---
     # Decision reads the OCR text: work lexicon vs private lexicon (see lexicon.py).

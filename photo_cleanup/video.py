@@ -1,12 +1,13 @@
 """Video cleanup — two gaps Apple Photos ignores entirely:
 
   1. Near-duplicate takes — several videos of the same thing shot close together.
-     We embed each video's poster frame (Apple Vision feature print, reusing the
-     photo pipeline) and group same-scene takes within a time/GPS cluster; the
-     largest file (proxy for the longest / most complete take) is the keeper.
+     We sample start/middle/end frames of each video (AVFoundation grab → Apple
+     Vision feature print; poster-frame fallback when sampling isn't possible)
+     and group same-scene takes within a time/GPS cluster; the keeper is the
+     most-original, best size-to-quality take.
   2. Oversized videos — large files worth a deliberate "do I really keep this?".
 
-On-device; the poster-frame derivative is already on disk for every video.
+On-device; sampled frames live only in memory (vectors are cached, frames not).
 """
 
 from __future__ import annotations
@@ -17,6 +18,9 @@ from dataclasses import dataclass
 from .cluster import DuplicateGroup, time_gps_clusters
 from .model import Config, Record
 from .quality import _best_image_path
+
+# Where in the video to sample comparison frames (fractions of the duration).
+FRAME_FRACS = (0.15, 0.5, 0.85)
 
 
 def video_size(rec: Record) -> int:
@@ -59,17 +63,51 @@ def quality_per_byte(rec: Record) -> float:
     return pixels / size
 
 
-def duplicate_takes(records: list[Record], cache, cfg: Config, progress=None) -> list[DuplicateGroup]:
-    """Group same-scene video takes within a time/GPS cluster (by poster-frame
-    embedding); keeper = best size-to-quality ratio, the rest are extra takes.
-    `progress(done, total)` is called per processed cluster (in videos)."""
+def _frame_keys(uuid: str) -> list[str]:
+    return [f"{uuid}#f{i}" for i in range(len(FRAME_FRACS))]
+
+
+def take_vectors(rec: Record, cache) -> list:
+    """Comparison vectors for a video: sampled start/mid/end frames (cached by
+    key "uuid#fN", computed on first use), else the poster-frame embedding."""
+    from .embedding import sample_video_frame_vectors
+    keys = _frame_keys(rec.uuid)
+    if all(k in cache for k in keys):
+        return [cache.get(k) for k in keys]
+    if rec.path and os.path.exists(rec.path):
+        vecs = sample_video_frame_vectors(rec.path, FRAME_FRACS)
+        if len(vecs) == len(FRAME_FRACS):
+            for k, v in zip(keys, vecs):
+                cache.put(k, v)
+            return vecs
+    pv = cache.get(rec.uuid)                      # poster-frame fallback
+    return [pv] if pv is not None else []
+
+
+def _take_distance(va: list, vb: list) -> float:
+    """Distance between two takes. With full frame sets, compare positionally
+    (start↔start, mid↔mid, end↔end) and take the median — same-scene takes
+    track each other through the video, while a coincidentally similar opening
+    frame alone can't fake a match. Mixed/poster sets fall back to the closest
+    cross pair (the old poster behaviour)."""
     from .embedding import distance
+    if len(va) == len(vb) and len(va) > 1:
+        ds = sorted(distance(a, b) for a, b in zip(va, vb))
+        return ds[len(ds) // 2]
+    return min(distance(a, b) for a in va for b in vb)
+
+
+def duplicate_takes(records: list[Record], cache, cfg: Config, progress=None) -> list[DuplicateGroup]:
+    """Group same-scene video takes within a time/GPS cluster (by sampled-frame
+    embeddings); keeper = best size-to-quality ratio, the rest are extra takes.
+    `progress(done, total)` is called per processed cluster (in videos)."""
     out: list[DuplicateGroup] = []
     multi = [c for c in time_gps_clusters(records, cfg) if len(c) >= 2]
     grp_total = sum(len(c) for c in multi) or 1
     grp_done = 0
     for cluster in multi:
-        items = [r for r in cluster if cache.get(r.uuid) is not None]
+        vecs = {r.uuid: take_vectors(r, cache) for r in cluster}
+        items = [r for r in cluster if vecs[r.uuid]]
         n = len(items)
         parent = list(range(n))
 
@@ -80,9 +118,9 @@ def duplicate_takes(records: list[Record], cache, cfg: Config, progress=None) ->
             return i
 
         for i in range(n):
-            vi = cache.get(items[i].uuid)
+            vi = vecs[items[i].uuid]
             for j in range(i + 1, n):
-                if distance(vi, cache.get(items[j].uuid)) <= cfg.video_dup_distance:
+                if _take_distance(vi, vecs[items[j].uuid]) <= cfg.video_dup_distance:
                     parent[find(i)] = find(j)
 
         groups: dict[int, list[Record]] = {}

@@ -42,6 +42,51 @@ def distance(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.linalg.norm(a - b))
 
 
+def _vector_for_cgimage(img) -> Optional[np.ndarray]:
+    import Vision
+    handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(img, None)
+    req = Vision.VNGenerateImageFeaturePrintRequest.alloc().init()
+    handler.performRequests_error_([req], None)
+    res = req.results()
+    if not res:
+        return None
+    return np.frombuffer(bytes(res[0].data()), dtype=np.float32).copy()
+
+
+def sample_video_frame_vectors(path: str, fractions=(0.15, 0.5, 0.85)) -> list:
+    """Feature-print several frames of a video (AVFoundation frame grab →
+    Vision, all on-device, nothing written to disk). Returns [] unless every
+    requested frame could be sampled — callers fall back to the poster frame."""
+    try:
+        import AVFoundation
+        from CoreMedia import CMTimeGetSeconds, CMTimeMakeWithSeconds
+        from Foundation import NSURL
+    except Exception as e:                       # bindings unavailable → poster fallback
+        log.debug("AVFoundation unavailable (%s) — poster-frame fallback", e)
+        return []
+    try:
+        asset = AVFoundation.AVURLAsset.URLAssetWithURL_options_(
+            NSURL.fileURLWithPath_(path), None)
+        gen = AVFoundation.AVAssetImageGenerator.assetImageGeneratorWithAsset_(asset)
+        gen.setAppliesPreferredTrackTransform_(True)
+        dur = CMTimeGetSeconds(asset.duration())
+        if not dur or dur <= 0:
+            return []
+        vecs = []
+        for f in fractions:
+            t = CMTimeMakeWithSeconds(dur * f, 600)
+            img, _actual, err = gen.copyCGImageAtTime_actualTime_error_(t, None, None)
+            v = _vector_for_cgimage(img) if img is not None else None
+            if v is None:
+                log.warning("frame sample failed for %s @%.0f%%: %s", path, f * 100, err)
+                return []
+            vecs.append(v)
+        return vecs
+    except Exception as e:
+        log.warning("frame sampling failed for %s: %s", path, e)
+        return []
+
+
 def embed_records(records, cache, progress=None) -> int:
     """Compute & cache feature prints for records missing or stale (source image
     edited since cached). Reads image files only. Returns count computed."""
@@ -107,6 +152,12 @@ class EmbeddingCache:
             return self._mt[uuid] == os.path.getmtime(image_path)
         except OSError:
             return True   # can't stat (e.g. not on disk) — don't force a recompute
+
+    def put(self, key: str, vec: np.ndarray) -> None:
+        """Store a vector under an arbitrary key (e.g. video frame samples,
+        keyed "uuid#f0"). No mtime tracking — callers own freshness."""
+        self._vecs[key] = vec
+        self._dirty = True
 
     def compute(self, uuid: str, image_path: str) -> Optional[np.ndarray]:
         if image_path and self.is_fresh(uuid, image_path):

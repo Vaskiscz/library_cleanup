@@ -104,6 +104,20 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         qfloor = scores[int(len(scores) * 0.3)]
         eligible = [r for r in ranked if sc[r.uuid] >= qfloor] or ranked
 
+        # Adaptive diversity floor: a fixed floor under-keeps in a *tight* burst,
+        # where even the most different frames sit below it — scale the floor to
+        # the burst's own embedding spread (fraction of the median pairwise
+        # distance), bounded so it never admits true duplicates and never
+        # exceeds the configured floor for a spread-out session.
+        div_min = cfg.keeper_diversity_min
+        vecs = [v for v in (embeddings.get(r.uuid) for r in eligible) if v is not None]
+        if len(vecs) >= 3:
+            ds = sorted(distance(vecs[i], vecs[j])
+                        for i in range(len(vecs)) for j in range(i + 1, len(vecs)))
+            median = ds[len(ds) // 2]
+            div_min = max(cfg.keeper_diversity_abs_min,
+                          min(cfg.keeper_diversity_min, 0.6 * median))
+
         # Farthest-point selection: seed with the best quality frame, then keep
         # adding the frame MOST different from those already chosen — but only
         # while it clears the diversity floor. Spreads keepers across the range
@@ -119,7 +133,7 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
                            if embeddings.get(k.uuid) is not None)
                 if dmin > best_d:
                     best_d, best_c = dmin, c
-            if best_c is None or best_d < cfg.keeper_diversity_min:
+            if best_c is None or best_d < div_min:
                 break
             keepers.append(best_c)
 

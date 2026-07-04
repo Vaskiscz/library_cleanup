@@ -21,12 +21,19 @@ def mk(uuid="x", **kw):
 
 
 class FakeEmbeddings:
-    """Stands in for EmbeddingCache: maps uuid -> vector via .get()."""
+    """Stands in for EmbeddingCache: maps uuid -> vector (keys may also be
+    video frame samples like "uuid#f0")."""
     def __init__(self, vecs):
         self._v = {u: np.asarray(v, dtype="float64") for u, v in vecs.items()}
 
     def get(self, uuid):
         return self._v.get(uuid)
+
+    def put(self, key, vec):
+        self._v[key] = np.asarray(vec, dtype="float64")
+
+    def __contains__(self, key):
+        return key in self._v
 
 
 @pytest.fixture

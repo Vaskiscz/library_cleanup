@@ -51,3 +51,33 @@ def test_favorite_never_discarded():
     dg = select_keepers(photos, CFG, embeddings=emb)
     assert any(r.uuid == "c" for r in dg.keepers)
     assert all(r.uuid != "c" for r in dg.discards)
+
+
+def test_adaptive_floor_keeps_more_in_tight_burst(emb):
+    """A tight burst (all pairwise ~0.2, under the fixed 0.30 floor) should
+    still keep its 2 most-different-for-that-burst frames."""
+    import numpy as np
+    from photo_cleanup.cluster import select_keepers
+    from photo_cleanup.model import Config
+    cfg = Config()
+    group = [mk(f"t{i}", timestamp=float(i)) for i in range(6)]
+    # vectors on a small arc: pairwise distances ~0.1-0.28 (all < 0.30)
+    vecs = {}
+    for i, r in enumerate(group):
+        theta = 0.28 * i / 5
+        vecs[r.uuid] = np.array([np.cos(theta), np.sin(theta), 0.0])
+    dg = select_keepers(group, cfg, embeddings=emb(vecs))
+    assert len(dg.keepers) >= 2      # fixed floor would have kept just 1
+
+
+def test_adaptive_floor_still_single_keeper_for_true_dupes(emb):
+    """Near-identical frames (pairwise ~0.02) must still collapse to ONE keeper
+    — the adaptive floor never drops below keeper_diversity_abs_min."""
+    import numpy as np
+    from photo_cleanup.cluster import select_keepers
+    from photo_cleanup.model import Config
+    cfg = Config()
+    group = [mk(f"d{i}", timestamp=float(i)) for i in range(5)]
+    vecs = {r.uuid: np.array([1.0, 0.004 * i, 0.0]) for i, r in enumerate(group)}
+    dg = select_keepers(group, cfg, embeddings=emb(vecs))
+    assert len(dg.keepers) == 1
