@@ -117,7 +117,7 @@
 
   /* ---- app window mock ---- */
   .shot{
-    margin:64px auto 0; max-width:760px; border-radius:18px; overflow:hidden;
+    margin:64px auto 0; max-width:960px; border-radius:18px; overflow:hidden;
     background:var(--surface); border:1px solid var(--border);
     box-shadow:var(--shadow-pop);
     animation:rise .8s var(--ease) .25s both;
@@ -205,6 +205,94 @@
     content:""; position:absolute; top:6px; left:0; width:32px; height:2px;
     background:var(--grad); border-radius:2px;
   }
+
+  /* ================= WALKTHROUGH ("see it in action") ================= */
+  .walk-band{background:var(--surface); border-top:1px solid var(--separator); border-bottom:1px solid var(--separator);}
+  .walk-row{display:grid; grid-template-columns:1.08fr .92fr; gap:56px; align-items:center; max-width:var(--maxw); margin:0 auto;}
+  .walk-row + .walk-row{margin-top:80px;}
+  .walk-row.rev .walk-shot{order:2;}
+  .walk-copy .n{font-size:13px; font-weight:700; color:var(--brand); letter-spacing:.05em;
+    font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:11px; text-transform:uppercase;}
+  .walk-copy .n::before{content:""; width:26px; height:2px; background:var(--grad); border-radius:2px;}
+  .walk-copy h3{font-size:clamp(23px,2.7vw,31px); font-weight:700; line-height:1.12; margin:16px 0 13px;}
+  .walk-copy p{font-size:16.5px; color:var(--text-2); line-height:1.58; margin:0;}
+  .walk-copy .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px;}
+  .walk-copy .chip{font-size:12.5px; font-weight:600; color:var(--text-2); background:var(--surface-2);
+    border:1px solid var(--separator); border-radius:999px; padding:6px 13px; display:inline-flex; align-items:center; gap:7px;}
+  .walk-copy .chip svg{width:13px; height:13px;}
+  .walk-copy .chip.k{color:var(--keep);} .walk-copy .chip.k svg{color:var(--keep);}
+  .walk-copy .chip.c{color:var(--clear);} .walk-copy .chip.c svg{color:var(--clear);}
+  .win{border-radius:16px; overflow:hidden; background:var(--surface); border:1px solid var(--border);
+    box-shadow:var(--shadow-pop); width:100%;}
+
+  /* home / analyze compact */
+  .hm-body{padding:30px 26px 28px; text-align:center; display:flex; flex-direction:column; align-items:center;}
+  .hm-icon{width:58px; height:58px; filter:drop-shadow(0 8px 18px rgba(20,60,52,.22)); margin-bottom:14px;}
+  .hm-h{font-size:19px; font-weight:600; letter-spacing:-.02em; margin:0 0 8px;}
+  .hm-p{font-size:13px; color:var(--text-2); line-height:1.5; margin:0 0 20px; max-width:36ch;}
+  .hm-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; width:100%; margin-bottom:22px;}
+  .hm-tile{border:1px solid var(--separator); border-radius:12px; padding:13px 12px; text-align:left;
+    display:flex; flex-direction:column; gap:7px; background:var(--surface); box-shadow:var(--shadow-1);}
+  .hm-tile .ic{width:30px; height:30px; border-radius:9px; background:rgba(31,158,134,.09);
+    color:var(--brand); display:flex; align-items:center; justify-content:center;}
+  .hm-tile .ic svg{width:16px; height:16px;}
+  .hm-tile b{font-size:12.5px; font-weight:600;}
+  .hm-tile .d{font-size:11px; color:var(--text-2); line-height:1.42;}
+  .hm-btn{background:var(--grad); color:#fff; font-weight:600; font-size:14px; padding:11px 26px;
+    border-radius:11px; box-shadow:0 4px 14px rgba(31,158,134,.34);}
+  .hm-note{display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text-3); margin-top:14px;}
+  .hm-note svg{width:13px; height:13px;}
+
+  /* scan-results compact */
+  .sr-body{padding:24px 22px 6px;}
+  .sr-reclaim{text-align:center; font-size:21px; font-weight:600; letter-spacing:-.02em; margin-bottom:4px;}
+  .sr-reclaim b{color:var(--brand);}
+  .sr-sub{text-align:center; font-size:12.5px; color:var(--text-2); margin-bottom:18px;}
+  .sr-filter{border:1px solid var(--separator); border-radius:12px; padding:13px 15px; margin-bottom:14px;}
+  .sr-fh{display:flex; align-items:center; justify-content:space-between; font-size:12.5px; font-weight:600; margin-bottom:11px;}
+  .sr-fh .lbl{display:flex; align-items:center; gap:7px;}
+  .sr-fh .lbl svg{width:13px; height:13px; color:var(--text-3);}
+  .sr-fh .rng{color:var(--text-3); font-weight:600; font-size:11px; font-variant-numeric:tabular-nums;}
+  .sr-hist{display:flex; align-items:flex-end; gap:2px; height:32px; margin-bottom:8px;}
+  .sr-hist i{flex:1; background:var(--brand); border-radius:2px 2px 0 0;}
+  .sr-track{position:relative; height:16px;}
+  .sr-track .rail{position:absolute; top:50%; left:0; right:0; height:4px; transform:translateY(-50%); border-radius:999px; background:var(--sunken);}
+  .sr-track .fill{position:absolute; top:50%; left:0; right:0; height:4px; transform:translateY(-50%); border-radius:999px; background:var(--brand);}
+  .sr-track .kn{position:absolute; top:50%; width:15px; height:15px; border-radius:999px; background:#fff;
+    border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,.2); transform:translate(-50%,-50%);}
+  .sr-cats{display:flex; flex-direction:column; gap:9px;}
+  .sr-cat{display:flex; align-items:center; gap:13px; padding:12px 14px; border-radius:12px; border:1.5px solid var(--separator);}
+  .sr-cat.on{border-color:var(--brand); background:rgba(31,158,134,.07);}
+  .sr-cat .ck{flex:none; width:21px; height:21px; border-radius:999px; border:2px solid var(--border);
+    display:flex; align-items:center; justify-content:center;}
+  .sr-cat.on .ck{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .sr-cat .ck svg{width:12px; height:12px;}
+  .sr-cat .txt{flex:1;}
+  .sr-cat .txt b{font-size:13.5px; font-weight:600; display:block;}
+  .sr-cat .txt .d{font-size:11.5px; color:var(--text-2);}
+  .sr-cat .amt{text-align:right; flex:none;}
+  .sr-cat .amt b{font-size:13.5px; font-weight:600; display:block;}
+  .sr-cat .amt .s{font-size:11px; color:var(--keep); font-weight:600;}
+  .sr-cat.off{opacity:.55;}
+  .sr-cat.off .amt .pill{font-size:10.5px; color:var(--text-3); border:1px solid var(--border); border-radius:999px; padding:2px 9px; font-weight:500;}
+  .sr-foot{display:flex; align-items:center; gap:12px; padding:11px 18px; border-top:1px solid var(--separator); background:var(--surface-2);}
+  .sr-foot .m{flex:1; font-size:12px; color:var(--text-3);}
+  .sr-foot .m b{color:var(--text);}
+  .sr-foot .go{background:var(--grad); color:#fff; font-weight:600; font-size:12.5px; padding:8px 15px; border-radius:9px;}
+
+  /* review recap: main + preview rail */
+  .rv-split{display:flex; align-items:stretch;}
+  .rv-split .rv-main{flex:1; min-width:0;}
+  .rv-prev{flex:none; width:158px; border-left:1px solid var(--separator); background:var(--surface-2); padding:13px;}
+  .rv-prev .pt{font-size:12.5px; font-weight:600; margin-bottom:9px;}
+  .rv-prev .pimg{position:relative; width:100%; aspect-ratio:4/3; border-radius:8px; overflow:hidden;
+    background:var(--sunken); margin-bottom:9px; box-shadow:var(--shadow-1);}
+  .rv-prev .pimg .scene{position:absolute; inset:0; width:100%; height:100%;}
+  .rv-prev .pimg .fav{position:absolute; top:7px; left:7px; width:14px; height:14px; color:#fff; filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
+  .rv-prev .pn{font-size:12.5px; font-weight:600;}
+  .rv-prev .pm{font-size:10.5px; color:var(--text-2); margin:3px 0 11px; font-variant-numeric:tabular-nums;}
+  .rv-prev .prm{display:block; text-align:center; background:var(--clear); color:#fff; font-size:11.5px;
+    font-weight:600; padding:9px; border-radius:9px; box-shadow:0 2px 8px rgba(198,40,40,.24);}
 
   /* ---- privacy (dark) ---- */
   .privacy .head h2{font-size:clamp(30px,4.4vw,48px);}
@@ -316,12 +404,16 @@
     .split{grid-template-columns:1fr; gap:32px;}
     .safe-grid{grid-template-columns:1fr;}
     .band{padding:72px 0;}
+    .walk-row{grid-template-columns:1fr; gap:28px;}
+    .walk-row + .walk-row{margin-top:56px;}
+    .walk-row.rev .walk-shot{order:0;}
   }
   @media (max-width:540px){
     .steps,.install-grid,.priv-grid,.safe-grid{grid-template-columns:1fr;}
     .rv{padding:12px 12px 14px;}
     .rv-grid{gap:6px;}
     .wrap{padding:0 20px;}
+    .rv-prev{display:none;}
   }
 </style>
 
@@ -354,6 +446,8 @@
   <symbol id="i-linkedin" viewBox="0 0 24 24"><path fill="currentColor" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm6 0h3.8v1.7h.05c.53-1 1.83-2.05 3.76-2.05C20.4 8.65 21 11 21 14.1V21h-4v-6.1c0-1.45-.03-3.3-2-3.3-2 0-2.3 1.57-2.3 3.2V21H9V9Z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z" fill="currentColor"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21 C12 21 3.5 14.5 3.5 8.8 A4.7 4.7 0 0 1 12 6 A4.7 4.7 0 0 1 20.5 8.8 C20.5 14.5 12 21 12 21 Z" fill="currentColor"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7 V12 L15.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 
   <!-- vivid, Apple-stock-style placeholder scenes -->
   <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2a63"/><stop offset=".5" stop-color="#ff7a4d"/><stop offset="1" stop-color="#ffd479"/></linearGradient>
@@ -429,9 +523,9 @@
           <span class="status"><span class="dot"></span>Library connected · 13,759 photos · 212 videos</span>
         </div>
         <div class="rv-actions">
-          <span>10 items in 2 categories</span>
+          <span>20 items in 2 categories</span>
           <span class="prog"><i></i></span>
-          <span><span class="keep">Keeping 4</span> · <span class="rem">Removing 6</span></span>
+          <span><span class="keep">Keeping 4</span> · <span class="rem">Removing 16</span></span>
           <span class="sizer"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg></span>
           <span class="bulk"><span class="mini">Keep all</span><span class="mini">Remove all</span></span>
         </div>
@@ -439,44 +533,58 @@
         <div class="rv-body">
           <div class="rv-sec">
             <h4>Duplicate photoshoots</h4>
-            <div class="rv-sum">2 bursts · keeping 2 · removing 4</div>
+            <div class="rv-sum">2 bursts · keeping 2 · removing 11</div>
             <div class="rv-group">
-              <div class="ghead"><span class="gt">Jul 14, 2024</span><span class="gm">· 3 shots · keep 1 · remove 2</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
+              <div class="ghead"><span class="gt">Jul 14, 2024</span><span class="gm">· 7 shots · keep 1 · remove 6</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
               <div class="gbody">
-                <div class="rvc rem" style="width:109px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(-3%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
-                <div class="rvc keep" style="width:109px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-sun"/></svg><svg class="fav"><use href="#i-heart"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
-                <div class="rvc rem" style="width:62px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateY(-3%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:116px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(-4%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc keep" style="width:116px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-sun"/></svg><svg class="fav" viewBox="0 0 24 24"><use href="#i-heart"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                <div class="rvc rem" style="width:66px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.14) translateX(3%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:88px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateY(-6%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:116px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(5%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:66px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.12) translateX(-3%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:100px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateY(-4%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
               </div>
             </div>
             <div class="rv-group">
-              <div class="ghead"><span class="gt">Aug 30, 2024</span><span class="gm">· 3 shots · keep 1 · remove 2</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
+              <div class="ghead"><span class="gt">Aug 30, 2024</span><span class="gm">· 6 shots · keep 1 · remove 5</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
               <div class="gbody">
-                <div class="rvc keep" style="width:109px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
-                <div class="rvc rem" style="width:62px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
-                <div class="rvc rem" style="width:109px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(3%)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc keep" style="width:116px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                <div class="rvc rem" style="width:66px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.1)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:116px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(4%)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:88px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateY(-4%)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:66px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.12) translateX(-2%)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:116px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(-4%)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
               </div>
             </div>
           </div>
 
           <div class="rv-sec">
             <h4>Duplicate videos</h4>
-            <div class="rv-sum">2 sets · keeping 2 · removing 2</div>
+            <div class="rv-sum">2 sets · keeping 2 · removing 5</div>
             <div class="rv-group">
-              <div class="ghead"><span class="gt">Sep 1, 2024</span><span class="gm">· 2 clips · keep 1 · remove 1</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
+              <div class="ghead"><span class="gt">Sep 1, 2024</span><span class="gm">· 4 clips · keep 1 · remove 3</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
               <div class="gbody">
-                <div class="rvc keep" style="width:146px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:14</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
-                <div class="rvc rem" style="width:146px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(2%)"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:15</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc keep" style="width:150px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:14</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                <div class="rvc rem" style="width:150px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(2%)"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:15</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:150px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(-3%)"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:13</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:150px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(4%)"><use href="#sc-wave"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:16</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
               </div>
             </div>
             <div class="rv-group">
-              <div class="ghead"><span class="gt">May 5, 2024</span><span class="gm">· 2 clips · keep 1 · remove 1</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▸</span></div>
+              <div class="ghead"><span class="gt">May 5, 2024</span><span class="gm">· 3 clips · keep 1 · remove 2</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
+              <div class="gbody">
+                <div class="rvc keep" style="width:150px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-mtn"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:22</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                <div class="rvc rem" style="width:150px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(-3%)"><use href="#sc-mtn"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:24</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                <div class="rvc rem" style="width:150px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(3%)"><use href="#sc-mtn"/></svg><span class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></span><span class="dur">0:21</span><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="rv-foot">
           <span class="mini">‹ Back</span>
-          <span class="tally"><span class="keep">Keeping 4</span> · <span class="rem">Removing 6</span> · Frees 342 MB</span>
+          <span class="tally"><span class="keep">Keeping 4</span> · <span class="rem">Removing 16</span> · Frees 1.1 GB</span>
           <span class="fin">Review &amp; Finalize</span>
         </div>
       </div>
@@ -510,6 +618,148 @@
           <span class="n">STEP 4</span>
           <h3>Remove, safely</h3>
           <p>Confirmed removals go through macOS itself and land in Recently Deleted — recoverable for 30 days if you change your mind.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SEE IT IN ACTION (walkthrough) ================= -->
+  <section class="band walk-band">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">See it in action</p>
+        <h2>From twenty-five thousand photos to a library you'd want to scroll.</h2>
+        <p>Three screens, start to finish — a scan, a plan, and a review where the keepers are already picked.</p>
+      </div>
+
+      <!-- row 1 · Analyze -->
+      <div class="walk-row">
+        <div class="walk-shot">
+          <div class="win" role="img" aria-label="Library Cleanup home screen, ready to analyze your library">
+            <div class="shot-bar"><span class="light r"></span><span class="light y"></span><span class="light g"></span><span class="shot-title" style="margin-right:0"><svg viewBox="0 0 1024 1024" style="width:15px;height:15px"><use href="#appicon"/></svg> Library Cleanup</span></div>
+            <div class="hm-body">
+              <svg class="hm-icon" viewBox="0 0 1024 1024"><use href="#appicon"/></svg>
+              <h3 class="hm-h">Your library, minus the junk drawer</h3>
+              <p class="hm-p">One scan finds the keepers, flags the rest, and hands back the gigabytes.</p>
+              <div class="hm-tiles">
+                <div class="hm-tile"><span class="ic"><svg viewBox="0 0 24 24"><use href="#i-stack"/></svg></span><b>Burst clones</b><span class="d">Fifty shots of one sunset.</span></div>
+                <div class="hm-tile"><span class="ic"><svg viewBox="0 0 24 24"><use href="#i-video"/></svg></span><b>Repeat takes</b><span class="d">Ten tries at the same clip.</span></div>
+                <div class="hm-tile"><span class="ic"><svg viewBox="0 0 24 24"><use href="#i-shot"/></svg></span><b>Screenshots</b><span class="d">Snapped once, never opened.</span></div>
+              </div>
+              <span class="hm-btn">Analyze Library</span>
+              <span class="hm-note"><svg viewBox="0 0 24 24"><use href="#i-lock"/></svg> Runs entirely on your Mac.</span>
+            </div>
+          </div>
+        </div>
+        <div class="walk-copy">
+          <div class="n">Step 1 · Scan</div>
+          <h3>Point it at your library and walk away.</h3>
+          <p>Open the app and hit <strong>Analyze</strong>. Apple's on-device Vision framework reads every photo and video right on your Mac, grouping the look-alikes and surfacing the clutter — no uploads, no account, no waiting in a queue.</p>
+          <div class="chips">
+            <span class="chip">On-device Vision</span>
+            <span class="chip">Photos &amp; videos</span>
+            <span class="chip">No sign-in</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- row 2 · Scan results -->
+      <div class="walk-row rev">
+        <div class="walk-shot">
+          <div class="win" role="img" aria-label="Scan results, choosing categories and a time period to clean up">
+            <div class="shot-bar"><span class="light r"></span><span class="light y"></span><span class="light g"></span><span class="shot-title" style="margin-right:0"><svg viewBox="0 0 1024 1024" style="width:15px;height:15px"><use href="#appicon"/></svg> Library Cleanup</span></div>
+            <div class="sr-body">
+              <div class="sr-reclaim">Up to <b>16.7 GB</b> ready to clear</div>
+              <div class="sr-sub">Pick the categories worth a look. Nothing's removed until you confirm.</div>
+              <div class="sr-filter">
+                <div class="sr-fh"><span class="lbl"><svg viewBox="0 0 24 24"><use href="#i-clock"/></svg> Time period</span><span class="rng">All time · 2019 – 2026</span></div>
+                <div class="sr-hist">
+                  <i style="height:26%"></i><i style="height:34%"></i><i style="height:30%"></i><i style="height:42%"></i><i style="height:38%"></i><i style="height:48%"></i><i style="height:44%"></i><i style="height:56%"></i><i style="height:50%"></i><i style="height:62%"></i><i style="height:54%"></i><i style="height:68%"></i><i style="height:60%"></i><i style="height:74%"></i><i style="height:64%"></i><i style="height:52%"></i><i style="height:72%"></i><i style="height:80%"></i><i style="height:66%"></i><i style="height:86%"></i><i style="height:76%"></i><i style="height:94%"></i><i style="height:82%"></i><i style="height:70%"></i><i style="height:90%"></i><i style="height:100%"></i><i style="height:84%"></i><i style="height:96%"></i>
+                </div>
+                <div class="sr-track"><span class="rail"></span><span class="fill"></span><span class="kn" style="left:0"></span><span class="kn" style="left:100%"></span></div>
+              </div>
+              <div class="sr-cats">
+                <div class="sr-cat on"><span class="ck"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span><div class="txt"><b>Duplicate photoshoots</b><span class="d">The sharpest frame is pre-picked.</span></div><div class="amt"><b>1,015</b><span class="s">Save 6.4 GB</span></div></div>
+                <div class="sr-cat on"><span class="ck"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span><div class="txt"><b>Duplicate videos</b><span class="d">The steadiest take stays.</span></div><div class="amt"><b>212</b><span class="s">Save 9.2 GB</span></div></div>
+                <div class="sr-cat on"><span class="ck"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span><div class="txt"><b>Screenshots</b><span class="d">Mostly receipts &amp; pings.</span></div><div class="amt"><b>486</b><span class="s">Save 1.1 GB</span></div></div>
+                <div class="sr-cat off"><span class="ck"></span><div class="txt"><b>Blurry &amp; low-light</b><span class="d">Out-of-focus shots.</span></div><div class="amt"><span class="pill">None found</span></div></div>
+              </div>
+            </div>
+            <div class="sr-foot"><span class="m"><b>3 categories</b> · 1,713 items · up to 16.7 GB</span><span class="go">Review 1,713 ›</span></div>
+          </div>
+        </div>
+        <div class="walk-copy">
+          <div class="n">Step 2 · Choose</div>
+          <h3>See exactly what's reclaimable — then decide what to touch.</h3>
+          <p>Results arrive sorted into plain-language categories with the space each one frees. Narrow to a single year with the time slider, toggle off anything you'd rather keep, and you're looking at a clean-up plan before a single photo moves.</p>
+          <div class="chips">
+            <span class="chip">Grouped by type</span>
+            <span class="chip">Space-saving estimates</span>
+            <span class="chip">Filter by year</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- row 3 · Review -->
+      <div class="walk-row">
+        <div class="walk-shot">
+          <div class="win" role="img" aria-label="Review screen with keepers pre-selected and a preview of the chosen photo">
+            <div class="shot-bar"><span class="light r"></span><span class="light y"></span><span class="light g"></span><span class="shot-title" style="margin-right:0"><svg viewBox="0 0 1024 1024" style="width:15px;height:15px"><use href="#appicon"/></svg> Library Cleanup — Review</span></div>
+            <div class="rv-actions">
+              <span>9 items</span>
+              <span class="prog"><i style="width:100%"></i></span>
+              <span><span class="keep">Keeping 2</span> · <span class="rem">Removing 7</span></span>
+            </div>
+            <div class="rv-split">
+              <div class="rv-main">
+                <div class="rv-body" style="padding-bottom:14px">
+                  <div class="rv-sec">
+                    <h4>Duplicate photoshoots</h4>
+                    <div class="rv-sum">2 bursts · keeping 2 · removing 7</div>
+                    <div class="rv-group">
+                      <div class="ghead"><span class="gt">Beach trip — Jul 14</span><span class="gm">· 5 · keep 1</span><span class="sp"></span><span class="chev">▾</span></div>
+                      <div class="gbody">
+                        <div class="rvc rem" style="width:88px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateX(-4%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                        <div class="rvc keep" style="width:88px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-sun"/></svg><svg class="fav" viewBox="0 0 24 24"><use href="#i-heart"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                        <div class="rvc rem" style="width:62px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.12)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                        <div class="rvc rem" style="width:88px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.06) translateY(-6%)"><use href="#sc-sun"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                      </div>
+                    </div>
+                    <div class="rv-group">
+                      <div class="ghead"><span class="gt">Mountain hike — Aug 30</span><span class="gm">· 4 · keep 1</span><span class="sp"></span><span class="chev">▾</span></div>
+                      <div class="gbody">
+                        <div class="rvc keep" style="width:88px"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></div>
+                        <div class="rvc rem" style="width:62px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.1)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                        <div class="rvc rem" style="width:88px"><svg class="scene" viewBox="0 0 120 90" style="transform:scale(1.05) translateX(4%)"><use href="#sc-mtn"/></svg><span class="tag"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <aside class="rv-prev">
+                <div class="pt">Preview</div>
+                <div class="pimg"><svg class="scene" viewBox="0 0 120 90"><use href="#sc-sun"/></svg><svg class="fav" viewBox="0 0 24 24"><use href="#i-heart"/></svg></div>
+                <div class="pn">IMG_4471.HEIC</div>
+                <div class="pm">4032 × 3024 · 9.8 MB</div>
+                <span class="prm">Mark for removal</span>
+              </aside>
+            </div>
+            <div class="rv-foot">
+              <span class="mini">‹ Back</span>
+              <span class="tally"><span class="keep">Keeping 2</span> · <span class="rem">Removing 7</span> · Frees 516 MB</span>
+              <span class="fin">Review &amp; Finalize</span>
+            </div>
+          </div>
+        </div>
+        <div class="walk-copy">
+          <div class="n">Step 3 · Review</div>
+          <h3>The keepers are already picked. You just correct.</h3>
+          <p>Each group opens with the best shot ringed in green and everything else queued for removal — so most of the time you skim and move on. Tap any thumbnail to preview it full-size, flip a <strong>keep</strong> or <strong>remove</strong> with one click, and watch the reclaimed space add up before you finalize.</p>
+          <div class="chips">
+            <span class="chip k"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg> Keeper pre-selected</span>
+            <span class="chip c"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg> One-tap correct</span>
+            <span class="chip">Live space total</span>
+          </div>
         </div>
       </div>
     </div>
