@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 from typing import Optional
 
 import numpy as np
@@ -78,12 +79,12 @@ def sample_video_frame_vectors(path: str, fractions=(0.15, 0.5, 0.85)) -> list:
             img, _actual, err = gen.copyCGImageAtTime_actualTime_error_(t, None, None)
             v = _vector_for_cgimage(img) if img is not None else None
             if v is None:
-                log.warning("frame sample failed for %s @%.0f%%: %s", path, f * 100, err)
+                log.warning("frame sample failed for %s @%.0f%%: %s", os.path.basename(path), f * 100, err)
                 return []
             vecs.append(v)
         return vecs
     except Exception as e:
-        log.warning("frame sampling failed for %s: %s", path, e)
+        log.warning("frame sampling failed for %s: %s", os.path.basename(path), e)
         return []
 
 
@@ -166,7 +167,7 @@ class EmbeddingCache:
             v = _vector_for_path(image_path) if image_path else None
         except Exception as e:
             log.warning("feature print failed for %s (%s): %s",
-                        uuid, image_path, e)
+                        uuid, os.path.basename(image_path or ""), e)
             v = None
         if v is not None:
             self._vecs[uuid] = v
@@ -189,10 +190,29 @@ class EmbeddingCache:
             self._file.close()
             self._file = None
         self._file_keys = frozenset()
-        os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
-        np.savez_compressed(self.path, **self._vecs)
-        json.dump(self._mt, open(self.path + ".mt.json", "w"))
+        d = os.path.dirname(os.path.abspath(self.path))
+        os.makedirs(d, exist_ok=True)
+        # Atomic write (audit #20): a crash / os._exit mid-write must never leave a
+        # truncated cache (which would silently trigger a full multi-hour re-embed).
+        # Write to a temp file in the same dir, then os.replace() into place.
+        self._atomic_write(self.path, lambda fh: np.savez_compressed(fh, **self._vecs), d)
+        self._atomic_write(self.path + ".mt.json",
+                           lambda fh: fh.write(json.dumps(self._mt).encode()), d)
         self._dirty = False
+
+    @staticmethod
+    def _atomic_write(dest: str, write_fn, dirpath: str) -> None:
+        fd, tmp = tempfile.mkstemp(dir=dirpath, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                write_fn(fh)
+            os.replace(tmp, dest)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
 
     def __len__(self) -> int:
         return len(set(self._vecs) | self._file_keys)

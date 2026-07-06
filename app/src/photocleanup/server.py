@@ -102,11 +102,25 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                 if host not in ("127.0.0.1", "localhost", "::1"):
                     return JSONResponse({"detail": "cross-origin request refused"},
                                         status_code=403)
-        return await call_next(request)
+        resp = await call_next(request)
+        # Defense-in-depth headers (audit #13). CSP is also set as a <meta> in
+        # index.html; nosniff stops content-type confusion on API/static responses.
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; media-src 'self'; connect-src 'self'; base-uri 'none'; "
+            "form-action 'none'; frame-ancestors 'none'")
+        return resp
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()
     app.state.job = {"status": "idle"}   # analyze progress (single job at a time)
     app.state.update_job = {"status": "idle"}   # self-update download/install progress
+    # Serializes the check-then-set on both jobs so two scans (or a scan racing an
+    # update) can't both start and corrupt the shared engine / .npz cache (audit #10/#15).
+    app.state.job_lock = threading.Lock()
+
+    _UPDATE_BUSY = ("checking", "downloading", "installing", "relaunching")
 
     def _store() -> Store:
         return app.state.store
@@ -134,10 +148,13 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         if bad:
             raise HTTPException(400, f"unknown layer(s): {bad}")
         job = app.state.job
-        if job.get("status") == "running":
-            return {"started": False, "running": True}
-        job.clear()
-        job.update({"status": "running", "message": "Starting…", "done": None, "total": None})
+        with app.state.job_lock:                       # atomic check-then-start
+            if job.get("status") == "running":
+                return {"started": False, "running": True}
+            if app.state.update_job.get("status") in _UPDATE_BUSY:
+                return {"started": False, "updating": True}
+            job.clear()
+            job.update({"status": "running", "message": "Starting…", "done": None, "total": None})
 
         def cb(message, done=None, total=None, frac=None):
             job.update({"message": message, "done": done, "total": total, "frac": frac})
@@ -318,12 +335,22 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         server-side from a fresh check() — never taken from the client."""
         from . import updater
         job = app.state.update_job
-        if job.get("status") in ("downloading", "installing", "relaunching"):
-            return {"started": False, "running": True}
+        # Atomically reserve the update slot and refuse if a scan is running — the
+        # updater ends in os._exit, which would truncate an in-flight .npz write
+        # (audit #15). check()/download run OUTSIDE the lock (they do network I/O).
+        with app.state.job_lock:
+            if job.get("status") in _UPDATE_BUSY:
+                return {"started": False, "running": True}
+            if app.state.job.get("status") == "running":
+                return {"started": False, "scanning": True}
+            job.clear()
+            job.update({"status": "checking"})
         info = updater.check()
         if not info.get("available") or not info.get("url"):
+            job.clear(); job.update({"status": "idle"})
             return {"started": False, "available": False, "error": info.get("error")}
         if not info.get("can_install"):     # dev/source run — offer the page instead
+            job.clear(); job.update({"status": "idle"})
             return {"started": False, "can_install": False, "html_url": info.get("html_url")}
 
         job.clear()

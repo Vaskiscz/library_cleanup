@@ -301,8 +301,11 @@ class Engine:
             authorized = is_authorized()
             if not authorized:
                 auth_status = authorization_status()   # 0=undecided 1=restricted 2=denied
-        except Exception:
-            authorized = True               # PhotoKit unavailable (e.g. tests) → don't block
+        except (ImportError, ModuleNotFoundError):
+            # PhotoKit genuinely unavailable (e.g. tests / non-macOS) → don't block.
+            # A narrow catch so a real authorization error surfaces instead of
+            # silently pretending access is granted (audit #22).
+            authorized = True
         if not authorized:
             raise PermissionError(f"photos-access (status={auth_status})")
 

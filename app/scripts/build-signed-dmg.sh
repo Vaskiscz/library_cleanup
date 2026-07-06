@@ -20,10 +20,21 @@ fail() { echo "ERROR: $1" >&2; exit 1; }
 
 # Preflight: the signing identity must exist before we spend minutes building.
 [ -f "$KC" ] || fail "signing keychain missing ($KC) — run app/scripts/setup-signing.sh first"
+[ -n "${LC_KEYCHAIN_PW:-}" ] || echo "WARNING: using the default signing-keychain password (set LC_KEYCHAIN_PW on shared/CI hosts)." >&2
 security unlock-keychain -p "$KCPW" "$KC" \
   || fail "couldn't unlock the signing keychain (set LC_KEYCHAIN_PW if you changed the password)"
+security set-keychain-settings -lt 3600 "$KC" 2>/dev/null || true   # re-assert auto-lock (audit #18)
 security find-identity -p codesigning "$KC" | grep -q "$IDENTITY" \
   || fail "identity '$IDENTITY' not found in $KC — run app/scripts/setup-signing.sh"
+
+# Verify the vendored wheel(s) haven't been tampered with (audit #12): the build
+# installs a binary committed to the repo, so pin its SHA-256.
+if [ -f wheels/SHA256SUMS ]; then
+  ( cd wheels && shasum -a 256 -c SHA256SUMS ) >/dev/null \
+    || fail "vendored wheel checksum mismatch (wheels/SHA256SUMS) — refusing to build"
+else
+  echo "WARNING: wheels/SHA256SUMS missing — cannot verify vendored wheel integrity." >&2
+fi
 
 # Public release: `build-signed-dmg.sh --minor` bumps the MINOR digit and resets
 # patch to 0, so the artifact lands on exactly x.y.0. Default = patch bump.
@@ -52,6 +63,22 @@ codesign --force --deep --options runtime --timestamp=none \
   --entitlements "$ENT" -s "$IDENTITY" "$APP"
 codesign --verify --strict --verbose=1 "$APP"
 codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2
+
+# Signing-identity drift guard (audit #17): TCC (Full Disk Access / Photos) and
+# the in-app updater's identity pin are keyed to this designated requirement. If
+# it changes (e.g. the signing key was regenerated), every user must re-grant
+# permissions after updating and the auto-update identity check will reject the
+# build. Record it and shout if it changed since the last release.
+REQFILE="scripts/released-requirement.txt"
+NEWREQ="$(codesign -d -r- "$APP" 2>/dev/null | sed -n 's/^designated => //p')"
+if [ -n "$NEWREQ" ]; then
+  if [ -f "$REQFILE" ] && [ "$(cat "$REQFILE")" != "$NEWREQ" ]; then
+    echo "WARNING: signing designated requirement CHANGED since the last release —" >&2
+    echo "         users will have to re-grant Full Disk Access / Photos after updating," >&2
+    echo "         and auto-update from older builds will be rejected by the identity check." >&2
+  fi
+  printf '%s\n' "$NEWREQ" > "$REQFILE"
+fi
 
 echo "[3/4] Building DMG (dmgbuild: background + drag-to-Applications layout) ..."
 mkdir -p dist

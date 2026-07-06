@@ -698,8 +698,12 @@ async function enterReview(savedDecisions, dates) {
     state.candidates[layer] = groups;
     const d = {};
     groups.forEach((g) => g.photos.forEach((p) => {
-      d[p.uuid] = p.decided ? (p.decided === "keep" ? "keep" : "remove")
-        : (p.suggested_keep ? "keep" : "remove");
+      // Always start from the FRESH algorithm suggestion. We deliberately do NOT
+      // replay p.decided (persisted server verdicts) here: a stale discard from a
+      // prior aborted round would otherwise silently override a photo the model
+      // now recommends keeping (audit #9). In-session resume is handled by the
+      // localStorage overlay below, which is scoped to the actual saved review.
+      d[p.uuid] = p.suggested_keep ? "keep" : "remove";
     }));
     if (savedDecisions && savedDecisions[layer]) {   // resume: overlay saved verdicts
       for (const [u, v] of Object.entries(savedDecisions[layer])) if (u in d) d[u] = v;
@@ -840,9 +844,9 @@ function cardHtml(layer, p, shot = false) {
   // scaled by --fw/--fh. Estimated from metadata; corrected from the loaded thumb.
   const w = p.width || 1, h = p.height || 1;
   const fw = w >= h ? 1 : w / h, fh = w >= h ? h / w : 1;
-  return `<div class="card ${shot ? "shot" : ""} ${v === "keep" ? "keep" : "remove"}" data-uuid="${p.uuid}" data-layer="${layer}" style="--fw:${fw.toFixed(4)};--fh:${fh.toFixed(4)}">
+  return `<div class="card ${shot ? "shot" : ""} ${v === "keep" ? "keep" : "remove"}" data-uuid="${escapeHtml(p.uuid)}" data-layer="${escapeHtml(layer)}" style="--fw:${fw.toFixed(4)};--fh:${fh.toFixed(4)}">
     <div class="frame" tabindex="0" role="button" aria-pressed="${v === "keep"}">
-      <img src="${p.thumb}" loading="lazy" decoding="async" alt="" onload="fitAspect(this)">
+      <img src="${escapeHtml(p.thumb)}" loading="lazy" decoding="async" alt="">
       ${fav}${overlay}${badge}
     </div>
     <div class="fn">${escapeHtml(p.filename)} · ${fmtSize(p.size_mb)}</div></div>`;
@@ -863,10 +867,16 @@ function fitAspect(img) {
 }
 
 function escapeHtml(s) {
-  return (s || "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+  return (s || "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
 }
 
 function bindReview() {
+  // Fit each thumbnail to its real aspect once loaded. Wired in JS (not an inline
+  // onload=) so the strict CSP can forbid inline scripts (audit #13).
+  app.querySelectorAll(".card img").forEach((img) => {
+    if (img.complete && img.naturalWidth) fitAspect(img);
+    else img.addEventListener("load", () => fitAspect(img), { once: true });
+  });
   // No summary happens after a cold-start resume — land on the intro, not an empty picker.
   $("#back").onclick = () => { state.view = "home"; state.phase = state.summary ? "results" : "idle"; state.manual = false; render(); };
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
@@ -1069,7 +1079,7 @@ function fillPreview() {
   if (p.is_video) {
     // real playback with native controls; the full-res frame is the poster
     pvImg.style.backgroundImage = "";
-    pvImg.innerHTML = `<video controls playsinline preload="metadata" poster="${p.thumb}?px=${PREVIEW_PX}" src="/api/video/${uuid}"></video>`;
+    pvImg.innerHTML = `<video controls playsinline preload="metadata" poster="${escapeHtml(p.thumb)}?px=${PREVIEW_PX}" src="/api/video/${encodeURIComponent(uuid)}"></video>`;
   } else {
     // reuse the cached full-res image element (instant + sharp if pre-loaded as a
     // neighbour); the grid thumb is a soft placeholder for the rare cold case.

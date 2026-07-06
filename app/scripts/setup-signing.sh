@@ -16,6 +16,10 @@ set -euo pipefail
 CERT_CN="Library Cleanup Self-Signed"
 KC="$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
 KCPW="${LC_KEYCHAIN_PW:-libraryclean}"   # local dev keychain password (not secret)
+if [ -z "${LC_KEYCHAIN_PW:-}" ]; then
+  echo "WARNING: using the default signing-keychain password. On a shared or CI host, set" >&2
+  echo "         LC_KEYCHAIN_PW to a private value so the signing key can't be trivially unlocked." >&2
+fi
 
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "$CERT_CN"; then
   echo "Identity already present: $CERT_CN"
@@ -25,7 +29,7 @@ fi
 # 1) Dedicated keychain with a password we know, so codesign never needs your
 #    login password and never prompts.
 security create-keychain -p "$KCPW" "$KC" 2>/dev/null || true
-security set-keychain-settings "$KC"          # no auto-lock timeout
+security set-keychain-settings -lt 3600 "$KC"   # auto-lock after 1h idle / on sleep (audit #18)
 security unlock-keychain -p "$KCPW" "$KC"
 
 # 2) Self-signed certificate with the code-signing extended key usage.

@@ -47,3 +47,26 @@ def test_dirty_save_preserves_unread_entries(tmp_path):
     c3 = EmbeddingCache(p)
     assert {u for u in ("a", "b", "c") if u in c3} == {"a", "b", "c"}
     assert np.allclose(c3.get("b"), np.full(2, 5.0))
+
+
+def test_saved_cache_is_vectors_only_and_pickle_safe(tmp_path):
+    # audit #16: the one sanctioned on-disk artifact must be plain float vectors,
+    # loadable WITHOUT pickle (no arbitrary objects / paths / bytes smuggled in).
+    p = str(tmp_path / "emb.npz")
+    c = EmbeddingCache(p)
+    c.put("u1", np.array([1.0, 2.0, 3.0], dtype=np.float32))
+    c.save()
+    f = np.load(p, allow_pickle=False)          # must not require pickle
+    assert set(f.files) == {"u1"}
+    assert f["u1"].dtype == np.float32 and f["u1"].tolist() == [1.0, 2.0, 3.0]
+
+
+def test_save_is_atomic_no_tmp_leftover(tmp_path):
+    # audit #20: atomic write must leave the final files and no stray temp files.
+    p = str(tmp_path / "emb.npz")
+    c = EmbeddingCache(p)
+    c.put("u1", np.ones(3, dtype=np.float32))
+    c.save()
+    names = [f.name for f in tmp_path.iterdir()]
+    assert "emb.npz" in names and "emb.npz.mt.json" in names
+    assert not [n for n in names if n.endswith(".tmp")]

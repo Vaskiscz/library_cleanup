@@ -21,6 +21,20 @@ def get_logger() -> logging.Logger:
     return logging.getLogger(_LOGGER)
 
 
+class _ScrubFilter(logging.Filter):
+    """Scrub the home path (username) out of EVERY log record — not just the
+    log_failure() path — so a shared diagnostic log can't leak the user's
+    identity/home layout (audit #14)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            record.msg = _scrub(record.getMessage())
+            record.args = ()
+        except Exception:
+            pass
+        return True
+
+
 def setup_logging() -> logging.Logger:
     """Idempotent: attach a rotating file handler the first time it's called."""
     log = get_logger()
@@ -31,6 +45,7 @@ def setup_logging() -> logging.Logger:
         handler = logging.handlers.RotatingFileHandler(
             LOG_PATH, maxBytes=1_000_000, backupCount=2)
         handler.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-7s %(message)s"))
+        handler.addFilter(_ScrubFilter())      # scrub $HOME from every record
         log.addHandler(handler)
         log.setLevel(logging.INFO)
         # The core library logs its swallowed-but-interesting failures (Vision

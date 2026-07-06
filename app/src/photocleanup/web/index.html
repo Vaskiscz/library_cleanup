@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Everything is same-origin/loopback and self-contained. Lock the WebView
+       down so a hypothetical injected string can't load remote code or exfiltrate
+       (audit #13). style-src allows inline because the UI uses inline style attrs;
+       img/media 'self' + data: cover thumbnails and the inlined SVG sprite. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
   <title>Library Cleanup</title>
   <link rel="stylesheet" href="/static/tokens.css">
   <link rel="stylesheet" href="/static/app.css">

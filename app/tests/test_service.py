@@ -264,6 +264,21 @@ def test_get_is_not_origin_checked(client):
     assert r.status_code == 200
 
 
+# ---- scan/update mutual exclusion (audit #10 / #15) ------------------------
+def test_analyze_refused_while_updating(client):
+    client.app.state.update_job.clear()
+    client.app.state.update_job.update({"status": "downloading"})
+    r = client.post("/api/analyze", json={"layers": ["dedup"]}).json()
+    assert r == {"started": False, "updating": True}
+
+
+def test_update_refused_while_scanning(client):
+    client.app.state.job.clear()
+    client.app.state.job.update({"status": "running"})
+    r = client.post("/api/update/apply").json()
+    assert r == {"started": False, "scanning": True}   # returns before any network check
+
+
 def test_finalize_writes_flat_feedback(client, monkeypatch, tmp_path):
     """Deciding on a flat layer (screenshots/expired) at finalize writes an
     explicit-labels feedback file and kicks off learning."""
