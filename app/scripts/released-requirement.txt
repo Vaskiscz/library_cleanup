@@ -1,0 +1,1 @@
+identifier "cz.vaskiscz.photocleanup" and certificate leaf = H"faa0af3b5fd00d10f462f5a8e87ef62283326cc0"
