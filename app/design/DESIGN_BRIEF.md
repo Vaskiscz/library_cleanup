@@ -1,4 +1,4 @@
-# Photo Cleanup — Design Brief (logo + app UI)
+# Library Cleanup — Design Brief (logo + app UI)
 
 A brief for designing **(1)** the app logo / macOS icon and **(2)** the app's
 review UI. Read §3 (hard constraints) first — they bound every decision.
@@ -7,7 +7,7 @@ review UI. Read §3 (hard constraints) first — they bound every decision.
 
 ## 1. What it is / who it's for
 
-**Photo Cleanup** is an on-device macOS app that helps you declutter Apple
+**Library Cleanup** is an on-device macOS app that helps you declutter Apple
 Photos:
 
 - **Deduplicate photoshoots** — when you fired the shutter 30 times, keep the
@@ -81,7 +81,7 @@ Provide the icon reading well on both light and dark desktops.
   16/32/64/128/256/512/1024 (@1x **and** @2x). Briefcase consumes an icon set —
   target `app/src/photocleanup/resources/photocleanup.icns` (or PNG set briefcase
   can assemble); confirm path with the build config.
-- A **horizontal wordmark lockup** ("Photo Cleanup", icon + text) for the app
+- A **horizontal wordmark lockup** ("Library Cleanup", icon + text) for the app
   header — light, dark, and **monochrome** variants.
 - A small **inline-SVG mark** (single color, currentColor) for the in-app top bar.
 

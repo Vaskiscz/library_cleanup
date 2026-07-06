@@ -1,5 +1,5 @@
 [project]
-name = "photo-cleanup"
+name = "library-cleanup"
 version = "0.1.0"
 description = "On-device dedup & work-screenshot triage for Apple Photos"
 readme = "README.md"
@@ -12,11 +12,16 @@ dependencies = [
 ]
 
 [project.scripts]
-photo-cleanup = "photo_cleanup.cli:cli"
+library-cleanup = "photo_cleanup.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# Project is named "library-cleanup" but the importable package is photo_cleanup
+# (renaming the package would be a large, unrelated refactor) — point the build at it.
+[tool.hatch.build.targets.wheel]
+packages = ["photo_cleanup"]
 
 [tool.pytest.ini_options]
 # Make the additive app/ package importable in tests without installing it.

@@ -1,6 +1,6 @@
 # USAGE — step-by-step
 
-A practical runbook for `photo-cleanup`. Commands assume the project lives at
+A practical runbook for `library-cleanup`. Commands assume the project lives at
 `~/Projects/library_cleanup` (adjust to wherever you cloned it) and that
 you run them with `uv` (no manual venv activation needed).
 
@@ -78,13 +78,13 @@ control Photos). A whole year of dedup is just two commands + your review:
 cd ~/Projects/library_cleanup
 
 # 1) tag the year's near-duplicate photoshoots (keepers pre-♥)
-uv run photo-cleanup dedup --since 2023-01-01 --until 2023-12-31 --apply
+uv run library-cleanup dedup --since 2023-01-01 --until 2023-12-31 --apply
 
 # 2) in Photos: review the `cleanup:duplicate` Smart Album, ♥ extra keepers,
 #    then delete [cleanup:duplicate AND Favorite is No]
 
 # 3) finalize + lock the year in ONE command
-uv run photo-cleanup finalize --since 2023-01-01 --until 2023-12-31 --apply
+uv run library-cleanup finalize --since 2023-01-01 --until 2023-12-31 --apply
 ```
 
 `finalize --since/--until` un-tags your keepers, un-favorites only the hearts
@@ -138,26 +138,26 @@ see Troubleshooting.
 
 ### Step 1 — Scan & preview (read-only, safe)
 ```sh
-uv run photo-cleanup scan --open
+uv run library-cleanup scan --open
 ```
 Reads the library, writes/loads a metadata cache, builds `cleanup-report.html`
 and opens it. Nothing is changed. Re-run with `--rescan` to refresh the cache.
 
 ### Step 2 — See how many work screenshots would be tagged (dry run)
 ```sh
-uv run photo-cleanup apply
+uv run library-cleanup apply
 ```
 
 ### Step 3 — Snapshot existing favorites BEFORE you start reviewing
 ```sh
-uv run photo-cleanup fav-baseline
+uv run library-cleanup fav-baseline
 ```
 Records candidates that are *already* Favorited so the rescue step never strips
 the heart off a genuine favorite.
 
 ### Step 4 — Tag the work screenshots  ⚠️ run from Terminal
 ```sh
-uv run photo-cleanup apply --apply
+uv run library-cleanup apply --apply
 ```
 Tip: test first with `--limit 5 --apply`, verify, then run the full command.
 
@@ -169,11 +169,11 @@ heart, or press `.`).
 ### Step 6 — Rescue the keepers
 ```sh
 # read-only: see what you flagged
-uv run photo-cleanup rescue-plan
+uv run library-cleanup rescue-plan
 
 # ⚠️ run from Terminal — un-tag the keepers, then un-favorite the ones you just added
-uv run photo-cleanup clear-tags --apply
-uv run photo-cleanup unfavorite --apply
+uv run library-cleanup clear-tags --apply
+uv run library-cleanup unfavorite --apply
 ```
 
 ### Step 7 — Delete
@@ -192,15 +192,15 @@ with picks pre-marked and decide what (if anything) to add before deleting.
 ```sh
 # 1) Precompute embeddings once for the whole library (read-only; safe here or in
 #    Terminal). Long first pass; cached afterward (~/.cache/photo-cleanup/embeddings.npz).
-uv run photo-cleanup embed
+uv run library-cleanup embed
 
 # 2) Review a date-range stage (dry run -> HTML report, no changes):
-uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --open
+uv run library-cleanup dedup --since 2026-05-01 --until 2026-05-31 --open
 
 # 3) Tag the whole burst + Favorite suggested keepers  ⚠️ run from Terminal
 #    (this AUTOMATICALLY snapshots your pre-existing favorites first, so step 7
 #     never un-hearts a genuine favorite).
-uv run photo-cleanup dedup --since 2026-05-01 --until 2026-05-31 --apply
+uv run library-cleanup dedup --since 2026-05-01 --until 2026-05-31 --apply
 ```
 
 5. In Photos, make a Smart Album **[Keyword is `cleanup:duplicate`]**. Each burst
@@ -229,7 +229,7 @@ logs the burst (every member's Apple feature vector + the suggested keepers).
 After you finish an iteration (reviewed + deleted), run:
 
 ```sh
-uv run photo-cleanup learn
+uv run library-cleanup learn
 ```
 
 It compares suggestions vs what you actually kept (kept = still in the library;
@@ -247,8 +247,8 @@ Flag aged utility shots that had a use at the time but not years later. Same
 review model as screenshots (tag candidates → Favorite to rescue → delete rest).
 
 ```sh
-uv run photo-cleanup expired --open                 # dry-run report
-uv run photo-cleanup expired --apply                # ⚠️ Terminal — tag cleanup:expired
+uv run library-cleanup expired --open                 # dry-run report
+uv run library-cleanup expired --apply                # ⚠️ Terminal — tag cleanup:expired
 ```
 
 Age is **per type** (`Config.expired_age_by_type`) — wifi ~3 months,
@@ -261,9 +261,9 @@ delete `[cleanup:expired AND Favorite is No]`, then finalize/lock as usual.
 ## 2e. Video cleanup (Apple does none of this)
 
 ```sh
-uv run photo-cleanup videos --open                  # dry-run report
-uv run photo-cleanup videos --large-mb 300 --open   # custom oversized threshold
-uv run photo-cleanup videos --apply                 # ⚠️ Terminal — tag
+uv run library-cleanup videos --open                  # dry-run report
+uv run library-cleanup videos --large-mb 300 --open   # custom oversized threshold
+uv run library-cleanup videos --apply                 # ⚠️ Terminal — tag
 ```
 
 Both checks share one tag, `cleanup:video`, with a favorite-driven review:
@@ -281,7 +281,7 @@ preserved). Excludes Hidden/Shared/`reviewed:keep`.
 
 ## 3. Bail out / revert
 ```sh
-uv run photo-cleanup undo --apply      # ⚠️ Terminal; removes ALL cleanup:* keywords
+uv run library-cleanup undo --apply      # ⚠️ Terminal; removes ALL cleanup:* keywords
 ```
 `undo` reads the library, so its Terminal also needs Full Disk Access.
 
@@ -347,7 +347,7 @@ Because the consent prompt only appears for an interactive Terminal, the helper
 scripts `run_apply.command` / `run_rescue.command` (git-ignored, local only) are
 launched with `open -a Terminal …`; the Apple events then come from the
 already-authorized Terminal. Regenerate them as small zsh scripts that `cd` here
-and run the desired `uv run photo-cleanup … --apply` command.
+and run the desired `uv run library-cleanup … --apply` command.
 
 ### Hidden album
 Photos in the macOS **Hidden** album are always excluded — never scanned,
