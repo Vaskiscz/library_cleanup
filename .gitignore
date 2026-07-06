@@ -26,3 +26,6 @@ poc_*.py
 # Local tooling config — useful on disk, not needed in the public repo
 .claude/
 .design-sync/
+
+# Local-only working docs (never publish)
+AUDIT_PROMPTS.md
