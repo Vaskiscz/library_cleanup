@@ -78,6 +78,11 @@ class Engine:
         self.dbpath = dbpath
         self._index: dict[str, Record] = {}
         self._candidates: dict[str, list] = {}   # layer -> payload (from analyze)
+        # Scanned photo metadata (GPS/OCR/filenames) is held in RAM ONLY — never
+        # written to disk (audit #8). Memoized per library mtime so repeat scans in
+        # a session don't re-read osxphotos; auto-invalidated when the library changes.
+        self._records_memo: Optional[list] = None
+        self._records_mtime = None
         # One lock guards _index + _candidates: they're mutated by the analyze
         # thread and read by request threads (thumbs, candidates) + the warmer.
         self._state_lock = threading.RLock()
@@ -92,16 +97,28 @@ class Engine:
         self._cancel = threading.Event()   # set by request_cancel(), checked mid-scan
 
     # ---- record loading ----------------------------------------------------
+    def _all_records(self, force: bool = False):
+        """All photo Records via osxphotos, held in RAM ONLY (never persisted —
+        the metadata includes GPS + OCR text; audit #8). Memoized per library
+        mtime so repeat analyzes in a session don't re-scan; the memo invalidates
+        itself automatically when the library changes."""
+        from photo_cleanup.scan import _db_mtime, scan_library
+        mt = _db_mtime(self.dbpath)
+        if (not force and self._records_memo is not None
+                and mt is not None and mt == self._records_mtime):
+            return self._records_memo
+        recs = scan_library(self.dbpath)
+        self._records_memo, self._records_mtime = recs, mt
+        return recs
+
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
                      force_rescan: bool = False, eligible_only: bool = True):
         """Photos in scope. `eligible_only` (default) drops the Hidden album, items
         the library already marks reviewed:keep, and any uuid in `excluded` — the set
         the curated scan should suggest on. Set it False for the manual feed, which
         shows everything in range except Hidden (incl. already-kept photos)."""
-        from photo_cleanup.scan import ensure_records
         excluded = excluded or set()
-        recs = _filter_by_date(ensure_records(self.cache, self.dbpath, force=force_rescan),
-                               since, until)
+        recs = _filter_by_date(self._all_records(force=force_rescan), since, until)
         if eligible_only:
             recs = [r for r in recs if not r.is_hidden
                     and KW_REVIEWED not in (r.keywords or []) and r.uuid not in excluded]
@@ -492,8 +509,8 @@ class Engine:
 
     def library_stats(self) -> dict:
         """Cheap-ish library totals for the status line (videos counted once)."""
-        from photo_cleanup.scan import ensure_records, scan_library
-        photos = len(ensure_records(self.cache, self.dbpath))
+        from photo_cleanup.scan import scan_library
+        photos = len(self._all_records())
         if self._video_count is None:
             self._video_count = len(scan_library(self.dbpath, movies_only=True))
         return {"photos": photos, "videos": self._video_count}

@@ -15,8 +15,8 @@ def test_analyze_progress_is_monotonic_and_phased(monkeypatch, tmp_path):
     vid = tmp_path / "v.mov"; vid.write_bytes(b"x")
     photos = [mk(f"p{i}") for i in range(6)]
     videos = [mkv(f"v{i}", path=str(vid)) for i in range(2)]
-    monkeypatch.setattr(scan, "ensure_records", lambda *a, **k: list(photos))
-    monkeypatch.setattr(scan, "scan_library", lambda *a, **k: list(videos))
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *a, movies_only=False, **k: list(videos) if movies_only else list(photos))
     monkeypatch.setattr(cluster, "time_gps_clusters",
                         lambda recs, cfg: [recs[:2]] if recs and not recs[0].is_movie else [])
 
@@ -103,8 +103,8 @@ def test_manual_feed_includes_kept_items_excludes_hidden(monkeypatch):
     a = mk("a")                              # normal
     b = mk("b", keywords=[KW_REVIEWED])      # already kept (reviewed:keep)
     h = mk("h", is_hidden=True)              # hidden
-    monkeypatch.setattr(scan, "ensure_records", lambda *args, **kw: [a, b, h])
-    monkeypatch.setattr(scan, "scan_library", lambda *args, **kw: [])
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *_, movies_only=False, **k: [] if movies_only else [a, b, h])
     eng = Engine()
     # curated scan: drops the kept + hidden ones
     assert {r.uuid for r in eng.load_records()} == {"a"}
@@ -224,14 +224,15 @@ def test_thumb_bytes_high_res_prefers_original(tmp_path):
 def test_load_records_drops_stale_paths(monkeypatch, tmp_path):
     """A cached record whose local original vanished (purged from the library)
     must not be suggested; iCloud-only records (path=None) are kept.
-    (ensure_records is stubbed — hitting the real cache would fall back to a
-    live library scan on a machine where the test shell lacks Full Disk Access.)"""
+    (scan_library is stubbed — hitting the real library would need Full Disk
+    Access the test shell may lack.)"""
     from photo_cleanup import scan
     good = tmp_path / "img.jpg"; good.write_bytes(b"x")
     recs = [mk("ok", path=str(good)),
             mk("gone", path=str(tmp_path / "missing.jpg")),
             mk("icloud", path=None)]
-    monkeypatch.setattr(scan, "ensure_records", lambda *a, **k: list(recs))
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *a, movies_only=False, **k: [] if movies_only else list(recs))
     got = {r.uuid for r in Engine().load_records()}
     assert got == {"ok", "icloud"}
 
@@ -260,8 +261,8 @@ def test_request_cancel_aborts_analyze(monkeypatch):
     import photocleanup.delete as delete
     monkeypatch.setattr(delete, "is_authorized", lambda: True)
     photos = [mk(f"p{i}") for i in range(10)]
-    monkeypatch.setattr(scan, "ensure_records", lambda *a, **k: list(photos))
-    monkeypatch.setattr(scan, "scan_library", lambda *a, **k: [])
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *a, movies_only=False, **k: [] if movies_only else list(photos))
 
     eng = Engine()
     eng.request_cancel()             # cancel before the loop starts
@@ -271,3 +272,34 @@ def test_request_cancel_aborts_analyze(monkeypatch):
     monkeypatch.setattr(eng, "_analyze", lambda *a, **k: {"summary": {}})
     eng.request_cancel()
     assert eng.analyze() == {"summary": {}}     # cleared flag -> runs fine
+
+
+def test_load_records_writes_nothing_to_disk(monkeypatch, tmp_path):
+    """audit #8b: the photo-metadata cache is RAM-only — analyze must not write
+    records.json (which held GPS + OCR text) to disk."""
+    from photo_cleanup import scan
+    cache = tmp_path / "records.json"
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *_, movies_only=False, **k: [] if movies_only else [mk("a")])
+    eng = Engine(cache=str(cache))
+    eng.load_records()
+    assert not cache.exists() and not (tmp_path / "records.json.meta.json").exists()
+
+
+def test_records_are_memoized_in_ram(monkeypatch, tmp_path):
+    """Repeat scans in a session reuse the in-RAM memo (no re-read) while the
+    library is unchanged — so RAM-only doesn't mean rescanning on every click."""
+    from photo_cleanup import scan
+    calls = []
+    def fake(*_, movies_only=False, **k):
+        if not movies_only:
+            calls.append(1)
+        return [] if movies_only else [mk("a")]
+    monkeypatch.setattr(scan, "scan_library", fake)
+    monkeypatch.setattr(scan, "_db_mtime", lambda dbpath=None: 123.0)   # stable library mtime
+    eng = Engine(cache=str(tmp_path / "r.json"))
+    eng.load_records()
+    eng.load_records()
+    assert len(calls) == 1                     # second load served from the RAM memo
+    eng.load_records(force_rescan=True)
+    assert len(calls) == 2                     # explicit force re-scans
