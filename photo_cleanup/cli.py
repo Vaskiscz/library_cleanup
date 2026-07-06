@@ -29,7 +29,8 @@ def cli():
 
 @cli.command()
 @click.option("--db", "dbpath", default=None, help="Photos library path (default: system library).")
-@click.option("--cache", default=DEFAULT_CACHE, show_default=True, help="Records cache file.")
+@click.option("--cache", default=DEFAULT_CACHE, hidden=True,
+              help="Deprecated & ignored — photo metadata is no longer cached to disk.")
 @click.option("--rescan", is_flag=True, help="Re-read the library even if a cache exists.")
 @click.option("--report", "report_path", default=DEFAULT_REPORT, show_default=True)
 @click.option("--limit", type=int, default=0, help="Analyze only the first N photos (testing).")
@@ -76,7 +77,8 @@ def _load_or_scan(cache, dbpath, rescan):
 
 
 @cli.command()
-@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--cache", default=DEFAULT_CACHE, hidden=True,
+              help="Deprecated & ignored — photo metadata is no longer cached to disk.")
 @click.option("--rescan", is_flag=True, help="Re-read the library before tagging.")
 @click.option("--apply", "do_apply", is_flag=True,
               help="Actually write to Photos. Without this it's a dry run.")
@@ -179,7 +181,8 @@ def _cluster_candidates(records, cfg):
 
 
 @cli.command()
-@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--cache", default=DEFAULT_CACHE, hidden=True,
+              help="Deprecated & ignored — photo metadata is no longer cached to disk.")
 @click.option("--emb-cache", default=DEFAULT_EMB_CACHE, show_default=True)
 @click.option("--since", default=None, help="Only photos on/after YYYY-MM-DD.")
 @click.option("--until", default=None, help="Only photos on/before YYYY-MM-DD.")
@@ -204,7 +207,8 @@ def embed(cache, emb_cache, since, until):
 
 
 @cli.command()
-@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--cache", default=DEFAULT_CACHE, hidden=True,
+              help="Deprecated & ignored — photo metadata is no longer cached to disk.")
 @click.option("--emb-cache", default=DEFAULT_EMB_CACHE, show_default=True)
 @click.option("--since", default=None, help="Only photos on/after YYYY-MM-DD.")
 @click.option("--until", default=None, help="Only photos on/before YYYY-MM-DD.")
@@ -296,7 +300,8 @@ DEFAULT_EXPIRED_REPORT = os.path.abspath("./expired-report.html")
 
 
 @cli.command()
-@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--cache", default=DEFAULT_CACHE, hidden=True,
+              help="Deprecated & ignored — photo metadata is no longer cached to disk.")
 @click.option("--since", default=None, help="Only photos on/after YYYY-MM-DD.")
 @click.option("--until", default=None, help="Only photos on/before YYYY-MM-DD.")
 @click.option("--min-age-years", type=float, default=None,
@@ -546,7 +551,8 @@ def unfavorite(uuids_file, do_apply):
               help="Mark the photos listed in this JSON file (e.g. finalize keepers).")
 @click.option("--since", default=None, help="Instead: mark every photo on/after YYYY-MM-DD.")
 @click.option("--until", default=None, help="...and on/before YYYY-MM-DD (lock a whole event).")
-@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--cache", default=DEFAULT_CACHE, hidden=True,
+              help="Deprecated & ignored — photo metadata is no longer cached to disk.")
 @click.option("--apply", "do_apply", is_flag=True, help="Actually write the reviewed:keep tag.")
 def mark_reviewed(uuids_file, since, until, cache, do_apply):
     """Tag photos `reviewed:keep` — permanently excluded from future review.
@@ -620,7 +626,8 @@ def learn():
 @click.option("--until", default=None, help="...end of the range (YYYY-MM-DD).")
 @click.option("--prefix", default=apply_mod.KW_DUPLICATE, show_default=True)
 @click.option("--baseline", default=FAV_BASELINE_FILE, show_default=True)
-@click.option("--cache", default=DEFAULT_CACHE, show_default=True)
+@click.option("--cache", default=DEFAULT_CACHE, hidden=True,
+              help="Deprecated & ignored — photo metadata is no longer cached to disk.")
 @click.option("--lock/--no-lock", default=True,
               help="Also mark the whole range reviewed:keep (default on).")
 @click.option("--rescue-file", default=RESCUE_FILE, show_default=True,
