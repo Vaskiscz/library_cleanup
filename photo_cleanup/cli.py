@@ -16,7 +16,7 @@ from . import apply as apply_mod
 from .analyze import analyze
 from .model import Config
 from .report import write_report
-from .scan import ensure_records, load_records, save_records, scan_library
+from .scan import records_ram, scan_library
 
 DEFAULT_CACHE = os.path.expanduser("~/.cache/photo-cleanup/records.json")
 DEFAULT_REPORT = os.path.abspath("./cleanup-report.html")
@@ -38,17 +38,12 @@ def scan(dbpath, cache, rescan, report_path, limit, open_report):
     """Read-only scan + analysis. Produces a local HTML review report."""
     t0 = time.time()
 
-    from .scan import cache_is_fresh
-    fresh = cache_is_fresh(cache, dbpath)
-    if rescan or not fresh:
-        click.echo("Reading Photos library (cache stale or --rescan)…")
+    click.echo("Reading Photos library…")   # RAM-only: metadata is never cached to disk
     try:
-        records = ensure_records(cache, dbpath, force=rescan)
+        records = records_ram(dbpath, force=rescan)
     except Exception as e:
         _hint_permission(e)
         sys.exit(1)
-    if not rescan and fresh:
-        click.echo(f"Loaded {len(records)} photos from fresh cache. Use --rescan to force.")
 
     if limit:
         records = records[:limit]
@@ -77,7 +72,7 @@ def scan(dbpath, cache, rescan, report_path, limit, open_report):
 
 
 def _load_or_scan(cache, dbpath, rescan):
-    return ensure_records(cache, dbpath, force=rescan)
+    return records_ram(dbpath, force=rescan)
 
 
 @cli.command()
@@ -168,7 +163,7 @@ def _filter_by_date(records, since, until):
 def _active_records(cache, since, until, include_reviewed=False):
     """Load records for a scope, excluding the Hidden album and (unless
     include_reviewed) anything already marked reviewed:keep."""
-    recs = _filter_by_date(ensure_records(cache), since, until)
+    recs = _filter_by_date(records_ram(), since, until)
     return [r for r in recs if not r.is_hidden
             and (include_reviewed or apply_mod.KW_REVIEWED not in (r.keywords or []))]
 
@@ -558,7 +553,7 @@ def mark_reviewed(uuids_file, since, until, cache, do_apply):
     Use --uuids-file for a finalize's keepers, or --since/--until to lock an event."""
     import json
     if since or until:
-        uuids = [r.uuid for r in _filter_by_date(ensure_records(cache), since, until)]
+        uuids = [r.uuid for r in _filter_by_date(records_ram(), since, until)]
         src = f"{since or '…'} → {until or '…'}"
     else:
         with open(uuids_file) as f:
@@ -642,7 +637,7 @@ def finalize(since, until, prefix, baseline, cache, lock, rescue_file, unfav_fil
     """
     import json
     if since or until:                         # live, one-command range finalize
-        in_range = {r.uuid for r in _filter_by_date(ensure_records(cache), since, until)}
+        in_range = {r.uuid for r in _filter_by_date(records_ram(), since, until)}
         survivors = [u for u in apply_mod.find_rescue_uuids(prefix, use_favorites=True)
                      if u in in_range]
         base = set(json.load(open(baseline))) if os.path.exists(baseline) else set()

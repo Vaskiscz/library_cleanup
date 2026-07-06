@@ -1,25 +1,28 @@
-"""Tests for the on-disk records cache (audit #8): it holds sensitive derived
-metadata (GPS, OCR text, filenames), so it must not be world/group-readable."""
-import json
-import os
-import stat
-
-from photo_cleanup.scan import save_records
+"""The records provider is RAM-only (audit #8): scanned metadata (GPS, Apple
+Vision OCR text, filenames) is never written to disk, and the disk-cache writer
+no longer exists at all."""
+from photo_cleanup import scan
 from conftest import mk
 
 
-def test_records_cache_is_owner_only(tmp_path):
-    cache_dir = tmp_path / "photo-cleanup"
-    path = str(cache_dir / "records.json")
-    rec = mk("x", latitude=50.0, longitude=14.0, detected_text="one-time code 123456")
+def test_records_ram_is_memoized_in_process(monkeypatch):
+    calls = []
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *a, **k: calls.append(1) or [mk("x", detected_text="code 123456")])
+    monkeypatch.setattr(scan, "_db_mtime", lambda dbpath=None: 42.0)
+    scan._RAM_RECORDS.clear()
 
-    save_records([rec], path)          # dbpath=None -> lib_mtime None, fine
+    r1 = scan.records_ram()
+    r2 = scan.records_ram()
+    assert r1[0].uuid == "x" and r2 is r1        # served from the in-RAM memo
+    assert len(calls) == 1                        # library not re-scanned
+    scan.records_ram(force=True)
+    assert len(calls) == 2                        # explicit force re-scans
 
-    # directory 0700, both files 0600 — not readable by group/other or lax backups
-    assert stat.S_IMODE(os.stat(str(cache_dir)).st_mode) == 0o700
-    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
-    assert stat.S_IMODE(os.stat(path + ".meta.json").st_mode) == 0o600
 
-    # sanity: the data round-trips (we only locked perms, didn't corrupt content)
-    data = json.load(open(path))
-    assert data[0]["uuid"] == "x"
+def test_no_records_disk_writer_exists():
+    # The records.json writer/loader are gone — no code path can persist the
+    # sensitive photo metadata to disk.
+    assert not hasattr(scan, "save_records")
+    assert not hasattr(scan, "load_records")
+    assert not hasattr(scan, "ensure_records")

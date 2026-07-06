@@ -7,9 +7,8 @@ Fast even on large libraries.
 
 from __future__ import annotations
 
-import json
 import os
-from typing import Iterable, Optional
+from typing import Optional
 
 from .model import Record
 
@@ -132,11 +131,17 @@ def scan_library(
     return records
 
 
-# ---- cache (staleness-aware) -----------------------------------------------
+# ---- records (RAM-only; never persisted) -----------------------------------
+# Scanned Records carry sensitive derived metadata (GPS coordinates, Apple Vision
+# OCR text, filenames). We deliberately do NOT write them to disk (audit #8) —
+# there is no records.json cache anymore. Records are memoized per PROCESS so
+# repeated calls within one run don't re-scan; a fresh process (e.g. each CLI
+# command) re-reads the library. (The expensive Vision embeddings remain cached
+# in the sanctioned .npz — so this never causes a full re-analyze.)
 
 def _db_mtime(dbpath: Optional[str] = None) -> Optional[float]:
     """Newest mtime of the Photos SQLite + its WAL/SHM — changes on any
-    edit/favorite/delete, so we can tell if the cache is out of date."""
+    edit/favorite/delete. Used to invalidate the in-RAM records memo."""
     lib = dbpath or os.path.expanduser("~/Pictures/Photos Library.photoslibrary")
     dbdir = os.path.join(lib, "database")
     try:
@@ -147,54 +152,18 @@ def _db_mtime(dbpath: Optional[str] = None) -> Optional[float]:
         return None
 
 
-def save_records(records: Iterable[Record], path: str, dbpath: Optional[str] = None) -> None:
-    # This cache holds sensitive derived metadata (GPS, Apple Vision OCR text,
-    # filenames, paths). Restrict it to the owner so it isn't exposed to other
-    # local users / lax backups (audit #8). NOTE: this does not stop a same-user
-    # process from reading it — fully removing the OCR/GPS at rest (or encrypting
-    # it) is a pending product decision.
-    d = os.path.dirname(os.path.abspath(path))
-    os.makedirs(d, exist_ok=True)
-    try:
-        os.chmod(d, 0o700)
-    except OSError:
-        pass
-    recs = list(records)
-    for p, payload in ((path, [r.to_dict() for r in recs]),
-                       (path + ".meta.json", {"count": len(recs), "lib_mtime": _db_mtime(dbpath)})):
-        # Create with 0600 from the start (don't briefly expose at the default umask).
-        fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
-            json.dump(payload, f)
-        try:
-            os.chmod(p, 0o600)          # tighten even if the file pre-existed
-        except OSError:
-            pass
+_RAM_RECORDS: dict = {}          # per-process only; keyed by (dbpath, lib_mtime)
 
 
-def load_records(path: str) -> list[Record]:
-    with open(path) as f:
-        return [Record.from_dict(d) for d in json.load(f)]
-
-
-def cache_is_fresh(path: str, dbpath: Optional[str] = None) -> bool:
-    """True if the cache exists and the library hasn't changed since it was built."""
-    meta_path = path + ".meta.json"
-    if not (os.path.exists(path) and os.path.exists(meta_path)):
-        return False
-    try:
-        meta = json.load(open(meta_path))
-    except Exception:
-        return False
-    lm = _db_mtime(dbpath)
-    return meta.get("lib_mtime") is not None and lm is not None and lm <= meta["lib_mtime"]
-
-
-def ensure_records(path: str, dbpath: Optional[str] = None, force: bool = False) -> list[Record]:
-    """Return Records, rescanning ONLY if forced or the cache is stale (library
-    changed since last scan). Avoids redundant full rescans and stale data."""
-    if not force and cache_is_fresh(path, dbpath):
-        return load_records(path)
-    records = scan_library(dbpath)
-    save_records(records, path, dbpath)
-    return records
+def records_ram(dbpath: Optional[str] = None, force: bool = False) -> list[Record]:
+    """Photo Records for the library, held in RAM ONLY (never written to disk).
+    Memoized per process and invalidated when the library changes."""
+    mt = _db_mtime(dbpath)
+    key = (dbpath or "", mt)
+    if not force and mt is not None and key in _RAM_RECORDS:
+        return _RAM_RECORDS[key]
+    recs = scan_library(dbpath)
+    if mt is not None:
+        _RAM_RECORDS.clear()         # only keep the current library's records in RAM
+        _RAM_RECORDS[key] = recs
+    return recs
