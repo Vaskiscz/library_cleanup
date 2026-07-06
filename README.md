@@ -103,5 +103,11 @@ The read path (`scan`, `rescue-plan`, `fav-baseline`) works anywhere with Full D
 
 ## License
 
-[MIT](LICENSE) — free to use, modify, and redistribute; keep the copyright
-notice crediting the original author (Václav Trnka).
+[PolyForm Noncommercial 1.0.0](LICENSE) — **free for any noncommercial use**:
+personal use, study, hobby projects, research, and use by nonprofits, schools,
+and government. You may use, modify, and share it, provided you keep the
+attribution notice.
+
+**Commercial use — including selling it, or running it as a paid product or
+service — is not permitted** without a separate license. For a commercial
+license, contact the author (Václav Trnka).
