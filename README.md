@@ -111,3 +111,9 @@ attribution notice.
 **Commercial use — including selling it, or running it as a paid product or
 service — is not permitted** without a separate license. For a commercial
 license, contact the author (Václav Trnka).
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Note that
+submitting a contribution grants the author the right to relicense it (including
+commercially), so the project's licensing stays flexible.
