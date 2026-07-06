@@ -114,41 +114,100 @@ def download_dmg(url: str, progress: Optional[Callable[[int, int], None]] = None
     fd, dest = tempfile.mkstemp(prefix="library-cleanup-update-", suffix=".dmg")
     os.close(fd)
     req = urllib.request.Request(url, headers={"User-Agent": f"LibraryCleanup/{__version__}"})
-    with urllib.request.urlopen(req, timeout=30, context=_ssl_context()) as r, \
-            open(dest, "wb") as out:  # nosec
-        total = int(r.headers.get("Content-Length") or 0)
-        done = 0
-        while True:
-            chunk = r.read(262144)
-            if not chunk:
-                break
-            out.write(chunk)
-            done += len(chunk)
-            if progress:
-                progress(done, total)
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=_ssl_context()) as r, \
+                open(dest, "wb") as out:  # nosec
+            total = int(r.headers.get("Content-Length") or 0)
+            done = 0
+            while True:
+                chunk = r.read(262144)
+                if not chunk:
+                    break
+                out.write(chunk)
+                done += len(chunk)
+                if progress:
+                    progress(done, total)
+        # Reject a truncated body early (a partial download must never reach the
+        # install path); the signing check below is the real integrity gate.
+        if total and done != total:
+            raise IOError(f"incomplete download: {done} of {total} bytes")
+    except BaseException:
+        try:
+            os.unlink(dest)          # never leave a partial DMG orphaned
+        except OSError:
+            pass
+        raise
     return dest
 
 
-# Bash helper: waits for the running app to quit, swaps the bundle, relaunches.
+def _designated_requirement(app_path: str) -> Optional[str]:
+    """The app's codesign 'designated requirement' — the identity a valid
+    signature must satisfy. Used to pin an update to the SAME signer as the
+    running app."""
+    out = subprocess.run(["/usr/bin/codesign", "-d", "-r-", app_path],
+                         capture_output=True, text=True)
+    for line in (out.stdout + out.stderr).splitlines():
+        line = line.strip()
+        if line.startswith("designated =>"):
+            return line.split("=>", 1)[1].strip()
+    return None
+
+
+def verify_bundle(new_app: str, current_app: str) -> None:
+    """Fail closed unless the downloaded bundle (a) has a structurally valid
+    signature and (b) is signed by the SAME identity as the currently-running
+    app. The app is self-signed, so codesign alone only proves internal
+    consistency — the identity pin is what proves the update came from us and
+    not from a hijacked release. Raises on any problem; caller must NOT install
+    (or strip quarantine) if this raises.
+    """
+    # (a) structurally valid, unmodified signature.
+    subprocess.run(["/usr/bin/codesign", "--verify", "--strict", "--deep", new_app],
+                   check=True, capture_output=True, text=True)
+    # (b) same signer as us. Without this, any validly-self-signed .app would pass (a).
+    req = _designated_requirement(current_app)
+    if not req:
+        raise RuntimeError("cannot read the running app's designated requirement; refusing update")
+    subprocess.run(["/usr/bin/codesign", "--verify", f"-R={req}", new_app],
+                   check=True, capture_output=True, text=True)
+
+
+def _mount_and_find_app(dmg_path: str) -> tuple[str, str]:
+    """Attach the DMG read-only and return (mount_point, path-to-.app-inside).
+    Detaches and raises if no .app is found."""
+    mount = tempfile.mkdtemp(prefix="library-cleanup-mnt-")
+    subprocess.run(["/usr/bin/hdiutil", "attach", "-nobrowse", "-noautoopen",
+                    "-quiet", "-mountpoint", mount, dmg_path],
+                   check=True, capture_output=True, text=True)
+    try:
+        apps = [e for e in os.listdir(mount) if e.endswith(".app")]
+        if not apps:
+            raise RuntimeError("no .app bundle inside the downloaded DMG")
+        return mount, os.path.join(mount, apps[0])
+    except BaseException:
+        subprocess.run(["/usr/bin/hdiutil", "detach", mount, "-force", "-quiet"], check=False)
+        raise
+
+
+# Bash helper: waits for the running app to quit, then swaps in the ALREADY
+# MOUNTED, ALREADY VERIFIED bundle and relaunches. It does NOT mount or verify —
+# verification happens in Python (verify_bundle) before this ever runs, so a
+# bundle that failed the signing/identity check can never reach the swap.
 # Kept minimal and defensive — it must never leave the user without an app.
 _HELPER = r"""#!/bin/bash
 set -u
-PID="$1"; DMG="$2"; APP="$3"; SELF="$0"
-# 1) wait (up to ~20s) for the running app to exit so `open` relaunches fresh
+PID="$1"; SRC="$2"; APP="$3"; MP="$4"; DMG="$5"; SELF="$0"
+# wait (up to ~20s) for the running app to exit so `open` relaunches fresh
 for _ in $(seq 1 100); do kill -0 "$PID" 2>/dev/null || break; sleep 0.2; done
-MP="$(mktemp -d /tmp/lc-update.XXXXXX)"
-if hdiutil attach -nobrowse -noautoopen -quiet -mountpoint "$MP" "$DMG"; then
-  SRC="$(/usr/bin/find "$MP" -maxdepth 1 -name '*.app' -print -quit)"
-  if [ -n "$SRC" ]; then
-    rm -rf "$APP.new" "$APP.bak" 2>/dev/null
-    if ditto "$SRC" "$APP.new"; then          # aborts here if it can't write: original intact
-      mv "$APP" "$APP.bak" && mv "$APP.new" "$APP" || mv "$APP.bak" "$APP"
-      rm -rf "$APP.bak" 2>/dev/null
-      xattr -dr com.apple.quarantine "$APP" 2>/dev/null
-    fi
+if [ -d "$SRC" ]; then
+  rm -rf "$APP.new" "$APP.bak" 2>/dev/null
+  if ditto "$SRC" "$APP.new"; then            # aborts here if it can't write: original intact
+    mv "$APP" "$APP.bak" && mv "$APP.new" "$APP" || mv "$APP.bak" "$APP"
+    rm -rf "$APP.bak" 2>/dev/null
+    xattr -dr com.apple.quarantine "$APP" 2>/dev/null
   fi
-  hdiutil detach "$MP" -quiet 2>/dev/null || hdiutil detach "$MP" -force -quiet 2>/dev/null
 fi
+hdiutil detach "$MP" -quiet 2>/dev/null || hdiutil detach "$MP" -force -quiet 2>/dev/null
 rmdir "$MP" 2>/dev/null
 rm -f "$DMG" 2>/dev/null
 open "$APP" 2>/dev/null
@@ -157,12 +216,23 @@ rm -f "$SELF" 2>/dev/null
 
 
 def apply_update(dmg_path: str, exit_delay: float = 1.5) -> str:
-    """Spawn the detached swap-and-relaunch helper, then schedule this process to
-    exit so the helper can replace the (now-quit) bundle. Returns the app path.
-    Raises if we can't locate the bundle (dev/source run — nothing to replace)."""
+    """Mount the DMG, VERIFY the bundle's signature+identity, and only then spawn
+    the detached swap-and-relaunch helper and schedule this process to exit.
+    Returns the app path. Raises (leaving the installed app untouched) if we
+    aren't running from a bundle, or if the downloaded bundle fails verification
+    — nothing is swapped and quarantine is never stripped on a bad payload."""
     app_path = app_bundle_path()
     if not app_path:
         raise RuntimeError("not running from an .app bundle — cannot self-install")
+
+    # Mount + verify BEFORE any destructive step. If verification fails, detach
+    # and raise: the running app is left exactly as it was.
+    mount, src_app = _mount_and_find_app(dmg_path)
+    try:
+        verify_bundle(src_app, app_path)
+    except BaseException:
+        subprocess.run(["/usr/bin/hdiutil", "detach", mount, "-force", "-quiet"], check=False)
+        raise
 
     fd, script = tempfile.mkstemp(prefix="library-cleanup-relaunch-", suffix=".sh")
     with os.fdopen(fd, "w") as fh:
@@ -170,7 +240,7 @@ def apply_update(dmg_path: str, exit_delay: float = 1.5) -> str:
     os.chmod(script, 0o755)
 
     subprocess.Popen(                                  # detached: survives our exit
-        ["/bin/bash", script, str(os.getpid()), dmg_path, app_path],
+        ["/bin/bash", script, str(os.getpid()), src_app, app_path, mount, dmg_path],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         start_new_session=True)
 

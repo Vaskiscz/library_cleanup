@@ -122,15 +122,21 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         # adding the frame MOST different from those already chosen — but only
         # while it clears the diversity floor. Spreads keepers across the range
         # of expressions/poses; a near-identical burst yields just one keeper.
-        keepers = [ranked[0]]
+        # Seed with the best-quality frame that ACTUALLY has an embedding — if the
+        # top-ranked frame's Vision embedding failed, seeding with it would leave
+        # the diversity loop's min() over an empty set and crash the whole scan
+        # (audit #5). Fall back to ranked[0] so a cluster with zero embeddings
+        # still keeps one.
+        seed = next((r for r in ranked if embeddings.get(r.uuid) is not None), ranked[0])
+        keepers = [seed]
         while len(keepers) < n_keep:
             best_c, best_d = None, -1.0
             for c in eligible:
                 cv = embeddings.get(c.uuid)
                 if cv is None or c in keepers:
                     continue
-                dmin = min(distance(cv, embeddings.get(k.uuid)) for k in keepers
-                           if embeddings.get(k.uuid) is not None)
+                kvecs = [kv for k in keepers if (kv := embeddings.get(k.uuid)) is not None]
+                dmin = min((distance(cv, kv) for kv in kvecs), default=float("inf"))
                 if dmin > best_d:
                     best_d, best_c = dmin, c
             if best_c is None or best_d < div_min:

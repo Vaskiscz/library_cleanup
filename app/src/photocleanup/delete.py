@@ -107,16 +107,25 @@ def delete_assets(uuids: Iterable[str], dry_run: bool = False) -> dict:
     if status not in (P.PHAuthorizationStatusAuthorized, P.PHAuthorizationStatusLimited):
         return {"status": "unauthorized", "auth": int(status),
                 "requested": len(uuids), "matched": 0, "deleted": 0}
+    # Under "Limited" access, PhotoKit only sees the user's selected subset even
+    # though we can READ the whole library via Full Disk Access. So any requested
+    # asset outside that subset silently won't resolve — we must NOT report that
+    # as a clean success (audit #3). Signal 'access-limited' so the UI can tell
+    # the user to grant full access and keep their review intact.
+    limited = status == P.PHAuthorizationStatusLimited
 
     assets, matched = _resolve_assets(uuids)
     unmatched = [u for u in uuids if u not in matched]
     if dry_run:
-        return {"status": "ok" if assets else "no-match", "dry_run": True,
+        st = "ok" if assets else "no-match"
+        if limited and unmatched:
+            st = "access-limited"
+        return {"status": st, "dry_run": True, "limited": limited,
                 "requested": len(uuids), "matched": len(assets), "deleted": 0,
                 "unmatched": unmatched}
     if not assets:
-        return {"status": "no-match", "requested": len(uuids), "matched": 0,
-                "deleted": 0, "unmatched": unmatched}
+        return {"status": "access-limited" if limited else "no-match", "limited": limited,
+                "requested": len(uuids), "matched": 0, "deleted": 0, "unmatched": unmatched}
 
     lib = P.PHPhotoLibrary.sharedPhotoLibrary()
 
@@ -128,5 +137,8 @@ def delete_assets(uuids: Iterable[str], dry_run: bool = False) -> dict:
         # user pressing "Don't Allow"/Cancel surfaces here as an error too
         return {"status": "error", "requested": len(uuids), "matched": len(assets),
                 "deleted": 0, "unmatched": unmatched, "error": str(error)}
-    return {"status": "ok", "requested": len(uuids), "matched": len(assets),
+    # Deleted the matched set, but under Limited access some requested assets were
+    # unreachable — report 'access-limited' so the UI doesn't claim full success.
+    return {"status": "access-limited" if (limited and unmatched) else "ok",
+            "limited": limited, "requested": len(uuids), "matched": len(assets),
             "deleted": len(assets), "unmatched": unmatched}

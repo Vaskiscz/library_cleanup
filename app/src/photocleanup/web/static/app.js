@@ -1223,6 +1223,15 @@ function doneHtml() {
       <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-back">Back to review</button></div>
     </div></div>`;
   }
+  if (d.status === "access-limited") {
+    return `<div class="backdrop"><div class="modal center">
+      <div class="done-disc" style="background:var(--pc-warn)">${icon("i-lock")}</div>
+      <h3>Full Photos access needed</h3>
+      <p class="head-n">${d.deleted ? `Removed ${fmtN(d.deleted)}, but ${fmtN(d.unmatched)} item${d.unmatched === 1 ? "" : "s"} couldn't be reached` : "Library Cleanup can't reach the selected items"} because Photos access is set to <b>Selected Photos</b>. Switch it to <b>All Photos</b> in System Settings ▸ Privacy &amp; Security ▸ <b>Photos</b>, then try again.</p>
+      <p class="head-n" style="font-size:12px">Your review is kept — finish removing once full access is granted.</p>
+      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-back">Back to review</button></div>
+    </div></div>`;
+  }
   if (d.status && d.status !== "ok") {
     return `<div class="backdrop"><div class="modal center">
       <div class="done-disc" style="background:var(--pc-warn)">${icon("i-x")}</div>

@@ -2,6 +2,9 @@
 guarding, and the /api/update/* endpoints. No real network or process exit."""
 import io
 import json
+import os
+import subprocess
+import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -122,3 +125,137 @@ def test_update_apply_falls_back_when_cannot_install(client, monkeypatch):
     r = client.post("/api/update/apply").json()
     assert r["started"] is False and r["can_install"] is False
     assert r["html_url"].startswith("https://github.com/Vaskiscz/library_cleanup")
+
+
+# ---- download integrity (#7/#19) -------------------------------------------
+class _FakeResp:
+    def __init__(self, data, total=None):
+        self._b = io.BytesIO(data)
+        self.headers = {"Content-Length": str(total if total is not None else len(data))}
+
+    def read(self, n=-1):
+        return self._b.read(n)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_download_dmg_success(monkeypatch, tmp_path):
+    payload = b"FAKE-DMG-BYTES" * 100
+    monkeypatch.setattr(updater.urllib.request, "urlopen",
+                        lambda req, timeout=0, context=None: _FakeResp(payload))
+    url = updater._ALLOWED_PREFIX + "v0.2.0/Library-Cleanup.dmg"
+    dest = updater.download_dmg(url)
+    try:
+        assert open(dest, "rb").read() == payload
+    finally:
+        os.unlink(dest)
+
+
+def test_download_dmg_truncated_body_raises_and_cleans_up(monkeypatch):
+    # server claims 9999 bytes but sends 3 -> must raise AND leave no orphan temp file
+    monkeypatch.setattr(updater.urllib.request, "urlopen",
+                        lambda req, timeout=0, context=None: _FakeResp(b"abc", total=9999))
+    paths = []
+    real_mkstemp = updater.tempfile.mkstemp
+
+    def cap(*a, **k):
+        fd, p = real_mkstemp(*a, **k)
+        paths.append(p)
+        return fd, p
+    monkeypatch.setattr(updater.tempfile, "mkstemp", cap)
+    with pytest.raises(Exception):
+        updater.download_dmg(updater._ALLOWED_PREFIX + "v0.2.0/Library-Cleanup.dmg")
+    assert paths and not os.path.exists(paths[0])
+
+
+# ---- signature/identity verification (#1) ----------------------------------
+def _fake_run_factory(fail_on_R=False):
+    """A fake subprocess.run: codesign -d -r- returns a designated requirement;
+    everything else succeeds — unless fail_on_R, in which case the identity-pin
+    (`-R=`) check raises like a real mismatch."""
+    def fake_run(cmd, check=False, capture_output=False, text=False, **kw):
+        class R:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+        r = R()
+        if cmd[:3] == ["/usr/bin/codesign", "-d", "-r-"]:
+            r.stdout = ('Executable=/x\ndesignated => identifier '
+                        '"cz.vaskiscz.photocleanup" and certificate leaf = H"abc"\n')
+            return r
+        if fail_on_R and any(isinstance(c, str) and c.startswith("-R=") for c in cmd):
+            raise subprocess.CalledProcessError(1, cmd, stderr="requirement not satisfied")
+        return r
+    return fake_run
+
+
+def test_verify_bundle_accepts_matching_identity(monkeypatch):
+    monkeypatch.setattr(updater.subprocess, "run", _fake_run_factory(fail_on_R=False))
+    updater.verify_bundle("/new.app", "/cur.app")     # must not raise
+
+
+def test_verify_bundle_rejects_mismatched_identity(monkeypatch):
+    monkeypatch.setattr(updater.subprocess, "run", _fake_run_factory(fail_on_R=True))
+    with pytest.raises(subprocess.CalledProcessError):
+        updater.verify_bundle("/new.app", "/cur.app")
+
+
+def test_apply_update_aborts_and_does_not_swap_when_verification_fails(monkeypatch, tmp_path):
+    app = tmp_path / "Library Cleanup.app"
+    app.mkdir()
+    mount = str(tmp_path / "mnt")
+    monkeypatch.setattr(updater, "app_bundle_path", lambda: str(app))
+    monkeypatch.setattr(updater, "_mount_and_find_app", lambda dmg: (mount, mount + "/X.app"))
+    monkeypatch.setattr(updater, "verify_bundle",
+                        lambda new, cur: (_ for _ in ()).throw(RuntimeError("bad signer")))
+    popen_calls, timer_calls, run_calls = [], [], []
+    monkeypatch.setattr(updater.subprocess, "Popen", lambda *a, **k: popen_calls.append(a) or object())
+    monkeypatch.setattr(updater.subprocess, "run", lambda *a, **k: run_calls.append(a[0]) or None)
+    monkeypatch.setattr(updater.threading, "Timer", lambda *a, **k: timer_calls.append(a) or type("T", (), {"start": lambda self: None})())
+    with pytest.raises(RuntimeError):
+        updater.apply_update("/tmp/x.dmg")
+    assert not popen_calls, "must not spawn the swap helper on failed verification"
+    assert not timer_calls, "must not schedule os._exit on failed verification"
+    assert any("detach" in c for c in run_calls), "must detach the mounted DMG"
+
+
+def test_apply_update_success_spawns_helper_after_verify(monkeypatch, tmp_path):
+    app = tmp_path / "Library Cleanup.app"
+    app.mkdir()
+    mount, src = str(tmp_path / "mnt"), str(tmp_path / "mnt" / "X.app")
+    monkeypatch.setattr(updater, "app_bundle_path", lambda: str(app))
+    monkeypatch.setattr(updater, "_mount_and_find_app", lambda dmg: (mount, src))
+    monkeypatch.setattr(updater, "verify_bundle", lambda new, cur: None)
+    popen_calls, timer_calls = [], []
+    monkeypatch.setattr(updater.subprocess, "Popen", lambda *a, **k: popen_calls.append(a[0]) or object())
+
+    class _Timer:
+        def __init__(self, *a, **k):
+            timer_calls.append(a)
+
+        def start(self):
+            pass
+    monkeypatch.setattr(updater.threading, "Timer", _Timer)
+    updater.apply_update("/tmp/x.dmg", exit_delay=0.01)
+    assert len(popen_calls) == 1
+    argv = popen_calls[0]
+    # [bash, script, pid, SRC, APP, MOUNT, DMG]
+    assert argv[0] == "/bin/bash" and argv[3] == src and argv[4] == str(app)
+    assert argv[5] == mount and argv[6] == "/tmp/x.dmg"
+    assert oct(os.stat(argv[1]).st_mode)[-3:] == "755"
+    assert timer_calls and timer_calls[0][1] is os._exit
+    os.unlink(argv[1])
+
+
+def test_relaunch_helper_is_valid_bash():
+    fd, p = tempfile.mkstemp(suffix=".sh")
+    os.write(fd, updater._HELPER.encode())
+    os.close(fd)
+    try:
+        assert subprocess.run(["bash", "-n", p]).returncode == 0
+    finally:
+        os.unlink(p)

@@ -122,6 +122,17 @@ class Store:
         cur = self._conn.execute("SELECT uuid FROM decision WHERE layer = ?", (layer,))
         return {r["uuid"] for r in cur}
 
+    def clear_decisions(self, layer: str, uuids: Iterable[str]) -> int:
+        """Drop decision rows for the given uuids in a layer, once they've been
+        acted on. Prevents a finalized round's verdicts from lingering and being
+        silently re-applied (or re-deleted) in a later, unrelated round."""
+        rows = [(layer, u) for u in uuids]
+        if not rows:
+            return 0
+        with self._tx() as cur:
+            cur.executemany("DELETE FROM decision WHERE layer = ? AND uuid = ?", rows)
+        return len(rows)
+
     # ---- reviewed (permanent exclusion, app equivalent of reviewed:keep) ----
     def mark_reviewed(self, uuids: Iterable[str], layer: Optional[str] = None) -> int:
         ts = _now()

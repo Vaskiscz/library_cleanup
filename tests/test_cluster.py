@@ -28,6 +28,24 @@ def test_singleton_no_discards():
     assert dg.discards == []
 
 
+def test_missing_top_embedding_does_not_crash(caplog):
+    # audit #5: if the top-ranked frame's Vision embedding failed (absent from the
+    # cache) while others have vectors, select_keepers must not raise ValueError.
+    photos = [mk(f"p{i}") for i in range(4)]
+    emb = FakeEmbeddings({"p1": [1.0, 0.0, 0.0], "p2": [0.0, 1.0, 0.0],
+                          "p3": [0.0, 0.0, 1.0]})   # p0 (ranked first) has NO vector
+    dg = select_keepers(photos, CFG, embeddings=emb)   # must not raise
+    assert dg.size == 4 and len(dg.keepers) >= 1
+
+
+def test_no_embeddings_at_all_still_keeps_one():
+    # every frame's embedding failed -> fall back gracefully, never crash
+    photos = [mk(f"q{i}") for i in range(4)]
+    emb = FakeEmbeddings({})
+    dg = select_keepers(photos, CFG, embeddings=emb)
+    assert dg.size == 4 and len(dg.keepers) >= 1
+
+
 def test_uniform_burst_collapses_to_one():
     # 5 near-identical (all same vector) -> keep 1, discard 4
     photos = [mk(f"p{i}") for i in range(5)]

@@ -220,6 +220,50 @@ def test_cancel_endpoint(client):
     assert r.status_code == 200 and r.json()["cancelling"] is True
 
 
+# ---- finalize round-scoping (audit #2) -------------------------------------
+def test_finalize_scopes_to_current_round_and_prunes(client, monkeypatch):
+    """finalize must only act on decisions in the current candidates, and must
+    prune them so a later round never re-deletes them."""
+    import photocleanup.learning as learning
+    import photocleanup.server as server
+    monkeypatch.setattr(learning, "write_dedup_feedback", lambda *a, **k: "/tmp/fake.json")
+    monkeypatch.setattr(server, "_start_learning", lambda dbpath: True)
+
+    _run_analyze(client, ["dedup"])          # candidates: a (keep), b, c (discard)
+    client.post("/api/decisions", json={"layer": "dedup", "decisions": [
+        {"uuid": "a", "verdict": "keep"},
+        {"uuid": "b", "verdict": "discard"},
+        {"uuid": "c", "verdict": "discard"},
+        {"uuid": "z", "verdict": "discard"},   # stale: a prior round, NOT in candidates
+    ]})
+    r = client.post("/api/finalize", json={"layers": ["dedup"]}).json()
+    assert sorted(r["to_delete"]) == ["b", "c"]           # z is not re-deleted
+    # second finalize must not re-emit b,c (their rows were pruned once acted on)
+    r2 = client.post("/api/finalize", json={"layers": ["dedup"]}).json()
+    assert r2["to_delete"] == []
+
+
+# ---- cross-origin / CSRF guard (audit #4) ----------------------------------
+def test_cross_origin_post_is_refused(client):
+    r = client.post("/api/cancel", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403
+
+
+def test_loopback_origin_post_is_allowed(client):
+    r = client.post("/api/cancel", headers={"Origin": "http://127.0.0.1:8765"})
+    assert r.status_code == 200
+
+
+def test_post_without_origin_is_allowed(client):
+    # our own WebView omits Origin for same-origin requests; must still work
+    assert client.post("/api/cancel").status_code == 200
+
+
+def test_get_is_not_origin_checked(client):
+    r = client.get("/api/progress", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 200
+
+
 def test_finalize_writes_flat_feedback(client, monkeypatch, tmp_path):
     """Deciding on a flat layer (screenshots/expired) at finalize writes an
     explicit-labels feedback file and kicks off learning."""

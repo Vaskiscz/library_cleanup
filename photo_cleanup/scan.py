@@ -148,12 +148,28 @@ def _db_mtime(dbpath: Optional[str] = None) -> Optional[float]:
 
 
 def save_records(records: Iterable[Record], path: str, dbpath: Optional[str] = None) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    # This cache holds sensitive derived metadata (GPS, Apple Vision OCR text,
+    # filenames, paths). Restrict it to the owner so it isn't exposed to other
+    # local users / lax backups (audit #8). NOTE: this does not stop a same-user
+    # process from reading it — fully removing the OCR/GPS at rest (or encrypting
+    # it) is a pending product decision.
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    try:
+        os.chmod(d, 0o700)
+    except OSError:
+        pass
     recs = list(records)
-    with open(path, "w") as f:
-        json.dump([r.to_dict() for r in recs], f)
-    with open(path + ".meta.json", "w") as f:
-        json.dump({"count": len(recs), "lib_mtime": _db_mtime(dbpath)}, f)
+    for p, payload in ((path, [r.to_dict() for r in recs]),
+                       (path + ".meta.json", {"count": len(recs), "lib_mtime": _db_mtime(dbpath)})):
+        # Create with 0600 from the start (don't briefly expose at the default umask).
+        fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump(payload, f)
+        try:
+            os.chmod(p, 0o600)          # tighten even if the file pre-existed
+        except OSError:
+            pass
 
 
 def load_records(path: str) -> list[Record]:

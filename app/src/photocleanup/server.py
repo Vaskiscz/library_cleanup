@@ -10,9 +10,10 @@ from __future__ import annotations
 import os
 import threading
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -85,6 +86,23 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     # where a malicious website resolves a domain to 127.0.0.1 to reach this API.
     app.add_middleware(TrustedHostMiddleware,
                        allowed_hosts=["127.0.0.1", "localhost", "testserver"])
+
+    # CSRF/cross-origin guard: without this, any web page the user visits can POST
+    # to this loopback API (a "simple request" needs no preflight) and trigger
+    # side effects like /api/update/apply or /api/delete (audit #4). For any
+    # state-changing method, reject when the request's Origin/Referer is present
+    # and NOT loopback. Same-origin requests from our own WebView omit Origin or
+    # send the loopback origin; a cross-origin attacker page always sends its own.
+    @app.middleware("http")
+    async def _cross_origin_guard(request, call_next):
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            src = request.headers.get("origin") or request.headers.get("referer")
+            if src is not None:
+                host = urlparse(src).hostname
+                if host not in ("127.0.0.1", "localhost", "::1"):
+                    return JSONResponse({"detail": "cross-origin request refused"},
+                                        status_code=403)
+        return await call_next(request)
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()
     app.state.job = {"status": "idle"}   # analyze progress (single job at a time)
@@ -210,9 +228,23 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         layers = body.layers or list(LAYERS)
         st = _store()
         keep_ids, discard_ids = [], []
+        acted: dict[str, list[str]] = {}
         for layer in layers:
+            # Scope to THIS round: only act on decisions whose uuid is in the
+            # current candidates for the layer. Without this, finalize re-emits
+            # every discard ever recorded — so a later round could delete photos
+            # the user never reviewed this round (audit #2). Fall back to the
+            # legacy all-decisions behaviour only if candidates aren't cached.
+            payload = _engine().cached_candidates(layer)
+            present = ({p["uuid"] for g in payload for p in g["photos"]}
+                       if payload is not None else None)
+            layer_acted = []
             for d in st.decisions(layer):
+                if present is not None and d.uuid not in present:
+                    continue                       # stale decision from a prior round
                 (keep_ids if d.verdict == KEEP else discard_ids).append(d.uuid)
+                layer_acted.append(d.uuid)
+            acted[layer] = layer_acted
 
         feedback_log = None
         if "dedup" in layers:
@@ -230,6 +262,12 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                 wrote_flat = bool(write_flat_feedback(st, flat, kind_map)) or wrote_flat
 
         st.mark_reviewed(keep_ids)
+        # This round is done: drop the acted-on decision rows so they can never be
+        # re-applied or re-deleted in a later round (audit #2). Keeps are also in
+        # `reviewed` (permanently excluded); discards, if still present next scan,
+        # are re-detected fresh rather than silently re-deleted.
+        for layer, uuids in acted.items():
+            st.clear_decisions(layer, uuids)
         # New keep/discard labels just landed — retrain the keeper model in the
         # background so the next round's suggestions reflect this review.
         learning_started = bool(feedback_log or wrote_flat) and _start_learning(_engine().dbpath)
