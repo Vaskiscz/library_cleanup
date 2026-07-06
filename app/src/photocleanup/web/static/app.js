@@ -67,6 +67,7 @@ const state = {
   selLayer: null,
   pvCollapsed: false,       // review: preview panel hidden
   pvWidth: 324,             // review: preview panel width (px), user-draggable
+  pvUserSized: false,       // true once the user drags the divider (stops auto-sizing)
   manual: false,            // review: manual "all photos & videos" feed (vs. curated)
   update: null,             // {current, latest, notes, ...} when a newer release exists
   updateStatus: "prompt",   // prompt | working | relaunching | error
@@ -928,6 +929,10 @@ function bindReview() {
   const pvR = $("#pvReopen"); if (pvR) pvR.onclick = () => { state.pvCollapsed = false; $("#rvMain").classList.remove("collapsed"); };
   const pvT = $("#pvToggle"); if (pvT) pvT.onclick = toggleSelected;
 
+  // Size the preview to the responsive default for the current window, unless the
+  // user has manually dragged it this session.
+  if (!state.pvUserSized && !state.pvCollapsed) setPreviewWidth(defaultPreviewWidth());
+
   // drag the divider to resize the grid / preview split (double-click resets)
   const rz = $("#pvResize");
   if (rz) {
@@ -936,7 +941,10 @@ function bindReview() {
       const rm = $("#rvMain"); rm.classList.add("resizing");
       try { rz.setPointerCapture(e.pointerId); } catch {}
       const startX = e.clientX, startW = state.pvWidth, maxW = rm.clientWidth - 320;
-      const onMove = (ev) => setPreviewWidth(Math.min(maxW, startW + (startX - ev.clientX)));  // drag left = wider
+      const onMove = (ev) => {
+        state.pvUserSized = true;                    // manual size wins over auto-sizing
+        setPreviewWidth(Math.min(maxW, startW + (startX - ev.clientX)));  // drag left = wider
+      };
       const onUp = () => {
         rm.classList.remove("resizing");
         rz.removeEventListener("pointermove", onMove);
@@ -946,7 +954,7 @@ function bindReview() {
       rz.addEventListener("pointermove", onMove);
       rz.addEventListener("pointerup", onUp);
     };
-    rz.ondblclick = () => setPreviewWidth(PV_DEFAULT);
+    rz.ondblclick = () => { state.pvUserSized = false; setPreviewWidth(defaultPreviewWidth()); };  // reset to the responsive default
   }
 
   // initialise / restore the previewed card so arrows + Space work the moment you arrive
@@ -1275,7 +1283,13 @@ function setCardSize(px) {
   if (cs && +cs.value !== px) cs.value = px;
 }
 
-const PV_MIN = 300, PV_DEFAULT = 324;     // preview panel: min keeps content uncramped
+const PV_MIN = 300, PV_MAX = 640;         // preview panel: min keeps content uncramped
+// Responsive default: on a wide window the preview should be generously wide
+// (a photo is the point), but always leave the grid a comfortable minimum.
+function defaultPreviewWidth() {
+  const w = window.innerWidth || 1280;
+  return Math.round(Math.max(PV_MIN, Math.min(PV_MAX, w * 0.34, w - 560)));
+}
 function setPreviewWidth(px) {
   state.pvWidth = Math.max(PV_MIN, Math.round(px));
   document.documentElement.style.setProperty("--pv", state.pvWidth + "px");
@@ -1285,7 +1299,14 @@ function setPreviewWidth(px) {
 // Nothing here touches the photo library — the first library access (and any
 // Photos permission prompt) happens only when the user clicks "Analyze".
 setCardSize(state.cardSize);
-setPreviewWidth(state.pvWidth);
+setPreviewWidth(defaultPreviewWidth());
+// Keep the preview at its responsive default as the window resizes — until the
+// user drags the divider, after which their chosen width sticks.
+window.addEventListener("resize", () => {
+  if (!state.pvUserSized && state.view === "review" && !state.pvCollapsed) {
+    setPreviewWidth(defaultPreviewWidth());
+  }
+});
 // health is library-free (reads only the app's own SQLite) — safe at boot;
 // used to show the version in the footer.
 api.get("/api/health").then((h) => { state.version = h.version || ""; render(); }).catch(() => {});
