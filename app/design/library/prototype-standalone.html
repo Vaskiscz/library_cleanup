@@ -20,6 +20,7 @@
   --pc-brand-tint:#1f9e8616; --pc-brand-ring:#1f9e86;
   --pc-keep:#2e7d32; --pc-keep-tint:#2e7d3214; --pc-clear:#c62828; --pc-clear-tint:#c6282810;
   --pc-warn:#b26a00; --pc-warn-tint:#b26a0014;
+  --pc-coffee:#9c5a2b; --pc-coffee-tint:#9c5a2b12;   /* support / buy-me-a-coffee accent (warm, distinct from teal & red) */
   --pc-bg:#f4f4f6; --pc-surface:#ffffff; --pc-surface-2:#fbfbfd; --pc-surface-sunken:#ececef; --pc-overlay:#ffffffd9;
   --pc-text:#1d1d1f; --pc-text-secondary:#6e6e73; --pc-text-tertiary:#98989d; --pc-text-on-brand:#ffffff;
   --pc-border:#d9d9de; --pc-border-strong:#c4c4cb; --pc-separator:#e7e7eb;
@@ -39,6 +40,7 @@
   --pc-brand-tint:#34b89e18; --pc-brand-ring:#34b89e;
   --pc-keep:#5bbd86; --pc-keep-tint:#5bbd8618; --pc-clear:#f17a7e; --pc-clear-tint:#f17a7e18;
   --pc-warn:#d9a44a; --pc-warn-tint:#d9a44a1c;
+  --pc-coffee:#d19a5e; --pc-coffee-tint:#d19a5e1f;
   --pc-bg:#1b1c1e; --pc-surface:#292a2d; --pc-surface-2:#222326; --pc-surface-sunken:#151619; --pc-overlay:#292a2dd9;
   --pc-text:#f1f2f4; --pc-text-secondary:#a3a5aa; --pc-text-tertiary:#707177; --pc-text-on-brand:#06201a;
   --pc-border:#393a3d; --pc-border-strong:#474849; --pc-separator:#2f3033;
@@ -107,8 +109,27 @@ button { font-family: inherit; cursor: pointer; }
 .resume-box .resume-txt { flex: 1 1 100%; font-size: var(--pc-text-sm); color: var(--pc-text-secondary); }
 .foot-note { border-top: 1px solid var(--pc-separator); background: var(--pc-surface-2);
   padding: 13px var(--pc-sp-5); display: flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: var(--pc-text-sm); color: var(--pc-text-secondary); }
+  font-size: var(--pc-text-sm); color: var(--pc-text-secondary); position: relative; }
+.foot-note .fn-msg { display: inline-flex; align-items: center; gap: 8px; }
 .foot-note svg { width: 13px; height: 13px; opacity: .7; }
+
+/* support / buy-me-a-coffee — footer ghost link (intro screen), inline in the centered row */
+.foot-note .fn-sep { width: 1px; height: 14px; background: var(--pc-separator); flex: none; }
+.support-link { background: none; border: none; cursor: pointer; font: inherit; font-size: 12px; font-weight: var(--pc-weight-medium);
+  color: var(--pc-text-tertiary); display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: var(--pc-radius-pill); flex: none;
+  transition: color var(--pc-dur-fast) var(--pc-ease), background var(--pc-dur-fast) var(--pc-ease); }
+.support-link svg { width: 14px; height: 14px; opacity: 1; color: currentColor; }
+.support-link:hover { color: var(--pc-coffee); background: var(--pc-coffee-tint); }
+
+/* support — success-screen card (after a delete) */
+.support-card { margin: 20px calc(-1 * var(--pc-sp-1)) 0; padding: 16px; border-radius: var(--pc-radius-md);
+  background: var(--pc-coffee-tint); display: flex; flex-direction: column; align-items: center; gap: 11px; }
+.support-card .support-msg { font-size: 12.5px; line-height: 1.45; color: var(--pc-text-secondary); text-wrap: pretty; }
+.support-btn { background: var(--pc-coffee); color: #fff; border: none; box-shadow: 0 2px 8px rgba(156,90,43,.28);
+  display: inline-flex; align-items: center; gap: 8px; }
+.support-btn:hover { filter: brightness(1.07); }
+.support-btn svg { width: 16px; height: 16px; color: #fff; }
 
 .scanning { text-align: center; padding: 96px 0; display: flex; flex-direction: column; align-items: center; }
 .spinner { width: 56px; height: 56px; border-radius: 999px; border: 4px solid var(--pc-brand-tint);
@@ -303,6 +324,7 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z" fill="currentColor"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><path d="M7 10 V8 a5 5 0 0 1 10 0 v2 M5 10 h14 v10 H5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7 V12 L15.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M4 8 h13 v4.5 a5 5 0 0 1 -5 5 H9 a5 5 0 0 1 -5 -5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17 9 h2.2 a2.6 2.6 0 0 1 0 5.2 H17" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 2.5 q1 1 0 2.5 M12 2.5 q1 1 0 2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-stack" viewBox="0 0 24 24"><rect x="7" y="7" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 16 V6 a2 2 0 0 1 2 -2 h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 10 L21 7 V17 L16 14 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
   <symbol id="i-shot" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8 h8 M8 12 h8 M8 16 h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
@@ -334,7 +356,7 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
     <!-- ============ HOME ============ -->
     <section class="screen active" data-screen="home">
       <div class="topbar">
-        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.23</span></div>
+        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.3.0</span></div>
         <div class="status" id="homeStatus"><span class="dot idle"></span>Library not connected</div>
       </div>
       <div class="scroll"><div class="home"><div class="hero">
@@ -361,13 +383,17 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
         <button class="btn btn-primary" id="goScan">Analyze Library</button>
         <div class="past">Takes a minute. No commitment — nothing's deleted until you say so.</div>
       </div></div></div>
-      <div class="foot-note"><svg viewBox="0 0 24 24"><use href="#i-lock"/></svg> Runs entirely on your Mac. Your photos never go anywhere.</div>
+      <div class="foot-note">
+        <span class="fn-msg"><svg viewBox="0 0 24 24"><use href="#i-lock"/></svg> Runs entirely on your Mac. Your photos never go anywhere.</span>
+        <span class="fn-sep"></span>
+        <button class="support-link" data-kofi title="Support Library Cleanup on Ko-fi"><svg viewBox="0 0 24 24"><use href="#i-coffee"/></svg> Buy me a coffee</button>
+      </div>
     </section>
 
     <!-- ============ SCANNING ============ -->
     <section class="screen" data-screen="scanning">
       <div class="topbar">
-        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.23</span></div>
+        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.3.0</span></div>
         <div class="status"><span class="dot ok"></span>Library connected · 24,180 photos · 1,142 videos</div>
       </div>
       <div class="scroll"><div class="scanning">
@@ -383,7 +409,7 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
     <!-- ============ CATEGORIES ============ -->
     <section class="screen" data-screen="categories">
       <div class="topbar">
-        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.23</span></div>
+        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.3.0</span></div>
         <div class="status"><span class="dot ok"></span>Library connected · 24,180 photos · 1,142 videos</div>
       </div>
       <div class="scroll"><div class="home"><div class="results" style="padding-top:0">
@@ -444,7 +470,7 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
     <!-- ============ REVIEW ============ -->
     <section class="screen" data-screen="review">
       <div class="topbar">
-        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.1.23</span></div>
+        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup <span style="font-size:var(--pc-text-xs);font-weight:var(--pc-weight-medium);color:var(--pc-text-tertiary)">v0.3.0</span></div>
         <div class="status"><span class="dot ok"></span>Library connected · 24,180 photos · 1,142 videos</div>
       </div>
       <div class="bar top">
@@ -541,6 +567,10 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
         <p class="head-n" id="doneHead">Removed 0 · kept 0 · freed 0 MB.</p>
         <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
         <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="doneRestart">Start a new review</button></div>
+        <div class="support-card">
+          <div class="support-msg">Library Cleanup is free and runs entirely on your Mac. If it saved you some time, you can buy me a coffee.</div>
+          <button class="btn support-btn" data-kofi><svg viewBox="0 0 24 24"><use href="#i-coffee"/></svg> Buy me a coffee</button>
+        </div>
       </div>
     </div>
 
@@ -548,13 +578,13 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
     <div class="backdrop" id="uBackdrop" style="display:none">
       <div class="modal" id="uPrompt">
         <h3>Update available</h3>
-        <p class="head-n">A newer version of Library Cleanup is ready. <b>v0.1.23</b> → <b>v0.2.0</b> · 43 MB</p>
+        <p class="head-n">A newer version of Library Cleanup is ready. <b>v0.3.0</b> → <b>v0.4.0</b> · 43 MB</p>
         <div class="row" style="font-size:12px;color:var(--pc-text-tertiary);margin:6px 0 16px">Downloads, installs, and relaunches automatically. Only the update is fetched — your photos never leave this Mac.</div>
         <div class="actions"><button class="btn-secondary" id="uLater">Later</button><button class="btn btn-primary" id="uGo">Download &amp; install</button></div>
       </div>
       <div class="modal center" id="uWorking" style="display:none">
         <div class="working"><div class="spinner sm"></div>
-          <h3 id="uTitle" style="margin:0">Updating to v0.2.0</h3>
+          <h3 id="uTitle" style="margin:0">Updating to v0.4.0</h3>
           <div class="head-n" id="uMsg" style="margin:0">Downloading update… 0%</div>
           <div class="progress" id="uProg" style="width:280px"><span id="uBar" style="width:0%"></span></div>
           <div style="font-size:12px;color:var(--pc-text-tertiary)" id="uSub">Please keep the app open until it relaunches.</div>
@@ -837,7 +867,7 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
   document.getElementById('uLater').addEventListener('click', clearUpdate);
   document.getElementById('uGo').addEventListener('click', function () {
     uPrompt.style.display = 'none'; uWorking.style.display = '';
-    uTitle.textContent = 'Updating to v0.2.0'; uSub.textContent = 'Please keep the app open until it relaunches.';
+    uTitle.textContent = 'Updating to v0.4.0'; uSub.textContent = 'Please keep the app open until it relaunches.';
     uProg.classList.remove('indet'); uBar.style.width = '0%';
     var t0 = Date.now(), DUR = 2200;
     var iv = setInterval(function () {
@@ -899,6 +929,13 @@ body { font-family: var(--pc-font); background: var(--pc-bg); color: var(--pc-te
     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
     document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
     themeToggle.textContent = dark ? 'Dark mode' : 'Light mode';
+  });
+
+  /* ---------------- support / Ko-fi ---------------- */
+  // In the real app this opens the URL in the default browser (a tiny /api/donate
+  // endpoint); here we just open a tab.
+  document.querySelectorAll('[data-kofi]').forEach(function (b) {
+    b.addEventListener('click', function () { window.open('https://ko-fi.com/vaclavtrnka', '_blank', 'noopener'); });
   });
 
   /* ---------------- boot ---------------- */
