@@ -100,17 +100,24 @@
 
       <div class="block">
         <h2>Contact</h2>
-        <p>Questions about privacy on this site? Reach me on <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">LinkedIn</a>.</p>
+        <p>Questions about privacy on this site? Reach me on <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer" data-evt="linkedin">LinkedIn</a>.</p>
       </div>
     </div>
   </main>
 
   <footer class="foot">
     <div class="wrap">
-      <a href="/">← Back to vaclavtrnka.cz</a>
+      <a href="/" data-evt="nav_home">← Back to vaclavtrnka.cz</a>
       <span>© 2026 · vaclavtrnka.cz</span>
     </div>
   </footer>
 </div>
+
+<script>
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-evt]');
+    if (el && window.clarity) { try { clarity('event', el.getAttribute('data-evt')); } catch (_) {} }
+  }, true);
+</script>
 </body>
 </html>

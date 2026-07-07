@@ -462,11 +462,11 @@
       <h1>Your photo library, minus the clutter.</h1>
       <p class="lede">Library Cleanup finds the burst clones, repeat video takes, and screenshot piles hiding in Apple Photos — then lets you review and remove them in a few clicks. Everything runs on your Mac. Nothing is ever uploaded.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">
+        <a class="btn btn-primary" data-evt="download_macos" href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 v12 M7 11 l5 5 5 -5 M5 20 h14"/></svg>
           Download for macOS
         </a>
-        <a class="btn btn-ghost" href="#how">See how it works</a>
+        <a class="btn btn-ghost" data-evt="see_how" href="#how">See how it works</a>
       </div>
       <p class="req">
         <b>Free</b><span class="sep">·</span>
@@ -844,7 +844,7 @@
           <h2>Made by one person who wanted a tidier library.</h2>
           <p>Hi, I'm Václav Trnka, an IT product manager. Library Cleanup started as a way to tame my own overflowing Photos library, and became a passion project I'm sharing for free. There's no company behind it and no roadmap board — just someone who cares that it works well and keeps your photos safe.</p>
           <p>Questions, ideas, or something not working right? I'd genuinely like to hear it — reach me on LinkedIn.</p>
-          <a class="btn btn-linkedin" href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">
+          <a class="btn btn-linkedin" data-evt="linkedin" href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">
             <svg viewBox="0 0 24 24" width="20" height="20"><use href="#i-linkedin"/></svg>
             Connect on LinkedIn
           </a>
@@ -858,7 +858,7 @@
     <div class="wrap">
       <h2>Give your library room to breathe.</h2>
       <p>Free, private, and entirely on your Mac. See what a clean library feels like.</p>
-      <a class="btn btn-primary" href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">
+      <a class="btn btn-primary" data-evt="download_macos" href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 v12 M7 11 l5 5 5 -5 M5 20 h14"/></svg>
         Download for macOS
       </a>
@@ -871,13 +871,22 @@
     <div class="wrap">
       <div class="brand"><svg viewBox="0 0 1024 1024"><use href="#appicon"/></svg> Library Cleanup</div>
       <nav class="links">
-        <a href="#how">How it works</a>
-        <a href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">Download</a>
-        <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">Contact</a>
-        <a href="/privacy/">Privacy</a>
+        <a href="#how" data-evt="nav_how">How it works</a>
+        <a href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg" data-evt="download_macos">Download</a>
+        <a href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer" data-evt="linkedin">Contact</a>
+        <a href="/privacy/" data-evt="nav_privacy">Privacy</a>
       </nav>
       <p class="fine">Runs entirely on your Mac — nothing is ever uploaded. Not affiliated with Apple. Apple, macOS, and Photos are trademarks of Apple Inc.</p>
     </div>
   </footer>
 
 </div>
+
+<script>
+  // CTA analytics: fire a named Microsoft Clarity event on click. No-ops safely
+  // wherever Clarity isn't loaded (e.g. the preview artifact).
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-evt]');
+    if (el && window.clarity) { try { clarity('event', el.getAttribute('data-evt')); } catch (_) {} }
+  }, true);
+</script>
