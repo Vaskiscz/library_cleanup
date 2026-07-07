@@ -25,6 +25,8 @@
   --pc-clear-tint:       #c6282810;
   --pc-warn:             #b26a00;  /* needs attention (FDA, errors) */
   --pc-warn-tint:        #b26a0014;
+  --pc-coffee:           #9c5a2b;  /* support / buy-me-a-coffee (warm; distinct from teal & red) */
+  --pc-coffee-tint:      #9c5a2b12;
 
   /* — Surfaces — */
   --pc-bg:               #f4f4f6;  /* window background */
@@ -103,6 +105,8 @@
     --pc-clear-tint:       #f17a7e18;
     --pc-warn:             #d9a44a;
     --pc-warn-tint:        #d9a44a1c;
+    --pc-coffee:           #d19a5e;
+    --pc-coffee-tint:      #d19a5e1f;
 
     /* Neutrals: faintly cool, lifted off near-black so accent contrast is gentler */
     --pc-bg:               #1b1c1e;

@@ -24,6 +24,7 @@ from .store import DISCARD, KEEP, Store
 
 LAYERS = ALL_LAYERS
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
+KOFI_URL = "https://ko-fi.com/vaclavtrnka"   # voluntary support (opened in the browser)
 
 # Only one retrain runs at a time; extra finalizes while it's busy are skipped
 # (the next finalize learns from the full accumulated feedback anyway).
@@ -314,6 +315,15 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
             subprocess.run(["open", "-R", LOG_PATH], check=False)
             return {"opened": True, "path": LOG_PATH}
         return {"opened": False, "path": LOG_PATH}
+
+    @app.post("/api/donate")
+    def donate():
+        """Open the Ko-fi support page in the default browser (voluntary tips).
+        Opening externally keeps donations out of the app entirely — no payment
+        handling, no PII, and nothing loads inside the WebView."""
+        import subprocess
+        subprocess.run(["open", KOFI_URL], check=False)
+        return {"opened": True, "url": KOFI_URL}
 
     @app.post("/api/learn")
     def learn():

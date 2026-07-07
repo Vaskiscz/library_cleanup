@@ -20,6 +20,10 @@ const api = {
   },
 };
 
+// Open the Ko-fi support page in the default browser (server runs `open`; nothing
+// external loads inside the WebView, so the CSP stays strict).
+function donate() { api.post("/api/donate").catch(() => {}); }
+
 const fmtN = (n) => (n || 0).toLocaleString();
 const fmtSave = (b) => {           // savings: MB under 1000 MB, else GB
   const mb = (b || 0) / (1024 * 1024);
@@ -203,7 +207,11 @@ function renderHome() {
         <button class="btn btn-primary" id="analyze">Analyze Library</button>
         <div class="past">Takes a minute. No commitment — nothing's deleted until you say so.</div>
       </div></div></div>
-      <div class="foot-note">${icon("i-lock")} Runs entirely on your Mac. Your photos never go anywhere.</div>`;
+      <div class="foot-note">
+        <span class="fn-msg">${icon("i-lock")} Runs entirely on your Mac. Your photos never go anywhere.</span>
+        <span class="fn-sep"></span>
+        <button class="support-link" id="supportFooter" title="Support Library Cleanup on Ko-fi">${icon("i-coffee")} Buy me a coffee</button>
+      </div>`;
   } else if (state.phase === "scanning") {
     body = `
       <div class="scroll"><div class="home"><div class="scanning">
@@ -494,6 +502,7 @@ function bindHome() {
   if (state.update) bindUpdate();
   const a = $("#analyze"); if (a) a.onclick = () => startAnalyze();   // full-library scan
   const ol = $("#openlog"); if (ol) ol.onclick = () => api.post("/api/open-log").catch(() => {});
+  const sf = $("#supportFooter"); if (sf) sf.onclick = donate;
   const c = $("#cancel"); if (c) c.onclick = () => {
     api.post("/api/cancel").catch(() => {});   // actually stop the scan server-side
     state.cancelled = true; state.phase = "idle"; render();
@@ -969,6 +978,7 @@ function bindReview() {
     $("#m-go").onclick = () => { state.finalizeErr = null; doFinalize(); };
   } else if (state.finalize === "done") {
     const wasManual = state.manual;
+    const sd = $("#supportDone"); if (sd) sd.onclick = donate;
     const mn = $("#m-new"); if (mn) mn.onclick = () => {
       if (wasManual) {
         // Manual flow: re-scan the period the user just reviewed (faster than a
@@ -1266,6 +1276,10 @@ function doneHtml() {
     ${d.unmatched ? `<p class="head-n" style="font-size:12px;color:var(--pc-warn)">${fmtN(d.unmatched)} item${d.unmatched === 1 ? " was" : "s were"} no longer in the library and ${d.unmatched === 1 ? "was" : "were"} skipped.</p>` : ""}
     <p class="head-n" style="font-size:12px">Removed items stay in Recently Deleted for 30 days.</p>
     <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">${doneCta}</button></div>
+    <div class="support-card">
+      <div class="support-msg">Library Cleanup is free and runs entirely on your Mac. If it saved you some time, you can buy me a coffee.</div>
+      <button class="btn support-btn" id="supportDone">${icon("i-coffee")} Buy me a coffee</button>
+    </div>
   </div></div>`;
 }
 

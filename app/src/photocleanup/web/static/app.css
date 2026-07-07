@@ -92,6 +92,25 @@ button { font-family: inherit; cursor: pointer; }
   font-size: var(--pc-text-sm); color: var(--pc-text-secondary);
 }
 .foot-note svg { width: 13px; height: 13px; opacity: .7; }
+.foot-note .fn-msg { display: inline-flex; align-items: center; gap: 8px; }
+.foot-note .fn-sep { width: 1px; height: 14px; background: var(--pc-separator); flex: none; }
+
+/* support / buy-me-a-coffee — footer ghost link (intro screen) */
+.support-link { background: none; border: none; cursor: pointer; font: inherit; font-size: 12px;
+  font-weight: var(--pc-weight-medium); color: var(--pc-text-tertiary); display: inline-flex; align-items: center;
+  gap: 6px; padding: 5px 10px; border-radius: var(--pc-radius-pill); flex: none;
+  transition: color var(--pc-dur-fast) var(--pc-ease), background var(--pc-dur-fast) var(--pc-ease); }
+.support-link svg { width: 14px; height: 14px; opacity: 1; }
+.support-link:hover { color: var(--pc-coffee); background: var(--pc-coffee-tint); }
+
+/* support — success-screen card (after a delete) */
+.support-card { margin: 20px calc(-1 * var(--pc-sp-1)) 0; padding: 16px; border-radius: var(--pc-radius-md);
+  background: var(--pc-coffee-tint); display: flex; flex-direction: column; align-items: center; gap: 11px; }
+.support-card .support-msg { font-size: 12.5px; line-height: 1.45; color: var(--pc-text-secondary); text-wrap: pretty; }
+.support-btn { background: var(--pc-coffee); color: #fff; border: none; box-shadow: 0 2px 8px rgba(156,90,43,.28);
+  display: inline-flex; align-items: center; gap: 8px; }
+.support-btn:hover { filter: brightness(1.07); }
+.support-btn svg { width: 16px; height: 16px; color: #fff; }
 
 /* scanning */
 .scanning { text-align: center; padding: 96px 0; display: flex; flex-direction: column; align-items: center; }

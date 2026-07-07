@@ -220,6 +220,16 @@ def test_cancel_endpoint(client):
     assert r.status_code == 200 and r.json()["cancelling"] is True
 
 
+def test_donate_opens_kofi_without_network(client, monkeypatch):
+    """The support button opens Ko-fi via `open` — never handles payment in-app."""
+    import subprocess
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: calls.append(a[0]))
+    r = client.post("/api/donate").json()
+    assert r["opened"] is True and "ko-fi.com/vaclavtrnka" in r["url"]
+    assert calls and calls[0][0] == "open" and "ko-fi.com/vaclavtrnka" in calls[0][1]
+
+
 # ---- finalize round-scoping (audit #2) -------------------------------------
 def test_finalize_scopes_to_current_round_and_prunes(client, monkeypatch):
     """finalize must only act on decisions in the current candidates, and must
