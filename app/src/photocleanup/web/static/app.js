@@ -238,12 +238,12 @@ function updateModalHtml() {
     const pct = j.frac != null ? Math.round(j.frac * 100) : null;
     const msg = relaunching ? "Relaunching…" : (j.message || "Downloading update…");
     const bar = (j.status === "downloading" && pct != null)
-      ? `<div class="progress" style="margin:2px auto 0"><span style="width:${pct}%"></span></div>`
+      ? `<div class="progress" style="margin:2px auto 0"><span id="u-bar" style="width:${pct}%"></span></div>`
       : `<div class="progress indet" style="margin:2px auto 0"><span style="width:100%"></span></div>`;
     return `<div class="backdrop"><div class="modal center">
       <h3>${relaunching ? "Updating Library Cleanup" : `Updating to v${escapeHtml(u.latest || "")}`}</h3>
       <div class="working"><div class="spinner sm"></div>
-        <div style="color:var(--pc-text-secondary)">${escapeHtml(msg)}${pct != null && !relaunching ? ` · ${pct}%` : ""}</div>
+        <div id="u-msg" style="color:var(--pc-text-secondary)">${escapeHtml(msg)}${pct != null && !relaunching ? ` · ${pct}%` : ""}</div>
         ${bar}
         <div style="font-size:12px;color:var(--pc-text-tertiary)">${relaunching ? "The app will reopen in a moment." : "Please keep the app open until it relaunches."}</div>
       </div></div></div>`;
@@ -298,11 +298,31 @@ async function pollUpdate() {
   let s;
   try { s = await api.get("/api/update/status"); }
   catch { return void setTimeout(pollUpdate, 800); }   // server may be relaunching
+  const prev = state.updateJob || {};
   state.updateJob = s;
   if (s.status === "error") { state.updateStatus = "error"; state.updateErr = s.error || "Update failed."; return void render(); }
   if (s.status === "relaunching") { state.updateStatus = "relaunching"; render(); return; }  // app will quit & reopen
-  render();
+  // Within a steady phase only the numbers move — patch them in place so the
+  // spinner and progress-bar CSS animations keep running instead of restarting
+  // on every poll. Fall back to a full render on any phase transition.
+  if (!patchUpdateProgress(prev)) render();
   setTimeout(pollUpdate, 500);
+}
+
+// Returns true if the live progress could be updated without a re-render, i.e.
+// the modal is mounted and the bar type (determinate ↔ indeterminate) is
+// unchanged. Returns false to signal the caller should do a full render().
+function patchUpdateProgress(prev) {
+  const msgEl = $("#u-msg");
+  if (!msgEl) return false;                                    // modal not mounted
+  const j = state.updateJob || {};
+  const pct = j.frac != null ? Math.round(j.frac * 100) : null;
+  const determinate = j.status === "downloading" && pct != null;
+  const wasDeterminate = prev.status === "downloading" && prev.frac != null;
+  if (determinate !== wasDeterminate) return false;            // bar element swaps → full render
+  msgEl.textContent = (j.message || "Downloading update…") + (pct != null ? ` · ${pct}%` : "");
+  if (determinate) { const barEl = $("#u-bar"); if (barEl) barEl.style.width = pct + "%"; }
+  return true;
 }
 
 /* ---- categories (post-scan picker + reclaim banner + time filter) --------- */
