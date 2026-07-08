@@ -527,7 +527,9 @@ function bindHome() {
     api.post("/api/cancel").catch(() => {});   // actually stop the scan server-side
     state.cancelled = true; state.phase = "idle"; render();
   };
-  const rs = $("#rescan"); if (rs) rs.onclick = () => { state.phase = "idle"; render(); };
+  // Explicit Re-scan: force a full library re-read (full range, all categories),
+  // unlike the fast implicit refreshes after a review / on resume.
+  const rs = $("#rescan"); if (rs) rs.onclick = () => { state.range = null; startAnalyze(null, { force: true }); };
   const rv = $("#review"); if (rv) rv.onclick = () => enterReview();
   const mn = $("#manual"); if (mn) mn.onclick = () => enterManualReview();
   const rr = $("#resumeReview"); if (rr) rr.onclick = resumeSavedReview;
@@ -567,7 +569,10 @@ function bindHome() {
   }
 }
 
-async function startAnalyze(range) {
+// `force` re-reads the whole library (the explicit Re-scan action); the implicit
+// refreshes — after a review, on resume, first analyze — leave it off so they
+// reuse the pruned in-RAM records and return fast.
+async function startAnalyze(range, { force = false } = {}) {
   state.phase = "scanning";
   state.cancelled = false;
   state.flash = null; flashRetry = null;
@@ -575,14 +580,14 @@ async function startAnalyze(range) {
   let res;
   try {
     res = await api.post("/api/analyze", { layers: CATS.map((c) => c.id),
-      since: range?.since ?? null, until: range?.until ?? null });
+      since: range?.since ?? null, until: range?.until ?? null, force });
   } catch (e) {
-    showFlash("Couldn't start the scan", e.message, () => startAnalyze(range));
+    showFlash("Couldn't start the scan", e.message, () => startAnalyze(range, { force }));
     return;
   }
   if (res && res.started === false) {   // a previous scan is still winding down
     showFlash("A scan is already running",
-      "Give it a moment to stop, then try again.", () => startAnalyze(range));
+      "Give it a moment to stop, then try again.", () => startAnalyze(range, { force }));
     return;
   }
   pollProgress();

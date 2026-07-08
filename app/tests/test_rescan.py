@@ -73,6 +73,19 @@ def test_out_of_band_change_forces_fresh_read(monkeypatch):
     assert calls["n"] == reads + 1
 
 
+def test_load_force_rescan_rereads_even_with_fresh_memo(monkeypatch):
+    photos = [mk("a"), mk("b")]
+    calls = _stub_library(monkeypatch, photos, [])
+    eng = Engine()
+    eng.load_records()
+    reads = calls["n"]
+
+    eng.load_records()                       # memo hit -> no read
+    assert calls["n"] == reads
+    eng.load_records(force_rescan=True)      # explicit Re-scan -> full re-read
+    assert calls["n"] == reads + 1
+
+
 def test_forget_writes_nothing_to_disk(monkeypatch):
     """The prune is a pure RAM operation — it must never open a file for writing
     (records carry GPS + OCR text; they stay off disk)."""

@@ -316,12 +316,17 @@ class Engine:
             self._candidates = {}
 
     def analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None,
-                progress=None):
+                progress=None, force: bool = False):
         """Compute candidates for each requested layer, cache the payloads, and
         return a per-layer summary (counts + reclaimable bytes) for the picker.
 
         Starts from a clean slate and rolls back to one on failure, so an aborted
         scan can never leave stale candidates/records for the UI to act on.
+
+        `force=True` re-reads the whole library via osxphotos instead of reusing
+        the in-RAM records memo — used by the explicit "Re-scan" action. The
+        implicit refreshes (after a review, on resume) leave it False so they
+        reuse the pruned memo and stay fast.
 
         `progress(message, done, total)` is called throughout so the UI can show
         the access request, library connection, and counted/total processing.
@@ -329,7 +334,7 @@ class Engine:
         self.reset_state()
         self._cancel.clear()
         try:
-            return self._analyze(since, until, layers, excluded, progress)
+            return self._analyze(since, until, layers, excluded, progress, force)
         except BaseException:
             self.reset_state()
             raise
@@ -340,7 +345,7 @@ class Engine:
         self._cancel.set()
 
     def _analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None,
-                 progress=None):
+                 progress=None, force: bool = False):
         from photo_cleanup.cluster import find_duplicate_groups, time_gps_clusters
         from photo_cleanup.embedding import EmbeddingCache, embed_records
         from photo_cleanup.expired import classify_expired
@@ -378,8 +383,8 @@ class Engine:
 
         # 2) connect + load the scope (one osxphotos pass; can't sub-divide → indeterminate)
         emit_indet("Reading your library…")
-        photos = self.load_records(since, until, excluded=excluded) if photo_layers else []
-        videos = self.load_videos(since, until, excluded=excluded) if "videos" in layers else []
+        photos = self.load_records(since, until, excluded=excluded, force_rescan=force) if photo_layers else []
+        videos = self.load_videos(since, until, excluded=excluded, force_rescan=force) if "videos" in layers else []
         dedup_on, videos_on = "dedup" in layers, "videos" in layers
         nphotos, nvideos = len(photos), len(videos)
 

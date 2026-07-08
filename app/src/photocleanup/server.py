@@ -67,6 +67,9 @@ class AnalyzeBody(BaseModel):
     since: Optional[str] = None
     until: Optional[str] = None
     layers: Optional[list[str]] = None
+    # True only for the explicit "Re-scan" action: re-read the whole library
+    # instead of reusing the in-RAM records memo (implicit refreshes stay fast).
+    force: bool = False
 
 
 class FinalizeBody(BaseModel):
@@ -173,7 +176,8 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
             try:
                 eng = _engine()
                 res = eng.analyze(body.since, body.until, layers,
-                                  excluded=_store().reviewed_uuids(), progress=cb)
+                                  excluded=_store().reviewed_uuids(), progress=cb,
+                                  force=body.force)
                 job.update({"status": "done", "summary": res["summary"], "message": "Done"})
                 # Pre-render grid thumbs into the RAM cache so Review scrolls
                 # instantly — like Photos having its thumbnails ready.

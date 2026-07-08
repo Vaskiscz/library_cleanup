@@ -51,7 +51,7 @@ class StubEngine(Engine):
     def video_groups(self, videos, progress=None):
         return self._vgroups
 
-    def analyze(self, since=None, until=None, layers=None, excluded=None, progress=None):
+    def analyze(self, since=None, until=None, layers=None, excluded=None, progress=None, force=False):
         from photocleanup.engine import ALL_LAYERS
         layers = [l for l in (layers or ALL_LAYERS) if l in ALL_LAYERS]
         if progress:
