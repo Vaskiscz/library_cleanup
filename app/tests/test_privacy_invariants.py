@@ -57,3 +57,14 @@ def test_security_headers_present(client):
     r = client.get("/api/health")
     assert r.headers.get("X-Content-Type-Options") == "nosniff"
     assert "default-src 'none'" in r.headers.get("Content-Security-Policy", "")
+
+
+def test_scanned_records_are_never_persisted():
+    """Records carry GPS coordinates, Apple Vision OCR text and filenames; audit
+    #8 keeps them RAM-only. Guard the source so no future change (e.g. a rescan
+    cache) writes them to disk: scan.py must neither serialize records nor open a
+    file for writing."""
+    src = open(os.path.join(CORE_DIR, "scan.py")).read()
+    assert "json.dump" not in src, "scan.py must not serialize records to disk"
+    assert not re.search(r"open\([^)]*,\s*['\"][wax]", src), \
+        "scan.py must not open files for writing (records are RAM-only)"

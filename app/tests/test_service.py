@@ -53,6 +53,39 @@ def test_ui_assets_are_not_cached(client):
     assert "no-store" not in (client.get("/api/health").headers.get("cache-control") or "")
 
 
+def test_delete_prunes_deleted_uuids_from_engine(monkeypatch):
+    # After a real delete, the endpoint prunes the removed assets from the engine
+    # (requested minus unmatched) so the next scan skips re-reading the library.
+    import photocleanup.delete as delete_mod
+    eng = make_stub_engine()
+    seen = {}
+    real_forget = eng.forget
+    monkeypatch.setattr(eng, "forget",
+                        lambda uuids: (seen.__setitem__("uuids", list(uuids)), real_forget(uuids))[1])
+    monkeypatch.setattr(delete_mod, "delete_assets",
+                        lambda uuids, dry_run=False: {"status": "ok", "requested": len(uuids),
+                                                      "matched": 2, "deleted": 2, "unmatched": ["c"]})
+    app = create_app(store=Store(":memory:"), engine=eng)
+    with TestClient(app) as c:
+        assert c.post("/api/delete", json={"uuids": ["a", "b", "c"]}).status_code == 200
+    assert seen["uuids"] == ["a", "b"]                # unmatched "c" is NOT forgotten
+
+
+def test_delete_dry_run_does_not_prune(monkeypatch):
+    import photocleanup.delete as delete_mod
+    eng = make_stub_engine()
+    called = {"n": 0}
+    monkeypatch.setattr(eng, "forget", lambda uuids: called.__setitem__("n", called["n"] + 1))
+    monkeypatch.setattr(delete_mod, "delete_assets",
+                        lambda uuids, dry_run=False: {"status": "ok", "dry_run": True,
+                                                      "requested": len(uuids), "matched": 2,
+                                                      "deleted": 0, "unmatched": []})
+    app = create_app(store=Store(":memory:"), engine=eng)
+    with TestClient(app) as c:
+        c.post("/api/delete", json={"uuids": ["a", "b"], "dry_run": True})
+    assert called["n"] == 0                            # nothing deleted -> nothing pruned
+
+
 def test_analyze_summary(client):
     summary = _run_analyze(client, ["dedup", "videos", "expired"])
     assert summary["dedup"]["groups"] == 1 and summary["dedup"]["removable"] == 2

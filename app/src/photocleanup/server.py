@@ -305,7 +305,15 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         """Remove assets from Photos via PhotoKit (macOS shows its own confirm;
         items go to Recently Deleted). Pass dry_run to only resolve/count."""
         from .delete import delete_assets
-        return delete_assets(body.uuids, dry_run=body.dry_run)
+        result = delete_assets(body.uuids, dry_run=body.dry_run)
+        # Prune the deleted assets from the engine's in-RAM records so the next
+        # re-scan re-clusters the survivors WITHOUT re-parsing the whole library
+        # via osxphotos (identical results, near-instant, still RAM-only). Only
+        # the assets actually removed this call (requested minus unmatched).
+        if not body.dry_run and result.get("deleted"):
+            unmatched = set(result.get("unmatched") or [])
+            _engine().forget([u for u in body.uuids if u not in unmatched])
+        return result
 
     @app.get("/api/diagnostics")
     def diagnostics():

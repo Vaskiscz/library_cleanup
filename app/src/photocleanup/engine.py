@@ -83,6 +83,10 @@ class Engine:
         # a session don't re-read osxphotos; auto-invalidated when the library changes.
         self._records_memo: Optional[list] = None
         self._records_mtime = None
+        # Videos are memoized the same way (their own osxphotos pass is just as
+        # costly a full-DB parse), so a rescan can reuse them too.
+        self._videos_memo: Optional[list] = None
+        self._videos_mtime = None
         # One lock guards _index + _candidates: they're mutated by the analyze
         # thread and read by request threads (thumbs, candidates) + the warmer.
         self._state_lock = threading.RLock()
@@ -111,6 +115,53 @@ class Engine:
         self._records_memo, self._records_mtime = recs, mt
         return recs
 
+    def _all_videos(self, force: bool = False):
+        """All video Records via osxphotos, RAM-only and memoized per library
+        mtime — same contract as _all_records, so repeat/rescan passes don't
+        re-parse the whole PhotosDB."""
+        from photo_cleanup.scan import _db_mtime, scan_library
+        mt = _db_mtime(self.dbpath)
+        if (not force and self._videos_memo is not None
+                and mt is not None and mt == self._videos_mtime):
+            return self._videos_memo
+        recs = scan_library(self.dbpath, movies_only=True)
+        self._videos_memo, self._videos_mtime = recs, mt
+        return recs
+
+    def forget(self, uuids) -> None:
+        """Drop just-deleted assets from the in-RAM state so the NEXT analyze
+        re-clusters the survivors without re-reading the whole library via
+        osxphotos. A delete only ever removes known uuids, so pruning the RAM
+        memos is equivalent to — and far cheaper than — a fresh scan, and it
+        writes NOTHING to disk (records stay RAM-only; audit #8).
+
+        The delete just bumped the library mtime, so we adopt the new mtime for
+        the pruned memos: the next analyze then sees them as current and skips
+        scan_library(). If the library changed out-of-band afterwards, the mtime
+        won't match on the following check and a full re-read happens anyway —
+        correctness always wins over the fast path.
+        """
+        drop = {u for u in uuids if u}
+        if not drop:
+            return
+        from photo_cleanup.scan import _db_mtime
+        mt = _db_mtime(self.dbpath)
+        with self._state_lock:
+            if self._records_memo is not None:
+                self._records_memo = [r for r in self._records_memo if r.uuid not in drop]
+                self._records_mtime = mt
+            if self._videos_memo is not None:
+                before = len(self._videos_memo)
+                self._videos_memo = [r for r in self._videos_memo if r.uuid not in drop]
+                self._videos_mtime = mt
+                if len(self._videos_memo) != before and self._video_count is not None:
+                    self._video_count -= (before - len(self._videos_memo))
+            for u in drop:
+                self._index.pop(u, None)
+        with self._thumb_lock:
+            for key in [k for k in self._thumb_cache if k[0] in drop]:
+                self._thumb_used -= len(self._thumb_cache.pop(key))
+
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
                      force_rescan: bool = False, eligible_only: bool = True):
         """Photos in scope. `eligible_only` (default) drops the Hidden album, items
@@ -134,11 +185,10 @@ class Engine:
         return recs
 
     def load_videos(self, since=None, until=None, excluded: Optional[set] = None,
-                    eligible_only: bool = True):
+                    eligible_only: bool = True, force_rescan: bool = False):
         """Videos in scope (same eligibility rules as load_records)."""
-        from photo_cleanup.scan import scan_library
         excluded = excluded or set()
-        recs = _filter_by_date(scan_library(self.dbpath, movies_only=True), since, until)
+        recs = _filter_by_date(self._all_videos(force=force_rescan), since, until)
         if eligible_only:
             recs = [r for r in recs if KW_REVIEWED not in (r.keywords or [])
                     and r.uuid not in excluded and r.path and os.path.exists(r.path)]
@@ -509,10 +559,9 @@ class Engine:
 
     def library_stats(self) -> dict:
         """Cheap-ish library totals for the status line (videos counted once)."""
-        from photo_cleanup.scan import scan_library
         photos = len(self._all_records())
         if self._video_count is None:
-            self._video_count = len(scan_library(self.dbpath, movies_only=True))
+            self._video_count = len(self._all_videos())
         return {"photos": photos, "videos": self._video_count}
 
     # ---- thumbnails --------------------------------------------------------
