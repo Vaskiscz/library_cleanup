@@ -43,6 +43,16 @@ def test_health(client):
     assert set(body["layers"]) == {"dedup", "videos", "screenshots", "expired"}
 
 
+def test_ui_assets_are_not_cached(client):
+    # The WebView cache survives auto-updates (stable bundle id), so UI assets
+    # must be no-store or the app keeps running the previous build's app.js.
+    for path in ("/", "/static/app.js"):
+        cc = client.get(path).headers.get("cache-control", "")
+        assert "no-store" in cc, f"{path} must be no-store, got {cc!r}"
+    # API responses are unaffected by the UI cache rule.
+    assert "no-store" not in (client.get("/api/health").headers.get("cache-control") or "")
+
+
 def test_analyze_summary(client):
     summary = _run_analyze(client, ["dedup", "videos", "expired"])
     assert summary["dedup"]["groups"] == 1 and summary["dedup"]["removable"] == 2

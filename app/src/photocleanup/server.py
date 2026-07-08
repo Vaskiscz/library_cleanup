@@ -112,6 +112,14 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
             "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; media-src 'self'; connect-src 'self'; base-uri 'none'; "
             "form-action 'none'; frame-ancestors 'none'")
+        # The bundle id (and thus the WebView's on-disk cache) is stable across
+        # auto-updates, so a cached UI asset would otherwise survive a version swap
+        # and the app would keep running the OLD app.js/app.css after updating.
+        # Force revalidation of the document + static UI so every launch loads the
+        # JS/CSS that shipped with the running build. Localhost, tiny files — no cost.
+        path = request.url.path
+        if path == "/" or path.startswith("/static"):
+            resp.headers["Cache-Control"] = "no-store, must-revalidate"
         return resp
     app.state.store = store or Store(store_path)
     app.state.engine = engine or Engine()

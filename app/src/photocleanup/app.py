@@ -28,6 +28,7 @@ class PhotoCleanup(toga.App):
     def startup(self):
         threading.Thread(target=_serve, daemon=True).start()
         self.web = toga.WebView(style=Pack(flex=1))
+        self._clear_web_cache()
         self.main_window = toga.MainWindow(title=self.formal_name, size=(1200, 860))
         self.main_window.content = toga.Box(children=[self.web], style=Pack(direction=COLUMN, flex=1))
         self.main_window.show()
@@ -43,6 +44,23 @@ class PhotoCleanup(toga.App):
         # Navigate only once the server is actually accepting connections, so a
         # slow cold start never leaves a blank/error page.
         threading.Thread(target=self._open_when_ready, daemon=True).start()
+
+    def _clear_web_cache(self):
+        """WKWebView caches UI assets in the app container, which is keyed to the
+        (stable) bundle id — so after an auto-update the previous app.js/app.css can
+        be served from cache and the UI keeps running the OLD version even though the
+        service is new. Drop the WebView's HTTP cache once at launch so the running
+        build's assets always win. Best-effort; never block startup."""
+        try:
+            from Foundation import NSDate
+            from WebKit import WKWebsiteDataStore
+            # allWebsiteDataTypes() covers the HTTP disk/memory cache (plus cookies,
+            # local storage, etc., of which this UI has none). Since 1970 = everything.
+            types = WKWebsiteDataStore.allWebsiteDataTypes()
+            WKWebsiteDataStore.defaultDataStore().removeDataOfTypes_modifiedSince_completionHandler_(
+                types, NSDate.dateWithTimeIntervalSince1970_(0), lambda: None)
+        except Exception:  # noqa: BLE001 — WebKit/pyobjc unavailable; never block launch
+            pass
 
     def _open_when_ready(self):
         import socket
