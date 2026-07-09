@@ -1,5 +1,9 @@
 # Security model — Library Cleanup
 
+> This is the detailed technical security model. To **report a vulnerability**,
+> or for supported versions and the reporting process, see the repository
+> [security policy](../SECURITY.md).
+
 Library Cleanup is a single-user, **on-device** macOS app. It reads the Photos
 library locally (osxphotos + Full Disk Access), computes on-device (Apple
 Vision), stores review state in a local SQLite file, and deletes via PhotoKit.

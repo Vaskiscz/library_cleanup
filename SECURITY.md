@@ -39,3 +39,6 @@ locally and never uploads photos or metadata anywhere.
 Security reports of most interest include: anything that could exfiltrate photo
 data or metadata off-device, tamper with the auto-update path, or let a local/
 network attacker reach the loopback service or the app's file handling.
+
+For the detailed control inventory (trust boundaries, the local-API defenses,
+and the accepted residual risks), see [app/SECURITY.md](app/SECURITY.md).
