@@ -27,7 +27,7 @@ _NET = re.compile(
 @pytest.fixture
 def client():
     app = create_app(store=Store(":memory:"), engine=make_stub_engine())
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         yield c
 
 

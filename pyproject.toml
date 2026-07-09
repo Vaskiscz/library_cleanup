@@ -1,5 +1,7 @@
 [project]
 name = "library-cleanup"
+# The CLI package is deliberately unversioned (never released on its own);
+# the shipped artifact's version lives in app/pyproject.toml + photocleanup.__init__.
 version = "0.1.0"
 description = "On-device dedup & work-screenshot triage for Apple Photos"
 readme = "README.md"
@@ -27,10 +29,33 @@ packages = ["photo_cleanup"]
 # Make the additive app/ package importable in tests without installing it.
 pythonpath = ["app/src"]
 
+[tool.ruff]
+# Generated/vendored trees (briefcase output, marketing site) are not ours to lint.
+extend-exclude = ["app/build", "app/dist", "app/design"]
+
+[tool.ruff.lint]
+# Defaults (E4/E7/E9, F) + bugbear. BLE (blind-except) stays off globally:
+# broad `except Exception` is a deliberate, comment-justified pattern around
+# osxphotos/Vision/PIL calls throughout; the `# noqa: BLE001` markers on the
+# app's API handlers are kept as documentation.
+extend-select = ["B"]
+ignore = [
+    "E702",  # `a(); b()` compact pairs are established house style
+    "E731",  # ditto small lambda assignments
+    "E741",  # `l` as a loop var (`for l in layers`) is used deliberately
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Immediately-invoked closures over the loop var (`_safe(lambda: photo.x)`,
+# union-find lambdas) — safe because they're called within the iteration.
+"photo_cleanup/scan.py" = ["B023"]
+"photo_cleanup/video.py" = ["B023"]
+
 [dependency-groups]
 dev = [
     "fastapi>=0.137.2",
     "httpx>=0.28.1",
     "pytest>=9.1.0",
+    "ruff>=0.15.20",
     "uvicorn>=0.49.0",
 ]

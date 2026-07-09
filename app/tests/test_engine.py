@@ -25,7 +25,7 @@ def test_analyze_progress_is_monotonic_and_phased(monkeypatch, tmp_path):
         def save(self): pass
         def get(self, u): return None
     monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
-    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec: None)
+    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec, progress=None, workers=1: None)
     monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
     monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
     monkeypatch.setattr(feedback, "inject_face_quality",
@@ -33,7 +33,7 @@ def test_analyze_progress_is_monotonic_and_phased(monkeypatch, tmp_path):
     monkeypatch.setattr(cluster, "find_duplicate_groups",
                         lambda recs, cfg, embeddings=None, progress=None: (progress and progress(2, 2)) or [])
     monkeypatch.setattr(video, "duplicate_takes",
-                        lambda recs, cache, cfg, progress=None: (progress and progress(2, 2)) or [])
+                        lambda recs, cache, cfg, progress=None, workers=1: (progress and progress(2, 2)) or [])
 
     events = []
     Engine().analyze(layers=["dedup", "screenshots", "expired", "videos"],
@@ -70,12 +70,12 @@ def test_read_phase_reports_live_progress(monkeypatch):
         def save(self): pass
         def get(self, u): return None
     monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
-    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec: None)
+    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec, progress=None, workers=1: None)
     monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
     monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
     monkeypatch.setattr(feedback, "inject_face_quality", lambda records, progress=None: progress and progress(1, 1))
     monkeypatch.setattr(cluster, "find_duplicate_groups", lambda recs, cfg, embeddings=None, progress=None: [])
-    monkeypatch.setattr(video, "duplicate_takes", lambda recs, cache, cfg, progress=None: [])
+    monkeypatch.setattr(video, "duplicate_takes", lambda recs, cache, cfg, progress=None, workers=1: [])
 
     events = []
     Engine().analyze(layers=["dedup"], progress=lambda m, d, t, f: events.append((m, d, t, f)))
@@ -107,7 +107,7 @@ def test_sharpness_is_precomputed_before_grouping(monkeypatch):
         def save(self): pass
         def get(self, u): return None
     monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
-    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec: None)
+    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec, progress=None, workers=1: None)
     monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
     monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
     monkeypatch.setattr(feedback, "inject_face_quality", lambda records, progress=None: None)
@@ -131,6 +131,138 @@ def test_sharpness_is_precomputed_before_grouping(monkeypatch):
 
     assert set(sharp_calls) == {"p0", "p1", "p2", "p3"}          # decoded in the photo phase
     assert grouping_saw["laplacians"] == [100.0] * 4            # grouping saw them cached
+
+
+def test_analyze_shares_one_photosdb_parse(monkeypatch):
+    """A cold analyze covering photos AND videos must construct ONE
+    osxphotos.PhotosDB and reuse it for both reads (each parse is 30-90s on a
+    big library — it used to happen twice)."""
+    import sys
+    import types
+    from photo_cleanup import cluster, embedding, expired, feedback, scan, screenshots, video
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "is_authorized", lambda: True)
+
+    made = []
+
+    def fake_photosdb(*a, **k):
+        made.append(object())
+        return made[-1]
+    monkeypatch.setitem(sys.modules, "osxphotos", types.SimpleNamespace(PhotosDB=fake_photosdb))
+
+    seen_dbs = []
+
+    def fake_scan(dbpath=None, movies_only=False, progress=None, db=None, **k):
+        seen_dbs.append(db() if callable(db) else db)   # a real read resolves the lazy provider
+        return []
+    monkeypatch.setattr(scan, "scan_library", fake_scan)
+    monkeypatch.setattr(cluster, "time_gps_clusters", lambda recs, cfg: [])
+
+    class _EC:
+        def __init__(self, *a): pass
+        def save(self): pass
+        def get(self, u): return None
+    monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
+    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec, progress=None, workers=1: None)
+    monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
+    monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
+    monkeypatch.setattr(feedback, "inject_face_quality", lambda records, progress=None: None)
+    monkeypatch.setattr(cluster, "find_duplicate_groups", lambda recs, cfg, embeddings=None, progress=None: [])
+    monkeypatch.setattr(video, "duplicate_takes", lambda recs, cache, cfg, progress=None, workers=1: [])
+
+    Engine().analyze(layers=["dedup", "videos"])
+    assert len(seen_dbs) == 2                      # photo read + video read
+    assert len(made) == 1                          # ...but only ONE PhotosDB parse
+    assert seen_dbs[0] is seen_dbs[1] is made[0]
+
+
+def test_merged_vision_pass_one_call_per_candidate(monkeypatch, tmp_path):
+    """When a candidate needs BOTH the feature print and face quality, the photo
+    phase must run the merged Vision pass (one image decode) and apply the
+    results to both caches from the coordinating thread."""
+    from photo_cleanup import cluster, embedding, expired, feedback, quality, scan, screenshots, video
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "is_authorized", lambda: True)
+
+    img = tmp_path / "img.jpg"; img.write_bytes(b"x")
+    photos = [mk(f"p{i}", path=str(img), timestamp=1000.0 + i) for i in range(2)]
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *a, movies_only=False, **k: [] if movies_only else list(photos))
+    monkeypatch.setattr(cluster, "time_gps_clusters", lambda recs, cfg: [list(recs)] if recs else [])
+
+    stored = {}
+
+    class _EC:
+        def __init__(self, *a): pass
+        def save(self): pass
+        def get(self, u): return None
+        def is_fresh(self, u, p): return False              # embeds are stale
+        def set(self, u, v, p=None): stored[u] = (v, p)     # applied by the coordinator
+    monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
+
+    merged_calls = []
+    monkeypatch.setattr(embedding, "feature_print_and_face_quality",
+                        lambda p: merged_calls.append(p) or ([1.0, 2.0], 0.7))
+    monkeypatch.setattr(embedding, "_safe_vector",
+                        lambda p: (_ for _ in ()).throw(AssertionError("standalone embed used")))
+    monkeypatch.setattr(feedback, "face_capture_quality",
+                        lambda p: (_ for _ in ()).throw(AssertionError("standalone face pass used")))
+    face_cache = {}
+    monkeypatch.setattr(feedback, "load_face_cache", lambda: face_cache)
+    saved = []
+    monkeypatch.setattr(feedback, "save_face_cache", lambda c: saved.append(dict(c)))
+    monkeypatch.setattr(quality, "measure_sharpness", lambda rec: setattr(rec, "laplacian", 50.0))
+    monkeypatch.setattr(feedback, "inject_face_quality", lambda records, progress=None: None)
+    monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
+    monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
+    monkeypatch.setattr(cluster, "find_duplicate_groups", lambda recs, cfg, embeddings=None, progress=None: [])
+    monkeypatch.setattr(video, "duplicate_takes", lambda *a, **k: [])
+
+    Engine().analyze(layers=["dedup"])
+
+    assert sorted(merged_calls) == [str(img), str(img)]   # one merged call per candidate
+    assert set(stored) == {"p0", "p1"}                    # vectors landed in the embedding cache
+    assert all(p == str(img) for _, p in stored.values())
+    assert {u: e[0] for u, e in face_cache.items()} == {"p0": 0.7, "p1": 0.7}
+    assert saved                                          # persisted before the face phase
+
+
+def test_fully_cached_candidates_skip_all_decodes(monkeypatch, tmp_path):
+    """mtime-cache semantics preserved: a candidate whose embedding, face quality
+    AND sharpness are all cached must trigger no Vision/PIL work at all."""
+    from photo_cleanup import cluster, embedding, expired, feedback, quality, scan, screenshots, video
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "is_authorized", lambda: True)
+
+    img = tmp_path / "img.jpg"; img.write_bytes(b"x")
+    photos = [mk(f"p{i}", path=str(img), timestamp=1000.0 + i, laplacian=42.0) for i in range(2)]
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *a, movies_only=False, **k: [] if movies_only else list(photos))
+    monkeypatch.setattr(cluster, "time_gps_clusters", lambda recs, cfg: [list(recs)] if recs else [])
+
+    class _EC:
+        def __init__(self, *a): pass
+        def save(self): pass
+        def get(self, u): return None
+        def is_fresh(self, u, p): return True               # embeds cached
+    monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
+
+    def boom(name):
+        return lambda *a, **k: (_ for _ in ()).throw(AssertionError(f"{name} decoded a cached item"))
+    monkeypatch.setattr(embedding, "feature_print_and_face_quality", boom("merged pass"))
+    monkeypatch.setattr(embedding, "_safe_vector", boom("embed"))
+    monkeypatch.setattr(feedback, "face_capture_quality", boom("face pass"))
+    monkeypatch.setattr(quality, "measure_sharpness", boom("sharpness"))
+    monkeypatch.setattr(feedback, "load_face_cache", lambda: {})
+    monkeypatch.setattr(feedback, "face_quality_fresh", lambda c, u, p: True)   # faces cached
+    monkeypatch.setattr(feedback, "save_face_cache", boom("face-cache save"))
+    monkeypatch.setattr(feedback, "inject_face_quality", lambda records, progress=None: None)
+    monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
+    monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
+    monkeypatch.setattr(cluster, "find_duplicate_groups", lambda recs, cfg, embeddings=None, progress=None: [])
+    monkeypatch.setattr(video, "duplicate_takes", lambda *a, **k: [])
+
+    Engine().analyze(layers=["dedup"])         # would raise if anything decoded
 
 
 def test_analyze_requires_photos_access(monkeypatch):
@@ -362,14 +494,15 @@ def test_request_cancel_aborts_analyze(monkeypatch):
 
 def test_load_records_writes_nothing_to_disk(monkeypatch, tmp_path):
     """audit #8b: the photo-metadata cache is RAM-only — analyze must not write
-    records.json (which held GPS + OCR text) to disk."""
+    records.json (which held GPS + OCR text) to disk. The records.json plumbing
+    is gone entirely: Engine no longer even accepts a cache path for it."""
     from photo_cleanup import scan
-    cache = tmp_path / "records.json"
     monkeypatch.setattr(scan, "scan_library",
                         lambda *_, movies_only=False, **k: [] if movies_only else [mk("a")])
-    eng = Engine(cache=str(cache))
+    eng = Engine()
+    assert not hasattr(eng, "cache")           # the records.json attribute is dead
     eng.load_records()
-    assert not cache.exists() and not (tmp_path / "records.json.meta.json").exists()
+    assert not (tmp_path / "records.json").exists()
 
 
 def test_records_are_memoized_in_ram(monkeypatch, tmp_path):
@@ -383,7 +516,7 @@ def test_records_are_memoized_in_ram(monkeypatch, tmp_path):
         return [] if movies_only else [mk("a")]
     monkeypatch.setattr(scan, "scan_library", fake)
     monkeypatch.setattr(scan, "_db_mtime", lambda dbpath=None: 123.0)   # stable library mtime
-    eng = Engine(cache=str(tmp_path / "r.json"))
+    eng = Engine()
     eng.load_records()
     eng.load_records()
     assert len(calls) == 1                     # second load served from the RAM memo

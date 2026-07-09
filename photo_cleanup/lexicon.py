@@ -39,7 +39,7 @@ WORK_DEV = {
     "app", "apps", "android", "ios", "appstore", "playstore", "testflight",
     "sdk", "release", "version", "crash", "guidelines", "notifications",
     "feature", "backend", "frontend", "staging", "production", "qa", "device",
-    "bug", "ticket", "release", "rollout", "changelog", "patch",
+    "bug", "ticket", "rollout", "changelog", "patch",
 }
 
 # --- WORK: business vocabulary EN + CZ (weight 1) ---------------------------
@@ -55,7 +55,7 @@ WORK_BIZ = {
     "faktura", "faktury", "smlouva", "smlouvy", "objednávka", "nabídka",
     "rozpočet", "schůzka", "porada", "projekt", "klient", "klienti", "zákazník",
     "zákazníci", "prezentace", "dodavatel", "dodávka", "dph", "úhrada",
-    "platba", "kampaň", "report", "reporting", "termín", "deadline",
+    "platba", "kampaň", "termín",
 }
 
 # --- PRIVATE: messaging-app UI markers (weight 2) ---------------------------

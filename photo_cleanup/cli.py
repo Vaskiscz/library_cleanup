@@ -76,6 +76,14 @@ def _load_or_scan(cache, dbpath, rescan):
     return records_ram(dbpath, force=rescan)
 
 
+def _err_note(*results) -> str:
+    """' (first: …)' suffix explaining the first per-photo failure, if any."""
+    for r in results:
+        if r.first_error:
+            return f" (first: {r.first_error})"
+    return ""
+
+
 @cli.command()
 @click.option("--cache", default=DEFAULT_CACHE, hidden=True,
               help="Deprecated & ignored — photo metadata is no longer cached to disk.")
@@ -112,7 +120,8 @@ def apply(cache, rescan, do_apply, limit):
         sys.exit(1)
 
     if do_apply:
-        click.echo(f"  tagged {res.tagged}, already-tagged {res.skipped}, errors {res.errors}")
+        click.echo(f"  tagged {res.tagged}, already-tagged {res.skipped}, "
+                   f"errors {res.errors}{_err_note(res)}")
         click.echo("Done. In Photos, make a Smart Album on keyword "
                    f"'{apply_mod.KW_SCREENSHOT}' to review and delete. Revert with `undo`.")
     else:
@@ -138,10 +147,10 @@ def undo(do_apply, prefix):
         _hint_automation(e)
         sys.exit(1)
     verb = "cleared" if do_apply else "would clear"
-    click.echo(f"  {verb} {res.tagged} photos (errors {res.errors}).")
+    click.echo(f"  {verb} {res.tagged} photos (errors {res.errors}{_err_note(res)}).")
 
 
-DEFAULT_EMB_CACHE = os.path.expanduser("~/.cache/photo-cleanup/embeddings.npz")
+DEFAULT_EMB_CACHE = os.path.expanduser("~/.cache/photo-cleanup/embeddings.db")
 DEFAULT_DEDUP_REPORT = os.path.abspath("./dedup-report.html")
 
 
@@ -285,7 +294,7 @@ def dedup(cache, emb_cache, since, until, report_path, do_apply, include_reviewe
             sys.exit(1)
         click.echo(f"  tagged {r1.tagged} (already {r1.skipped}), "
                    f"favorited {r2.favorited} (already {r2.skipped}), "
-                   f"errors {r1.errors + r2.errors}")
+                   f"errors {r1.errors + r2.errors}{_err_note(r1, r2)}")
         # Record this iteration so the learning engine can train from your
         # eventual keep/discard decisions (even after you delete the discards).
         from .feedback import log_apply
@@ -350,7 +359,8 @@ def expired(cache, since, until, min_age_years, report_path, do_apply, open_repo
             sys.exit(1)
         from .feedback import log_expired
         log_expired(flagged, since, until)   # for learning from your corrections
-        click.echo(f"  tagged {res.tagged} (already {res.skipped}), errors {res.errors}")
+        click.echo(f"  tagged {res.tagged} (already {res.skipped}), "
+                   f"errors {res.errors}{_err_note(res)}")
         click.echo("Review: Smart Album [Keyword is cleanup:expired]. Favorite any to keep, "
                    "then delete via [cleanup:expired AND Favorite is No].")
     if open_report:
@@ -373,9 +383,8 @@ def videos(since, until, large_mb, emb_cache, report_path, do_apply, open_report
     """Find near-duplicate video takes (keep the largest) and oversized videos.
     Apple Photos does neither. Same review/rescue/delete flow as the rest."""
     import os as _os
-    from .scan import scan_library
     from .embedding import EmbeddingCache, embed_records
-    from .video import duplicate_takes, large_videos, video_size
+    from .video import duplicate_takes, large_videos
     from .report import render_videos_html
 
     cfg = Config()
@@ -402,7 +411,6 @@ def videos(since, until, large_mb, emb_cache, report_path, do_apply, open_report
     out = _os.path.abspath(report_path)
     with open(out, "w") as fh:
         fh.write(render_videos_html(dup_groups, larges, len(recs), cfg, label))
-    gb = 1024 ** 3
     click.echo(f"scope {label}: {len(recs)} videos · {len(dup_groups)} take-groups "
                f"({len(dup_discards)} extra takes) · {len(larges)} oversized")
     click.echo(f"report: {out}")
@@ -435,7 +443,8 @@ def videos(since, until, large_mb, emb_cache, report_path, do_apply, open_report
             _hint_automation(e)
             sys.exit(1)
         click.echo(f"  tagged {t.tagged} cleanup:video, favorited {fav.favorited} keepers"
-                   f"+large (already {fav.skipped}), errors {t.errors + fav.errors}")
+                   f"+large (already {fav.skipped}), "
+                   f"errors {t.errors + fav.errors}{_err_note(t, fav)}")
         click.echo("Review Smart Album [Keyword is cleanup:video]: extra takes are un-♥ "
                    "(delete candidates); keepers + large videos are ♥. Un-♥ any large one "
                    "you want to drop, then delete [cleanup:video AND Favorite is No].")
@@ -472,7 +481,8 @@ def fav_baseline(prefix, out):
 def rescue_plan(by, album, prefix, baseline):
     """Read-only: find tagged photos you flagged to KEEP. Writes two lists:
     everything to UN-TAG, and (excluding pre-existing favorites) what to UN-FAVORITE."""
-    import json, os as _os
+    import json
+    import os as _os
     rescued = apply_mod.find_rescue_uuids(
         prefix, use_favorites=(by == "favorite"), album=(album if by == "album" else None))
     with open(RESCUE_FILE, "w") as f:
@@ -518,7 +528,8 @@ def clear_tags(uuids_file, prefix, do_apply):
         _hint_automation(e)
         sys.exit(1)
     verb = "cleared" if do_apply else "would clear"
-    click.echo(f"  {verb} {res.tagged}, unchanged {res.skipped}, errors {res.errors}")
+    click.echo(f"  {verb} {res.tagged}, unchanged {res.skipped}, "
+               f"errors {res.errors}{_err_note(res)}")
 
 
 @cli.command(name="unfavorite")
@@ -543,7 +554,8 @@ def unfavorite(uuids_file, do_apply):
         _hint_automation(e)
         sys.exit(1)
     verb = "un-favorited" if do_apply else "would un-favorite"
-    click.echo(f"  {verb} {res.favorited}, already-not {res.skipped}, errors {res.errors}")
+    click.echo(f"  {verb} {res.favorited}, already-not {res.skipped}, "
+               f"errors {res.errors}{_err_note(res)}")
 
 
 @cli.command(name="mark-reviewed")
@@ -578,7 +590,8 @@ def mark_reviewed(uuids_file, since, until, cache, do_apply):
         _hint_automation(e)
         sys.exit(1)
     verb = "marked" if do_apply else "would mark"
-    click.echo(f"  {verb} {res.tagged}, already {res.skipped}, errors {res.errors}")
+    click.echo(f"  {verb} {res.tagged}, already {res.skipped}, "
+               f"errors {res.errors}{_err_note(res)}")
 
 
 @cli.command()
@@ -684,7 +697,8 @@ def finalize(since, until, prefix, baseline, cache, lock, rescue_file, unfav_fil
         _hint_automation(e)
         sys.exit(1)
     click.echo(f"  un-tagged {r1.tagged}, un-favorited {r2.favorited}, "
-               f"reviewed:keep {r3.tagged + locked}, errors {r1.errors + r2.errors + r3.errors}")
+               f"reviewed:keep {r3.tagged + locked}, "
+               f"errors {r1.errors + r2.errors + r3.errors}{_err_note(r1, r2, r3)}")
 
 
 def _hint_automation(e: Exception):

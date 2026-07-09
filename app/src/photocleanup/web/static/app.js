@@ -73,6 +73,9 @@ const state = {
   pvWidth: 324,             // review: preview panel width (px), user-draggable
   pvUserSized: false,       // true once the user drags the divider (stops auto-sizing)
   manual: false,            // review: manual "all photos & videos" feed (vs. curated)
+  allTotal: 0,              // manual feed: total items server-side (pages are fetched lazily)
+  allLoading: false,        // manual feed: a page fetch is in flight
+  allDefault: "keep",       // manual feed: verdict applied to items that arrive AFTER a bulk keep/remove-all
   update: null,             // {current, latest, notes, ...} when a newer release exists
   updateStatus: "prompt",   // prompt | working | relaunching | error
   updateJob: null,          // {status, frac, message} while downloading/installing
@@ -703,10 +706,13 @@ async function resumeSavedReview() {
 }
 
 // Manual review: every photo & video in range as one chronological feed, all kept.
-// `dates`/`savedDecisions` are only passed when resuming a saved review.
+// The feed is PAGED: the first ALL_PAGE items load here; further pages stream in
+// from the scroll sentinel (fetchMoreAllItems). `dates`/`savedDecisions` are only
+// passed when resuming a saved review.
 async function enterManualReview(dates, savedDecisions) {
   state.view = "review"; state.manual = true;
   state.candidates = {}; state.decisions = {};
+  state.allTotal = 0; state.allLoading = false; state.allDefault = "keep";
   pvCache.clear();
   app.innerHTML = chrome(`<div class="scroll"><div class="review"><div class="scanning">
       <div class="spinner"></div><h2>Loading your photos…</h2></div></div></div>`);
@@ -715,14 +721,17 @@ async function enterManualReview(dates, savedDecisions) {
   const qs = new URLSearchParams();
   if (since) qs.set("since", since);
   if (until) qs.set("until", until);
+  qs.set("limit", String(ALL_PAGE));
   try {
     const res = await api.get(`/api/all-items?${qs.toString()}`);
     state.candidates.all = res.groups;
-    const d = {};
-    res.groups.forEach((g) => g.photos.forEach((p) => (d[p.uuid] = "keep")));  // all keep by default
-    if (savedDecisions) {                    // resume: overlay saved verdicts
-      for (const [u, v] of Object.entries(savedDecisions)) if (u in d) d[u] = v;
-    }
+    state.allTotal = res.total ?? (res.groups[0]?.photos.length || 0);
+    // Seed decisions with the FULL saved overlay first (it may cover items on
+    // pages not fetched yet — their verdicts must survive a partial reload; any
+    // uuid no longer in the library comes back "unmatched" from delete, which the
+    // done-screen reports). Then default every loaded item without a verdict to keep.
+    const d = savedDecisions ? { ...savedDecisions } : {};
+    res.groups.forEach((g) => g.photos.forEach((p) => { if (!(p.uuid in d)) d[p.uuid] = "keep"; }));
     state.decisions.all = d;
   } catch (e) {
     state.manual = false;
@@ -746,9 +755,15 @@ async function enterReview(savedDecisions, dates) {
   const all = rangeIsAll();
   const loM = all ? null : state.months[state.range.lo];
   const hiM = all ? null : state.months[state.range.hi];
-  for (const layer of layers) {
-    const res = await api.get(`/api/candidates?layer=${layer}`);
-    let groups = res.groups;
+  let results;
+  try {   // the layers are independent — fetch them in parallel, not one-by-one
+    results = await Promise.all(layers.map((l) => api.get(`/api/candidates?layer=${l}`)));
+  } catch (e) {
+    showFlash("Couldn't load review", e.message, () => enterReview(savedDecisions, dates));
+    return;
+  }
+  layers.forEach((layer, li) => {
+    let groups = results[li].groups;
     if (!all) {                                  // narrow to the picked time period, client-side
       if (CAT[layer].grouped) {
         groups = groups.filter((g) => { const m = groupMonth(g); return m && m >= loM && m <= hiM; });
@@ -772,35 +787,282 @@ async function enterReview(savedDecisions, dates) {
       for (const [u, v] of Object.entries(savedDecisions[layer])) if (u in d) d[u] = v;
     }
     state.decisions[layer] = d;
-  }
+  });
   state.selUuid = null; state.selLayer = null; state.pvCollapsed = false;
   renderReview();
   saveReviewState();
 }
 
+/* ---- review counters (kept incrementally — no full recount per click) ------ */
+// Built once per review load (the authoritative recount); every keep/remove then
+// adjusts these in O(1) via decideOne. Chunks rendered later read the same
+// state.decisions, so counts stay correct across rendered AND unrendered cards.
+function buildReviewIndex() {
+  state.idx = {};          // layer -> Map(uuid -> {p, gkey}) for O(1) photo lookup
+  state.groupKeep = {};    // layer -> Map(group_key -> keep count) (grouped layers)
+  state.layerTally = {};   // layer -> {items, keep, rem} for the section summary
+  state.tally = { keep: 0, rem: 0, bytes: 0, items: 0 };
+  for (const layer of reviewLayers()) {
+    const m = new Map(), gk = new Map();
+    for (const g of state.candidates[layer] || [])
+      for (const p of g.photos) m.set(p.uuid, { p, gkey: g.group_key });
+    const lt = { items: 0, keep: 0, rem: 0 };
+    const d = state.decisions[layer] || {};
+    // Tally decision entries (like the old counts()): in the manual feed this can
+    // include resumed verdicts for pages not fetched yet — their bytes are added
+    // when the page arrives (ingestAllPhotos).
+    for (const [uuid, v] of Object.entries(d)) {
+      lt.items++; state.tally.items++;
+      if (v === "keep") { lt.keep++; state.tally.keep++; }
+      else { lt.rem++; state.tally.rem++; state.tally.bytes += (m.get(uuid)?.p.bytes || 0); }
+    }
+    if (CAT[layer].grouped) {
+      for (const g of state.candidates[layer] || []) {
+        let k = 0;
+        for (const p of g.photos) if (d[p.uuid] === "keep") k++;
+        gk.set(g.group_key, k);
+      }
+    }
+    state.idx[layer] = m; state.groupKeep[layer] = gk; state.layerTally[layer] = lt;
+  }
+}
+
+// Flip one decision in STATE and adjust every running counter. Returns true if
+// the verdict actually changed. DOM patching is separate (updateCardDom) so bulk
+// actions can update decisions for cards that aren't rendered yet.
+function decideOne(layer, uuid, v) {
+  const d = state.decisions[layer];
+  if (!d) return false;
+  const old = d[uuid];
+  if (old === v) return false;
+  d[uuid] = v;
+  const ent = state.idx[layer] && state.idx[layer].get(uuid);
+  const bytes = (ent && ent.p.bytes) || 0;
+  const t = state.tally, lt = state.layerTally[layer];
+  if (old === undefined) { t.items++; if (lt) lt.items++; }        // brand-new entry
+  else if (old === "keep") { t.keep--; if (lt) lt.keep--; }
+  else { t.rem--; if (lt) lt.rem--; t.bytes -= bytes; }
+  if (v === "keep") { t.keep++; if (lt) lt.keep++; }
+  else { t.rem++; if (lt) lt.rem++; t.bytes += bytes; }
+  const gm = state.groupKeep[layer];
+  if (ent && gm && gm.has(ent.gkey)) {
+    if (old === "keep" && v !== "keep") gm.set(ent.gkey, gm.get(ent.gkey) - 1);
+    else if (old !== "keep" && v === "keep") gm.set(ent.gkey, gm.get(ent.gkey) + 1);
+  }
+  return true;
+}
+
 function counts() {
-  let keep = 0, rem = 0, bytes = 0, items = 0;
-  for (const layer of Object.keys(state.decisions)) {
-    const groups = state.candidates[layer] || [];
-    const byId = {};
-    groups.forEach((g) => g.photos.forEach((p) => (byId[p.uuid] = p)));
-    for (const [uuid, v] of Object.entries(state.decisions[layer])) {
-      items++;
-      if (v === "keep") keep++;
-      else { rem++; bytes += byId[uuid]?.bytes || 0; }
+  const t = state.tally || { keep: 0, rem: 0, bytes: 0, items: 0 };
+  return { keep: t.keep, rem: t.rem, bytes: t.bytes, items: t.items };
+}
+
+/* ---- progressive (chunked) group rendering ---------------------------------
+   The review grid renders in chunks of ~CHUNK_CARDS cards: the first chunk
+   synchronously, the rest as an IntersectionObserver sentinel nears the viewport.
+   Grouped layers append whole groups; flat layers (screenshots / expired / the
+   manual feed) append card slices into one .gbody. The manual feed additionally
+   fetches further server pages when the rendered edge nears the loaded edge.
+   Append-only: nothing above the viewport is ever unmounted. */
+const CHUNK_CARDS = 250;          // ~cards appended per chunk (groups render whole)
+const ALL_PAGE = 1000;            // manual feed: items fetched per server page
+let chunkCur = null;              // render cursor {li: layer idx, gi: group idx, pi: photo idx}
+let rvIO = null;                  // the sentinel's IntersectionObserver
+
+function morePagesLeft() {
+  if (!state.manual) return false;
+  const g = state.candidates.all && state.candidates.all[0];
+  return !!g && g.photos.length < (state.allTotal || 0);
+}
+
+// True when more content can be rendered RIGHT NOW (loaded but not yet in the DOM).
+// Waiting on a server page is not "work" — the page's arrival re-pokes the sentinel.
+function chunkHasWork() {
+  if (!chunkCur) return false;
+  const layers = reviewLayers();
+  for (let li = chunkCur.li; li < layers.length; li++) {
+    const layer = layers[li], groups = state.candidates[layer] || [];
+    if (CAT[layer].grouped) {
+      if ((li === chunkCur.li ? chunkCur.gi : 0) < groups.length) return true;
+    } else {
+      const g = groups[0], start = li === chunkCur.li ? chunkCur.pi : 0;
+      if (g && start < g.photos.length) return true;
     }
   }
-  return { keep, rem, bytes, items };
+  return false;
+}
+
+function ensureSection(grid, layer) {
+  let sec = grid.querySelector(`.section[data-layer="${layer}"]`);
+  if (!sec) {
+    grid.insertAdjacentHTML("beforeend", sectionShellHtml(layer));
+    sec = grid.lastElementChild;
+  }
+  return sec;
+}
+
+// Fit-to-aspect wiring for freshly appended thumbs only (data-fit marks done ones).
+function wireThumbs(root) {
+  if (!root) return;
+  root.querySelectorAll("img:not([data-fit])").forEach((img) => {
+    img.dataset.fit = "1";
+    if (img.complete && img.naturalWidth) fitAspect(img);
+    else img.addEventListener("load", () => fitAspect(img), { once: true });
+  });
+}
+
+// Append the next ~budget cards worth of DOM. Returns the number appended.
+function renderChunk(budget = CHUNK_CARDS) {
+  const grid = app.querySelector(".rv-main .review");
+  if (!grid || !chunkCur) return 0;
+  const layers = reviewLayers();
+  let added = 0;
+  while (added < budget && chunkCur.li < layers.length) {
+    const layer = layers[chunkCur.li];
+    const groups = state.candidates[layer] || [];
+    if (CAT[layer].grouped) {
+      if (chunkCur.gi >= groups.length) { chunkCur.li++; chunkCur.gi = 0; chunkCur.pi = 0; continue; }
+      const sec = ensureSection(grid, layer);
+      const g = groups[chunkCur.gi++];
+      sec.insertAdjacentHTML("beforeend", groupHtml(layer, g));
+      wireThumbs(sec.lastElementChild);
+      added += g.photos.length;
+    } else {
+      const g = groups[0];
+      if (!g || chunkCur.pi >= g.photos.length) {
+        if (g && layer === "all" && morePagesLeft()) break;   // wait for the next server page
+        chunkCur.li++; chunkCur.gi = 0; chunkCur.pi = 0; continue;
+      }
+      const sec = ensureSection(grid, layer);
+      let body = sec.querySelector(".gbody");
+      if (!body) {
+        sec.insertAdjacentHTML("beforeend", flatShellHtml(layer, g));
+        body = sec.querySelector(".gbody");
+      }
+      const end = Math.min(g.photos.length, chunkCur.pi + (budget - added));
+      body.insertAdjacentHTML("beforeend",
+        g.photos.slice(chunkCur.pi, end).map((p) => cardHtml(layer, p)).join(""));
+      wireThumbs(body);
+      added += end - chunkCur.pi;
+      chunkCur.pi = end;
+    }
+  }
+  if (!chunkHasWork() && !morePagesLeft()) {      // fully rendered — retire the sentinel
+    const sent = $("#rvSentinel"); if (sent) sent.remove();
+    if (rvIO) { rvIO.disconnect(); rvIO = null; }
+  }
+  return added;
+}
+
+// Re-observing forces a fresh intersection check, so chunks keep appending until
+// the sentinel finally scrolls out of the (rootMargin-expanded) viewport.
+function pokeSentinel() {
+  const sent = $("#rvSentinel");
+  if (rvIO && sent) { rvIO.unobserve(sent); rvIO.observe(sent); }
+}
+
+// Render chunks until the grid extends comfortably past the current scroll
+// position (and top up the manual feed's local buffer). Called from both the
+// sentinel observer and the scroll fallback — bounded, cheap when nothing to do.
+function topUpReview() {
+  if (state.view !== "review") return;
+  const sc = app.querySelector("#rvMain .scroll");
+  if (!sc) return;
+  let guard = 0;
+  while (guard++ < 40 && chunkHasWork() &&
+         sc.scrollHeight - sc.scrollTop - sc.clientHeight < 1600) {
+    renderChunk();
+  }
+  maybeFetchMore();
+}
+
+function setupSentinel() {
+  if (rvIO) { rvIO.disconnect(); rvIO = null; }
+  const sc = app.querySelector("#rvMain .scroll");
+  const sent = $("#rvSentinel");
+  if (!sc) return;
+  // Scroll fallback (and fast path): fills as the user approaches the bottom even
+  // if the IntersectionObserver is late; no-ops once everything is rendered.
+  sc.addEventListener("scroll", topUpReview, { passive: true });
+  if (!sent) return;
+  if (!chunkHasWork() && !morePagesLeft()) { sent.remove(); return; }
+  rvIO = new IntersectionObserver((entries) => {
+    if (state.view !== "review") return;
+    if (!entries.some((e) => e.isIntersecting)) return;
+    topUpReview();
+    if (chunkHasWork()) pokeSentinel();
+  }, { root: sc, rootMargin: "1600px 0px" });
+  rvIO.observe(sent);
+}
+
+// Manual feed: keep at least a few chunks of unrendered items buffered locally.
+function maybeFetchMore() {
+  if (!state.manual || state.allLoading || !morePagesLeft()) return;
+  const g = state.candidates.all && state.candidates.all[0];
+  if (!g) return;
+  if (g.photos.length - (chunkCur ? chunkCur.pi : 0) < CHUNK_CARDS * 3) fetchMoreAllItems();
+}
+
+async function fetchMoreAllItems() {
+  if (state.allLoading || !state.manual) return;
+  const g = state.candidates.all && state.candidates.all[0];
+  if (!g || g.photos.length >= (state.allTotal || 0)) return;
+  state.allLoading = true;
+  const { since, until } = state.reviewDates || {};
+  const qs = new URLSearchParams();
+  if (since) qs.set("since", since);
+  if (until) qs.set("until", until);
+  qs.set("offset", String(g.photos.length));
+  qs.set("limit", String(ALL_PAGE));
+  try {
+    const res = await api.get(`/api/all-items?${qs.toString()}`);
+    state.allTotal = res.total ?? state.allTotal;
+    const more = (res.groups[0] && res.groups[0].photos) || [];
+    if (!more.length) state.allTotal = g.photos.length;   // server ran dry — stop asking
+    else {
+      ingestAllPhotos(more);
+      updateSectionSummary("all");
+      updateBars();
+    }
+    state.allLoading = false;
+    topUpReview();                     // resume rendering right away if near the edge
+    pokeSentinel();
+  } catch {
+    state.allLoading = false;
+    setTimeout(pokeSentinel, 2000);    // transient failure — retry via the sentinel
+  }
+}
+
+// Fold a freshly fetched manual page into state: photos list, index, decisions
+// (resume overlay wins; otherwise the current bulk default), and running tallies.
+function ingestAllPhotos(photos) {
+  const g = state.candidates.all[0], d = state.decisions.all;
+  const m = state.idx.all, t = state.tally, lt = state.layerTally.all;
+  for (const p of photos) {
+    g.photos.push(p);
+    m.set(p.uuid, { p, gkey: g.group_key });
+    if (p.uuid in d) {
+      // resumed verdict tallied at build time with unknown size — add bytes now
+      if (d[p.uuid] !== "keep") t.bytes += p.bytes || 0;
+    } else {
+      const v = state.allDefault || "keep";
+      d[p.uuid] = v;
+      t.items++; lt.items++;
+      if (v === "keep") { t.keep++; lt.keep++; }
+      else { t.rem++; lt.rem++; t.bytes += p.bytes || 0; }
+    }
+  }
 }
 
 function renderReview() {
   const layers = reviewLayers();
-  const sections = layers.map(sectionHtml).join("");
+  buildReviewIndex();                    // authoritative recount on (re)load
   const c = counts();
+  const shownItems = state.manual ? Math.max(c.items, state.allTotal || 0) : c.items;
   const pct = c.items ? Math.round(((c.keep + c.rem) / c.items) * 100) : 0;
   const body = `
     <div class="bar top">
-      <span>${fmtN(c.items)} items in ${layers.length} categor${layers.length === 1 ? "y" : "ies"}</span>
+      <span id="itemsLbl">${fmtN(shownItems)} items in ${layers.length} categor${layers.length === 1 ? "y" : "ies"}</span>
       <span class="mini-prog"><span style="width:${pct}%"></span></span>
       <span><span class="keep-n">Keeping ${fmtN(c.keep)}</span> · <span class="rem-n">Removing ${fmtN(c.rem)}</span></span>
       <span class="sizer" title="Preview size (⌘ + scroll)">
@@ -813,7 +1075,7 @@ function renderReview() {
       </span>
     </div>
     <div class="rv-main ${state.pvCollapsed ? "collapsed" : ""}" id="rvMain">
-      <div class="scroll"><div class="review">${sections}</div></div>
+      <div class="scroll"><div class="review"></div><div id="rvSentinel" style="height:1px"></div></div>
       <aside class="preview" id="preview">
         <div class="pv-head"><span class="pv-title">Preview</span>
           <button class="pv-collapse" id="pvCollapse" title="Hide preview" aria-label="Hide preview">›</button></div>
@@ -837,37 +1099,41 @@ function renderReview() {
       <button class="btn btn-primary" id="finalize" ${c.rem ? "" : "disabled"}>Review &amp; Finalize</button>
     </div>`;
   app.innerHTML = chrome(body) + (state.finalize ? modalHtml() : "");
+  chunkCur = { li: 0, gi: 0, pi: 0 };
+  const grid = app.querySelector(".rv-main .review");
+  layers.forEach((l) => ensureSection(grid, l));   // headers up front (even empty layers)
+  renderChunk();                         // first chunk synchronously — instant paint
+  setupSentinel();                       // the rest streams in as you scroll
   bindReview();
 }
 
-function sectionHtml(layer) {
+// Section shell only (h3 + live summary); groups/cards are appended by renderChunk.
+function sectionShellHtml(layer) {
   const c = CAT[layer];
+  const lt = state.layerTally[layer] || { items: 0, keep: 0, rem: 0 };
   const groups = state.candidates[layer] || [];
-  const d = state.decisions[layer] || {};
-  let keep = 0, rem = 0, items = 0;
-  groups.forEach((g) => g.photos.forEach((p) => { items++; d[p.uuid] === "keep" ? keep++ : rem++; }));
-  const summary = sectionSummary(layer, groups.length, items, keep, rem);
-  const blocks = c.grouped
-    ? groups.map((g) => groupHtml(layer, g)).join("")
-    : (groups[0] ? flatHtml(layer, groups[0]) : "");
-  return `<div class="section" data-layer="${layer}"><h3>${c.name}</h3><div class="summary">${summary}</div>${blocks}</div>`;
+  const summary = sectionSummary(layer, groups.length, lt.items, lt.keep, lt.rem);
+  return `<div class="section" data-layer="${layer}"><h3>${c.name}</h3><div class="summary">${summary}</div></div>`;
 }
 
 function groupHtml(layer, g) {
   const noun = layer === "videos" ? "clips" : "shots";
   const d = state.decisions[layer];
-  const keep = g.photos.filter((p) => d[p.uuid] === "keep").length;
+  const gk = state.groupKeep[layer];
+  const keep = gk && gk.has(g.group_key) ? gk.get(g.group_key)
+    : g.photos.filter((p) => d[p.uuid] === "keep").length;
   const rem = g.photos.length - keep;
   const collapsed = state.collapsed.has(g.group_key);
-  return `<div class="group ${collapsed ? "collapsed" : ""}" data-group="${g.group_key}"
+  const gkey = escapeHtml(g.group_key);
+  return `<div class="group ${collapsed ? "collapsed" : ""}" data-group="${gkey}"
               data-layer="${layer}" data-noun="${noun}" data-size="${g.size}">
     <div class="ghead">
-      <span class="gtitle">${g.title}</span>
+      <span class="gtitle">${escapeHtml(g.title)}</span>
       <span class="gmeta">· ${g.size} ${noun} · keep ${keep} · remove ${rem}</span>
       <span class="spacer"></span>
-      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${g.group_key}">Keep all</button>
-      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${g.group_key}">Remove all</button>
-      <button class="chev" data-collapse="${g.group_key}">${collapsed ? "▸" : "▾"}</button>
+      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${gkey}">Keep all</button>
+      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${gkey}">Remove all</button>
+      <button class="chev" data-collapse="${gkey}">${collapsed ? "▸" : "▾"}</button>
     </div>
     <div class="gbody">${g.photos.map((p) => cardHtml(layer, p)).join("")}</div>
   </div>`;
@@ -878,20 +1144,26 @@ function groupHtml(layer, g) {
 function sectionSummary(layer, nGroups, items, keep, rem) {
   const c = CAT[layer];
   if (c.grouped) return `${fmtN(nGroups)} ${c.setword} · keeping ${keep} · removing ${rem}`;
-  if (layer === "all") return `${fmtN(items)} items · keeping ${keep} · removing ${rem}`;
+  if (layer === "all") {
+    const total = state.allTotal || 0;   // paged feed: show progress while loading
+    const n = total > items ? `${fmtN(items)} of ${fmtN(total)} loaded` : fmtN(items);
+    return `${n} items · keeping ${keep} · removing ${rem}`;
+  }
   return `${fmtN(items)} flagged · keeping ${keep} · removing ${rem}`;
 }
 
-function flatHtml(layer, g) {
+// Flat-layer shell: header only — renderChunk appends card slices into the .gbody.
+function flatShellHtml(layer, g) {
   const manual = layer === "all";
   const title = manual ? "All photos &amp; videos" : "All flagged to remove";
   const meta = manual ? "· chronological · tap ✕ to remove" : "· tap any to keep";
+  const gkey = escapeHtml(g.group_key);
   return `<div class="group"><div class="ghead">
       <span class="gtitle">${title}</span><span class="gmeta">${meta}</span>
       <span class="spacer"></span>
-      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${g.group_key}">Keep all</button>
-      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${g.group_key}">Remove all</button>
-    </div><div class="gbody">${g.photos.map((p) => cardHtml(layer, p, false)).join("")}</div></div>`;
+      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${gkey}">Keep all</button>
+      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${gkey}">Remove all</button>
+    </div><div class="gbody"></div></div>`;
 }
 
 function cardHtml(layer, p, shot = false) {
@@ -934,20 +1206,24 @@ function escapeHtml(s) {
 }
 
 function bindReview() {
-  // Fit each thumbnail to its real aspect once loaded. Wired in JS (not an inline
-  // onload=) so the strict CSP can forbid inline scripts (audit #13).
-  app.querySelectorAll(".card img").forEach((img) => {
-    if (img.complete && img.naturalWidth) fitAspect(img);
-    else img.addEventListener("load", () => fitAspect(img), { once: true });
-  });
+  // (thumbnail aspect wiring happens per appended chunk — see wireThumbs)
   // No summary happens after a cold-start resume — land on the intro, not an empty picker.
-  $("#back").onclick = () => { state.view = "home"; state.phase = state.summary ? "results" : "idle"; state.manual = false; render(); };
+  $("#back").onclick = () => {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; saveReviewState(); }  // flush pending save
+    if (rvIO) { rvIO.disconnect(); rvIO = null; }
+    state.view = "home"; state.phase = state.summary ? "results" : "idle"; state.manual = false; render();
+  };
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
   const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
 
-  // whole-review keep/remove all (every card across every group, incl. collapsed)
+  // Whole-review keep/remove all. Operates on STATE (every decided item, incl.
+  // cards in chunks not rendered yet), then patches only the rendered cards.
   const setAll = (v) => {
-    app.querySelectorAll(".card[data-uuid]").forEach((card) => setCardDecision(card, v));
+    if (state.manual) state.allDefault = v;    // items on future pages follow the bulk verdict
+    for (const layer of reviewLayers()) {
+      for (const uuid of Object.keys(state.decisions[layer] || {})) decideOne(layer, uuid, v);
+    }
+    app.querySelectorAll(".card[data-uuid]").forEach((card) => updateCardDom(card, v));
     if (state.selUuid) fillPreview();   // refresh the preview's toggle label
     refreshCounts();
   };
@@ -968,10 +1244,20 @@ function bindReview() {
     }
     const all = e.target.closest("[data-all]");
     if (all) {
+      // Group-level keep/remove all: state first (covers cards not rendered yet —
+      // the manual/flat feed's group spans every loaded item), then the DOM.
+      const layer = all.dataset.layer, v = all.dataset.all;
+      const g = (state.candidates[layer] || []).find((x) => x.group_key === all.dataset.g);
+      if (g) {
+        if (state.manual && layer === "all") state.allDefault = v;
+        for (const p of g.photos) decideOne(layer, p.uuid, v);
+      }
       const gEl = all.closest(".group");
-      gEl.querySelectorAll(".card[data-uuid]").forEach((card) => setCardDecision(card, all.dataset.all));
+      gEl.querySelectorAll(".card[data-uuid]").forEach((card) => updateCardDom(card, v));
       if (state.selUuid && gEl.querySelector(`.card[data-uuid="${CSS.escape(state.selUuid)}"]`)) fillPreview();
-      refreshCounts();
+      updateGroupMeta(gEl);
+      updateSectionSummary(layer);
+      updateBars();
       return;
     }
     const chev = e.target.closest("[data-collapse]");
@@ -1025,9 +1311,24 @@ function bindReview() {
     if (card) selectCard(card, { scroll: false });
   }
 
-  // finalize modal buttons
+  // finalize modal buttons (present when renderReview ran with a modal open)
+  if (state.finalize) bindModal();
+}
+
+// Swap ONLY the finalize modal overlay in/out — the review grid (and its
+// progressively rendered chunks + scroll position) stays untouched.
+function syncModal() {
+  const bd = app.querySelector(".backdrop");
+  if (bd) bd.remove();
+  if (state.finalize) {
+    app.insertAdjacentHTML("beforeend", modalHtml());
+    bindModal();
+  }
+}
+
+function bindModal() {
   if (state.finalize === "confirm") {
-    $("#m-cancel").onclick = () => { state.finalize = null; state.finalizeErr = null; renderReview(); };
+    $("#m-cancel").onclick = () => { state.finalize = null; state.finalizeErr = null; syncModal(); };
     $("#m-go").onclick = () => { state.finalizeErr = null; doFinalize(); };
   } else if (state.finalize === "done") {
     const wasManual = state.manual;
@@ -1048,50 +1349,64 @@ function bindReview() {
       render();
     };
     // unauthorized: keep the review intact, just close the modal
-    const mb = $("#m-back"); if (mb) mb.onclick = () => { state.finalize = null; state.done = null; renderReview(); };
+    const mb = $("#m-back"); if (mb) mb.onclick = () => { state.finalize = null; state.done = null; syncModal(); };
   }
 }
 
-function setCardDecision(card, v) {
-  const { uuid, layer } = card.dataset;
-  state.decisions[layer][uuid] = v;
+// DOM half of a decision flip — class, badge, aria. State/tallies live in decideOne.
+function updateCardDom(card, v) {
   card.classList.toggle("keep", v === "keep");
   card.classList.toggle("remove", v !== "keep");
   $(".badge", card).innerHTML = icon(v === "keep" ? "i-check" : "i-x");
   $(".frame", card).setAttribute("aria-pressed", v === "keep");
 }
 
+function setCardDecision(card, v) {
+  const { uuid, layer } = card.dataset;
+  decideOne(layer, uuid, v);
+  updateCardDom(card, v);
+}
+
 function flip(card) {
   const { uuid, layer } = card.dataset;
   setCardDecision(card, state.decisions[layer][uuid] === "keep" ? "remove" : "keep");
-  refreshCounts();
+  // O(1) per click: patch only this card's group header, its section line, the bars.
+  const gEl = card.closest(".group[data-group]");
+  if (gEl) updateGroupMeta(gEl);
+  updateSectionSummary(layer);
+  updateBars();
 }
 
-// Update all count text (section summaries, group headers, bars) in place —
-// no DOM rebuild, so thumbnails never reload.
+function updateGroupMeta(gEl) {
+  if (!gEl || !gEl.dataset.group) return;    // flat groups have a static meta line
+  const gk = state.groupKeep[gEl.dataset.layer];
+  const keep = gk ? gk.get(gEl.dataset.group) : undefined;
+  if (keep === undefined) return;
+  const meta = $(".gmeta", gEl);
+  if (meta) meta.textContent = `· ${gEl.dataset.size} ${gEl.dataset.noun} · keep ${keep} · remove ${+gEl.dataset.size - keep}`;
+}
+
+function updateSectionSummary(layer) {
+  const lt = state.layerTally[layer];
+  if (!lt) return;
+  const el = document.querySelector(`.section[data-layer="${layer}"] .summary`);
+  if (el) el.textContent = sectionSummary(layer, (state.candidates[layer] || []).length, lt.items, lt.keep, lt.rem);
+}
+
+// Refresh all count text (section summaries, group headers, bars) from the running
+// tallies — iterates rendered GROUP HEADERS only, never every card. Used after
+// bulk actions; single flips take the O(1) path in flip().
 function refreshCounts() {
-  for (const layer of reviewLayers()) {
-    const groups = state.candidates[layer] || [], d = state.decisions[layer] || {};
-    let keep = 0, rem = 0, items = 0;
-    groups.forEach((g) => g.photos.forEach((p) => { items++; d[p.uuid] === "keep" ? keep++ : rem++; }));
-    const sum = document.querySelector(`.section[data-layer="${layer}"] .summary`);
-    if (sum) sum.textContent = sectionSummary(layer, groups.length, items, keep, rem);
-  }
-  app.querySelectorAll(".group[data-group]").forEach((gEl) => {
-    const d = state.decisions[gEl.dataset.layer] || {};
-    let keep = 0, total = 0;
-    gEl.querySelectorAll(".card[data-uuid]").forEach((card) => {
-      total++; if (d[card.dataset.uuid] === "keep") keep++;
-    });
-    const meta = $(".gmeta", gEl);
-    if (meta) meta.textContent = `· ${gEl.dataset.size} ${gEl.dataset.noun} · keep ${keep} · remove ${total - keep}`;
-  });
+  for (const layer of reviewLayers()) updateSectionSummary(layer);
+  app.querySelectorAll(".group[data-group]").forEach((gEl) => updateGroupMeta(gEl));
   updateBars();
 }
 
 /* ---- review preview panel + keyboard selection --------------------------- */
 function photoOf(layer, uuid) {
-  for (const g of (state.candidates[layer] || [])) {
+  const ent = state.idx && state.idx[layer] && state.idx[layer].get(uuid);
+  if (ent) return ent.p;
+  for (const g of (state.candidates[layer] || [])) {   // fallback (index not built)
     const p = g.photos.find((x) => x.uuid === uuid);
     if (p) return p;
   }
@@ -1166,41 +1481,105 @@ function fillPreview() {
   clearTimeout(pvWarmTimer);
   pvWarmTimer = setTimeout(() => { if (state.selUuid === uuid) warmNeighbors(1); }, 120);
 }
+/* Neighbour walking. Cards are direct children of a .gbody, and groups/sections
+   stack top-to-bottom, so DOM order == reading order — stepping via siblings is
+   O(1)-ish instead of materialising a 50k-card array on every keypress. */
+function nextGroupEl(gEl) {
+  let n = gEl.nextElementSibling;
+  while (n && !n.classList.contains("group")) n = n.nextElementSibling;
+  if (n) return n;
+  let sec = gEl.closest(".section");
+  sec = sec && sec.nextElementSibling;
+  while (sec) {
+    const g = sec.querySelector && sec.querySelector(".group");
+    if (g) return g;
+    sec = sec.nextElementSibling;
+  }
+  return null;
+}
+function prevGroupEl(gEl) {
+  let n = gEl.previousElementSibling;
+  while (n && !n.classList.contains("group")) n = n.previousElementSibling;
+  if (n) return n;
+  let sec = gEl.closest(".section");
+  sec = sec && sec.previousElementSibling;
+  while (sec) {
+    const gs = sec.querySelectorAll ? sec.querySelectorAll(".group") : [];
+    if (gs.length) return gs[gs.length - 1];
+    sec = sec.previousElementSibling;
+  }
+  return null;
+}
+function nextCardFrom(card) {
+  if (card.nextElementSibling) return card.nextElementSibling;
+  let gEl = card.closest(".group");
+  while (gEl) {
+    gEl = nextGroupEl(gEl);
+    if (gEl && !gEl.classList.contains("collapsed")) {
+      const c = gEl.querySelector(".card[data-uuid]");
+      if (c) return c;
+    }
+  }
+  return null;
+}
+function prevCardFrom(card) {
+  if (card.previousElementSibling) return card.previousElementSibling;
+  let gEl = card.closest(".group");
+  while (gEl) {
+    gEl = prevGroupEl(gEl);
+    if (gEl && !gEl.classList.contains("collapsed")) {
+      const cs = gEl.querySelectorAll(".card[data-uuid]");
+      if (cs.length) return cs[cs.length - 1];
+    }
+  }
+  return null;
+}
 function warmNeighbors(span) {
-  const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
-  const i = cards.findIndex((c) => c.dataset.uuid === state.selUuid);
-  if (i < 0) return;
-  for (let d = 1; d <= span; d++) for (const c of [cards[i - d], cards[i + d]]) {
-    if (c) pvGet(c.dataset.uuid);    // loads full-res into the element cache + server RAM cache
+  const cur = selectedCardEl(); if (!cur) return;
+  let a = cur, b = cur;
+  for (let d = 1; d <= span; d++) {
+    a = a && prevCardFrom(a); b = b && nextCardFrom(b);
+    if (a) pvGet(a.dataset.uuid);    // loads full-res into the element cache + server RAM cache
+    if (b) pvGet(b.dataset.uuid);
   }
 }
 function moveSelection(key) {
-  const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
-  if (!cards.length) return;
-  const i = cards.findIndex((c) => c.dataset.uuid === state.selUuid);
-  if (i < 0) { selectCard(cards[0]); return; }
-  const next = cards[key === "ArrowRight" ? i + 1 : i - 1];
+  const cur = selectedCardEl();
+  if (!cur || cur.closest(".group").classList.contains("collapsed")) {
+    const first = app.querySelector(".group:not(.collapsed) .card[data-uuid]");
+    if (first) selectCard(first);
+    return;
+  }
+  let next = key === "ArrowRight" ? nextCardFrom(cur) : prevCardFrom(cur);
+  if (!next && key === "ArrowRight" && chunkHasWork()) {
+    renderChunk();                                    // walked past the rendered edge
+    next = nextCardFrom(cur);
+  }
   if (next) selectCard(next);
 }
 // Up/Down move by a visual row. Rows top-align (align-items:flex-start), so cards
-// in a row share ~the same `top`; pick the row above/below and the nearest by centre-x.
-function moveSelectionVert(dir) {
-  const cur = selectedCardEl(); if (!cur) return;
-  const cards = [...app.querySelectorAll(".group:not(.collapsed) .card[data-uuid]")];
-  const cr = cur.getBoundingClientRect(), curMidX = cr.left + cr.width / 2, tol = 4;
-  const rows = cards.map((c) => ({ c, r: c.getBoundingClientRect() }));
-  let rowTop = null;                                   // nearest row in the wanted direction
-  for (const { r } of rows) {
-    if (dir === "down" && r.top > cr.top + tol) rowTop = rowTop === null ? r.top : Math.min(rowTop, r.top);
-    if (dir === "up" && r.top < cr.top - tol) rowTop = rowTop === null ? r.top : Math.max(rowTop, r.top);
-  }
-  if (rowTop === null) return;                         // already at the top/bottom row
-  let best = null, bestDx = Infinity;
-  for (const { c, r } of rows) {
-    if (Math.abs(r.top - rowTop) <= tol) {
-      const dx = Math.abs(r.left + r.width / 2 - curMidX);
+// in a row share ~the same `top`. Walk neighbours outward from the current card and
+// measure only until the target row ends — never every rendered card.
+function moveSelectionVert(dir, retried) {
+  const cur = selectedCardEl();
+  if (!cur || cur.closest(".group").classList.contains("collapsed")) return;
+  const cr = cur.getBoundingClientRect(), midX = cr.left + cr.width / 2, tol = 4;
+  const step = dir === "down" ? nextCardFrom : prevCardFrom;
+  const past = dir === "down" ? (t) => t > cr.top + tol : (t) => t < cr.top - tol;
+  let c = step(cur), rowTop = null, best = null, bestDx = Infinity;
+  while (c) {
+    const r = c.getBoundingClientRect();
+    if (past(r.top)) {
+      if (rowTop === null) rowTop = r.top;             // first card of the adjacent row
+      if (Math.abs(r.top - rowTop) > tol) break;       // row after the target — done
+      const dx = Math.abs(r.left + r.width / 2 - midX);
       if (dx < bestDx) { bestDx = dx; best = c; }
     }
+    c = step(c);
+  }
+  if (!best && dir === "down" && !retried && chunkHasWork()) {
+    renderChunk();                                     // the next row wasn't rendered yet
+    return moveSelectionVert(dir, true);
   }
   if (best) selectCard(best);
 }
@@ -1213,16 +1592,32 @@ function updateBars() {
   // light-touch refresh of the counters without rebuilding the grid
   const c = counts();
   const pct = c.items ? Math.round(((c.keep + c.rem) / c.items) * 100) : 0;
+  const layers = reviewLayers();
+  const shown = state.manual ? Math.max(c.items, state.allTotal || 0) : c.items;
+  const lbl = $("#itemsLbl");
+  if (lbl) lbl.textContent = `${fmtN(shown)} items in ${layers.length} categor${layers.length === 1 ? "y" : "ies"}`;
   app.querySelectorAll(".keep-n").forEach((e) => e.textContent = `Keeping ${fmtN(c.keep)}`);
   app.querySelectorAll(".rem-n").forEach((e) => e.textContent = `Removing ${fmtN(c.rem)}`);
   app.querySelectorAll(".frees-n").forEach((e) => e.textContent = fmtSave(c.bytes));
   const mp = $(".mini-prog > span"); if (mp) mp.style.width = pct + "%";
   const fin = $("#finalize"); if (fin) fin.disabled = !c.rem;
-  saveReviewState();   // mirror every decision change so a quit/crash loses nothing
+  scheduleSaveReview();   // mirror decision changes so a quit/crash loses (almost) nothing
+}
+
+// Persisting 50k decisions stringifies megabytes — coalesce bursts of clicks into
+// one write shortly after the last change (plus a pagehide flush at the bottom).
+let saveTimer = null;
+function scheduleSaveReview() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; saveReviewState(); }, 250);
 }
 
 /* ---- finalize ------------------------------------------------------------- */
-function openFinalize() { state.finalize = "confirm"; renderReview(); }
+function openFinalize() {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; saveReviewState(); }  // flush pending save
+  state.finalize = "confirm";
+  syncModal();
+}
 
 function modalHtml() {
   const c = counts();
@@ -1256,20 +1651,23 @@ function tick() { return `<svg class="tick"><use href="#i-check"/></svg>`; }
 async function doFinalize() {
   const snapshot = counts();
   state.finalize = "working";
-  renderReview();
+  syncModal();
   try {
     let toDelete;
     if (state.manual) {
       // Manual feed: just remove the marked items — don't record the whole library
-      // as reviewed (that's only for the curated curator-training flow).
+      // as reviewed (that's only for the curated curator-training flow). Decisions
+      // include resumed verdicts from not-yet-fetched pages; a uuid that's gone
+      // from the library comes back "unmatched" and is reported on the done screen.
       toDelete = Object.entries(state.decisions.all || {}).filter(([, v]) => v !== "keep").map(([u]) => u);
     } else {
       const layers = Object.keys(state.decisions);
       for (const layer of layers) {
+        const idx = state.idx[layer];      // O(1) lookups instead of a scan per uuid
         const decisions = Object.entries(state.decisions[layer]).map(([uuid, v]) => {
-          const p = (state.candidates[layer] || []).flatMap((g) => g.photos).find((x) => x.uuid === uuid);
+          const ent = idx && idx.get(uuid);
           return { uuid, verdict: v === "keep" ? "keep" : "discard",
-            group_key: p ? findGroupKey(layer, uuid) : null, suggested: p ? p.suggested_keep : false };
+            group_key: ent ? ent.gkey : null, suggested: ent ? ent.p.suggested_keep : false };
         });
         await api.post("/api/decisions", { layer, decisions });
       }
@@ -1281,13 +1679,13 @@ async function doFinalize() {
                    unmatched: (del.unmatched || []).length };
     state.finalize = "done";
     if (del.status === "ok" || del.status === "no-match") clearReviewState();
-    renderReview();
+    syncModal();
   } catch (e) {
     // Back to the confirm modal with the error inline — decisions are intact,
     // "Remove N" doubles as the retry.
     state.finalizeErr = e.message;
     state.finalize = "confirm";
-    renderReview();
+    syncModal();
   }
 }
 
@@ -1336,11 +1734,6 @@ function doneHtml() {
   </div></div>`;
 }
 
-function findGroupKey(layer, uuid) {
-  const g = (state.candidates[layer] || []).find((x) => x.photos.some((p) => p.uuid === uuid));
-  return g ? g.group_key : null;
-}
-
 /* ---- preview size (slider + ⌘-scroll) ------------------------------------- */
 function setCardSize(px) {
   px = Math.max(84, Math.min(240, Math.round(px)));
@@ -1373,6 +1766,10 @@ window.addEventListener("resize", () => {
   if (!state.pvUserSized && state.view === "review" && !state.pvCollapsed) {
     setPreviewWidth(defaultPreviewWidth());
   }
+});
+// Flush a pending (debounced) review save if the WebView goes away mid-burst.
+window.addEventListener("pagehide", () => {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; saveReviewState(); }
 });
 // health is library-free (reads only the app's own SQLite) — safe at boot;
 // used to show the version in the footer.

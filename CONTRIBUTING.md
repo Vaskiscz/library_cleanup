@@ -48,8 +48,9 @@ license and to open issues.
 ## How to contribute
 
 - **Issues / ideas:** open a GitHub issue — no agreement needed just to discuss.
-- **Code:** fork, branch, and open a pull request. Please run the test suite
-  first: `uv run pytest -q` (and `cd app && uv run pytest -q` for the app tests).
+- **Code:** fork, branch, and open a pull request. Please run the checks
+  first: `uv run ruff check && uv run pytest -q` (one suite covers the CLI
+  package and the app). CI runs the same two commands on every push/PR.
 - Keep changes focused; match the surrounding code style.
 
 *This document is a practical measure, not formal legal advice. For a large or

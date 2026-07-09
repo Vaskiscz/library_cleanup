@@ -15,11 +15,11 @@ set -euo pipefail
 
 CERT_CN="Library Cleanup Self-Signed"
 KC="$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
-KCPW="${LC_KEYCHAIN_PW:-libraryclean}"   # local dev keychain password (not secret)
-if [ -z "${LC_KEYCHAIN_PW:-}" ]; then
-  echo "WARNING: using the default signing-keychain password. On a shared or CI host, set" >&2
-  echo "         LC_KEYCHAIN_PW to a private value so the signing key can't be trivially unlocked." >&2
-fi
+# The signing key in this keychain is the trust anchor for auto-updates (the
+# updater pins its identity), so its password must never be a known default:
+# anything that can read the keychain file + guess the password can sign a
+# malicious update every user would install. Require a private value.
+KCPW="${LC_KEYCHAIN_PW:?set LC_KEYCHAIN_PW to a private signing-keychain password (the update trust anchor lives here)}"
 
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "$CERT_CN"; then
   echo "Identity already present: $CERT_CN"

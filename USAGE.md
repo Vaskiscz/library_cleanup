@@ -191,7 +191,7 @@ with picks pre-marked and decide what (if anything) to add before deleting.
 
 ```sh
 # 1) Precompute embeddings once for the whole library (read-only; safe here or in
-#    Terminal). Long first pass; cached afterward (~/.cache/photo-cleanup/embeddings.npz).
+#    Terminal). Long first pass; cached afterward (~/.cache/photo-cleanup/embeddings.db).
 uv run library-cleanup embed
 
 # 2) Review a date-range stage (dry run -> HTML report, no changes):

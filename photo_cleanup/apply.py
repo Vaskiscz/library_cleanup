@@ -27,6 +27,13 @@ class ApplyResult:
     favorited: int = 0
     skipped: int = 0      # already had the tag / nothing to do
     errors: int = 0
+    first_error: Optional[str] = None   # reason for the first failure (diagnostics)
+
+    def error(self, msg: str) -> None:
+        """Count a per-photo failure, keeping the first reason for display."""
+        self.errors += 1
+        if self.first_error is None:
+            self.first_error = msg
 
 
 class NotAuthorizedError(RuntimeError):
@@ -42,7 +49,7 @@ def _library():
     lib = PhotosLibrary()
     # Probe authorization up front so we fail loudly, not silently per-photo.
     try:
-        lib.photos  # attribute access is cheap; force a real Apple event:
+        lib.photos  # noqa: B018 — deliberate probe; force a real Apple event:
         _ = len(list(lib.album_names()))
     except Exception as e:
         if _is_auth_error(e):
@@ -95,7 +102,7 @@ def add_keyword(
     for i, uuid in enumerate(uuids, 1):
         photo = photos.get(uuid)
         if photo is None:
-            res.errors += 1
+            res.error(f"photo not found: {uuid}")
         else:
             try:
                 kws = set(photo.keywords or [])
@@ -104,8 +111,8 @@ def add_keyword(
                 else:
                     photo.keywords = sorted(kws | {keyword})
                     res.tagged += 1
-            except Exception:
-                res.errors += 1
+            except Exception as e:
+                res.error(str(e))
         if progress:
             progress(i, len(uuids))
     return res
@@ -129,7 +136,7 @@ def favorite(
     for i, uuid in enumerate(uuids, 1):
         photo = photos.get(uuid)
         if photo is None:
-            res.errors += 1
+            res.error(f"photo not found: {uuid}")
         else:
             try:
                 if photo.favorite:
@@ -137,8 +144,8 @@ def favorite(
                 else:
                     photo.favorite = True
                     res.favorited += 1
-            except Exception:
-                res.errors += 1
+            except Exception as e:
+                res.error(str(e))
         if progress:
             progress(i, len(uuids))
     return res
@@ -165,7 +172,7 @@ def clear_keywords_for_uuids(
     for i, uuid in enumerate(uuids, 1):
         photo = photos.get(uuid)
         if photo is None:
-            res.errors += 1
+            res.error(f"photo not found: {uuid}")
         else:
             try:
                 kws = photo.keywords or []
@@ -175,8 +182,8 @@ def clear_keywords_for_uuids(
                     res.tagged += 1
                 else:
                     res.skipped += 1
-            except Exception:
-                res.errors += 1
+            except Exception as e:
+                res.error(str(e))
         if progress:
             progress(i, len(uuids))
     return res
@@ -221,7 +228,7 @@ def unfavorite_uuids(
     for i, uuid in enumerate(uuids, 1):
         photo = photos.get(uuid)
         if photo is None:
-            res.errors += 1
+            res.error(f"photo not found: {uuid}")
         else:
             try:
                 if photo.favorite:
@@ -229,8 +236,8 @@ def unfavorite_uuids(
                     res.favorited += 1
                 else:
                     res.skipped += 1
-            except Exception:
-                res.errors += 1
+            except Exception as e:
+                res.error(str(e))
         if progress:
             progress(i, len(uuids))
     return res
@@ -293,14 +300,14 @@ def undo_keywords(
     for i, uuid in enumerate(uuids, 1):
         photo = _get_photo(lib, uuid)
         if photo is None:
-            res.errors += 1
+            res.error(f"photo not found: {uuid}")
         else:
             try:
                 kws = [k for k in (photo.keywords or []) if not k.startswith(prefix)]
                 photo.keywords = kws
                 res.tagged += 1
-            except Exception:
-                res.errors += 1
+            except Exception as e:
+                res.error(str(e))
         if progress:
             progress(i, len(uuids))
     return res

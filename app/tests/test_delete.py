@@ -136,7 +136,7 @@ def test_dry_run_never_deletes(patch_photos):
 
 
 def test_error_from_photokit_reports_error(patch_photos):
-    P = patch_photos(_make_photos(["a/L0/001"], ok=False, error="user cancelled"))
+    patch_photos(_make_photos(["a/L0/001"], ok=False, error="user cancelled"))
     res = delete.delete_assets(["a"])
     assert res["status"] == "error" and res["deleted"] == 0
 
@@ -144,14 +144,14 @@ def test_error_from_photokit_reports_error(patch_photos):
 # ---- Limited access (#3) ---------------------------------------------------
 def test_limited_with_unreachable_asset_is_access_limited(patch_photos):
     # Under Limited, only 'a' is in the selection; 'b' can't be reached.
-    P = patch_photos(_make_photos(["a/L0/001"], status=LIMITED))
+    patch_photos(_make_photos(["a/L0/001"], status=LIMITED))
     res = delete.delete_assets(["a", "b"])
     assert res["status"] == "access-limited"     # NOT "ok"
     assert res["deleted"] == 1 and res["unmatched"] == ["b"]
 
 
 def test_limited_but_all_reachable_is_ok(patch_photos):
-    P = patch_photos(_make_photos([f"{u}/L0/001" for u in ("a", "b")], status=LIMITED))
+    patch_photos(_make_photos([f"{u}/L0/001" for u in ("a", "b")], status=LIMITED))
     res = delete.delete_assets(["a", "b"])
     assert res["status"] == "ok" and res["deleted"] == 2
 

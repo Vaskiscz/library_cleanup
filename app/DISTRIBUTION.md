@@ -45,19 +45,29 @@ stable identity matters: macOS binds Full Disk Access / Photos grants to the
 signing identity, so those grants **persist across rebuilds** (an ad-hoc build
 gets a new hash each time and silently loses the grants).
 
+Both scripts require `LC_KEYCHAIN_PW` — the password of the dedicated signing
+keychain. It must be a private value: this key is the trust anchor the in-app
+updater pins, so anything that can unlock the keychain can sign an update every
+user would install.
+
 ```sh
 # one-time per machine: create the self-signed code-signing cert
-bash app/scripts/setup-signing.sh
+LC_KEYCHAIN_PW='<private value>' bash app/scripts/setup-signing.sh
 
-# build + sign + package
-bash app/scripts/build-signed-dmg.sh
-# -> app/dist/Library Cleanup-<version>.dmg
+# build + sign + package (also bumps the patch version automatically;
+# pass --minor for a public release)
+LC_KEYCHAIN_PW='<private value>' bash app/scripts/build-signed-dmg.sh
+# -> app/dist/Library-Cleanup.dmg (stable file name; versioned volume label)
 ```
 
-Bump the version in `app/pyproject.toml` (`[tool.briefcase] version`) before
-packaging a new release. The cert is kept **untrusted** (never a system trust
-root) — that's all TCC needs. Remove it with:
+The version is bumped automatically by the build script (via
+`scripts/bump-version.py`, which keeps `pyproject.toml` and `__init__.py` in
+lockstep — never edit either by hand). The cert is kept **untrusted** (never a
+system trust root) — that's all TCC needs. Remove it with:
 `security delete-keychain ~/Library/Keychains/library-cleanup-signing.keychain-db`.
+Change the keychain password without touching the key (grants + identity pin
+survive) with:
+`security set-keychain-password ~/Library/Keychains/library-cleanup-signing.keychain-db`.
 
 ---
 

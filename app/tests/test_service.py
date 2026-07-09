@@ -3,7 +3,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from factories import make_stub_engine, mkv
+from factories import StubEngine, make_stub_engine, mk, mkv
 from photocleanup.server import create_app
 from photocleanup.store import Store
 
@@ -17,7 +17,7 @@ def _no_photo_prompt(monkeypatch):
 @pytest.fixture
 def client():
     app = create_app(store=Store(":memory:"), engine=make_stub_engine())
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         yield c
 
 
@@ -66,7 +66,7 @@ def test_delete_prunes_deleted_uuids_from_engine(monkeypatch):
                         lambda uuids, dry_run=False: {"status": "ok", "requested": len(uuids),
                                                       "matched": 2, "deleted": 2, "unmatched": ["c"]})
     app = create_app(store=Store(":memory:"), engine=eng)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         assert c.post("/api/delete", json={"uuids": ["a", "b", "c"]}).status_code == 200
     assert seen["uuids"] == ["a", "b"]                # unmatched "c" is NOT forgotten
 
@@ -81,7 +81,7 @@ def test_delete_dry_run_does_not_prune(monkeypatch):
                                                       "requested": len(uuids), "matched": 2,
                                                       "deleted": 0, "unmatched": []})
     app = create_app(store=Store(":memory:"), engine=eng)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         c.post("/api/delete", json={"uuids": ["a", "b"], "dry_run": True})
     assert called["n"] == 0                            # nothing deleted -> nothing pruned
 
@@ -94,7 +94,7 @@ def test_analyze_summary(client):
 
 
 def test_rejects_foreign_host(client):
-    # loopback Host is allowed (TestClient uses "testserver")...
+    # loopback Host is allowed (the client fixture pins base_url to 127.0.0.1)...
     assert client.get("/api/health").status_code == 200
     # ...a rebound/foreign Host is refused (DNS-rebinding defense)
     assert client.get("/api/health", headers={"host": "evil.example.com"}).status_code == 400
@@ -128,7 +128,7 @@ def test_video_streams_with_range(tmp_path):
     vid = tmp_path / "clip.mov"; vid.write_bytes(b"\x00\x01\x02\x03\x04")
     eng._index["vx"] = mkv("vx", path=str(vid))
     app = create_app(store=Store(":memory:"), engine=eng)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.get("/api/video/vx")
         assert r.status_code == 200 and r.content == b"\x00\x01\x02\x03\x04"
         rng = c.get("/api/video/vx", headers={"Range": "bytes=1-2"})   # seeking
@@ -140,8 +140,48 @@ def test_all_items_feed(client):
     assert body["layer"] == "all" and len(body["groups"]) == 1
     g = body["groups"][0]
     assert g["size"] == 5                                  # 3 photos + 2 videos
+    assert len(g["photos"]) == 5                           # no params -> whole feed
+    assert body["total"] == 5 and body["count"] == 5
     assert all(p["suggested_keep"] for p in g["photos"])   # everything kept by default
     assert any(p["is_video"] for p in g["photos"])         # videos included
+
+
+def _paging_client():
+    """Engine with 5 items at distinct, out-of-insertion-order timestamps so the
+    chronological sort (and thus page windows) is observable."""
+    recs = [mk("p2", timestamp=3000.0), mk("p0", timestamp=1000.0), mk("p1", timestamp=2000.0)]
+    vids = [mkv("v1", timestamp=5000.0), mkv("v0", timestamp=4000.0)]
+    eng = StubEngine(recs=recs, videos=vids)
+    app = create_app(store=Store(":memory:"), engine=eng)
+    return TestClient(app, base_url="http://127.0.0.1")
+
+
+def test_all_items_pagination_windows():
+    with _paging_client() as c:
+        full = c.get("/api/all-items").json()
+        order = [p["uuid"] for p in full["groups"][0]["photos"]]
+        assert order == ["p0", "p1", "p2", "v0", "v1"]     # chronological
+        # page 1
+        r1 = c.get("/api/all-items", params={"offset": 0, "limit": 2}).json()
+        g1 = r1["groups"][0]
+        assert [p["uuid"] for p in g1["photos"]] == order[:2]
+        assert r1["total"] == 5 and r1["count"] == 2 and r1["offset"] == 0
+        assert g1["size"] == 5 and g1["total"] == 5        # size stays the TOTAL count
+        # page 2 continues exactly where page 1 stopped (stable windows)
+        r2 = c.get("/api/all-items", params={"offset": 2, "limit": 2}).json()
+        assert [p["uuid"] for p in r2["groups"][0]["photos"]] == order[2:4]
+        # short tail page
+        r3 = c.get("/api/all-items", params={"offset": 4, "limit": 50}).json()
+        assert [p["uuid"] for p in r3["groups"][0]["photos"]] == order[4:]
+        assert r3["count"] == 1
+
+
+def test_all_items_pagination_edges():
+    with _paging_client() as c:
+        beyond = c.get("/api/all-items", params={"offset": 99, "limit": 5}).json()
+        assert beyond["groups"][0]["photos"] == [] and beyond["total"] == 5
+        assert c.get("/api/all-items", params={"offset": -1}).status_code == 400
+        assert c.get("/api/all-items", params={"limit": 0}).status_code == 400
 
 
 def test_candidates_videos_have_video_flag(client):
@@ -257,8 +297,6 @@ def test_start_learning_is_serialized(monkeypatch):
 
 
 def test_cancel_endpoint(client):
-    import photocleanup.server as server
-    eng = server  # silence linter
     r = client.post("/api/cancel")
     assert r.status_code == 200 and r.json()["cancelling"] is True
 
@@ -347,7 +385,8 @@ def test_finalize_writes_flat_feedback(client, monkeypatch, tmp_path):
     r = client.post("/api/finalize", json={"layers": ["expired"]})
     assert r.json()["learning_started"] is True
     assert calls == [1]
-    import glob, json as _json
+    import glob
+    import json as _json
     files = glob.glob(str(tmp_path / "fb" / "expired_*.json"))
     assert len(files) == 1
     d = _json.load(open(files[0]))

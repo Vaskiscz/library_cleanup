@@ -20,7 +20,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import __version__
 from .engine import ALL_LAYERS, Engine
-from .store import DISCARD, KEEP, Store
+from .store import KEEP, Store
 
 LAYERS = ALL_LAYERS
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
@@ -42,8 +42,12 @@ def _start_learning(dbpath: Optional[str]) -> bool:
         try:
             from .learning import run_learning
             run_learning(dbpath)
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            # Still best-effort, but never silent: if retraining starts failing
+            # (schema change, corrupt feedback file) the model would quietly
+            # stop improving — leave a trace in the diagnostic log.
+            from .diagnostics import log_failure
+            log_failure("learning", e)
         finally:
             _learning_lock.release()
 
@@ -88,8 +92,10 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                   docs_url=None, redoc_url=None, openapi_url=None)
     # Reject requests whose Host isn't loopback — defeats DNS-rebinding attacks
     # where a malicious website resolves a domain to 127.0.0.1 to reach this API.
+    # (Tests emulate a real host via TestClient(base_url="http://127.0.0.1") —
+    # keep Starlette's default "testserver" OUT of the production allowlist.)
     app.add_middleware(TrustedHostMiddleware,
-                       allowed_hosts=["127.0.0.1", "localhost", "testserver"])
+                       allowed_hosts=["127.0.0.1", "localhost"])
 
     # CSRF/cross-origin guard: without this, any web page the user visits can POST
     # to this loopback API (a "simple request" needs no preflight) and trigger
@@ -218,10 +224,18 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         return {"layer": layer, "since": since, "until": until, "groups": groups}
 
     @app.get("/api/all-items")
-    def all_items(since: Optional[str] = None, until: Optional[str] = None):
-        """Manual review feed: every photo + video in range, chronological."""
-        groups = _engine().all_items(since, until)
-        return {"layer": "all", "since": since, "until": until, "groups": groups}
+    def all_items(since: Optional[str] = None, until: Optional[str] = None,
+                  offset: int = 0, limit: Optional[int] = None):
+        """Manual review feed: every photo + video in range, chronological.
+        Paged via offset/limit (the UI fetches ~1000 at a time as you scroll);
+        omitting both returns the whole feed — backward compatible."""
+        if offset < 0 or (limit is not None and limit < 1):
+            raise HTTPException(400, "offset must be >= 0 and limit >= 1")
+        groups = _engine().all_items(since, until, offset=offset, limit=limit)
+        total = groups[0]["total"] if groups else 0
+        return {"layer": "all", "since": since, "until": until, "groups": groups,
+                "total": total, "offset": offset,
+                "count": len(groups[0]["photos"]) if groups else 0}
 
     @app.get("/api/thumb/{uuid}")
     def thumb(uuid: str, px: int = 240):

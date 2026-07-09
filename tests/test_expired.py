@@ -1,4 +1,3 @@
-import time
 
 from photo_cleanup.model import Config
 from photo_cleanup.expired import classify_expired

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import os
 from typing import Optional
 
@@ -144,11 +143,36 @@ def _face_fresh(cache: dict, uuid: str, path: str) -> bool:
 
 
 def _face_set(cache: dict, uuid: str, path: str) -> None:
+    set_face_quality(cache, uuid, path, face_capture_quality(path))
+
+
+# Public face-cache API for callers that compute the quality themselves (the
+# app's merged Vision pass gets it alongside the feature print — one decode —
+# and stores it here so inject_face_quality later finds it fresh and skips).
+
+def load_face_cache() -> dict:
+    """The on-disk face-quality cache (uuid -> [quality, source_mtime])."""
+    return json.load(open(FACE_CACHE)) if os.path.exists(FACE_CACHE) else {}
+
+
+def save_face_cache(cache: dict) -> None:
+    os.makedirs(os.path.dirname(FACE_CACHE), exist_ok=True)
+    json.dump(cache, open(FACE_CACHE, "w"))
+
+
+def face_quality_fresh(cache: dict, uuid: str, path: str) -> bool:
+    """True when the cached quality is still valid for this source image."""
+    return _face_fresh(cache, uuid, path)
+
+
+def set_face_quality(cache: dict, uuid: str, path: str, quality: float) -> None:
+    """Store an externally computed quality with the source mtime (same entry
+    shape _face_set writes)."""
     try:
         mt = os.path.getmtime(path)
     except OSError:
         mt = None
-    cache[uuid] = [face_capture_quality(path), mt]
+    cache[uuid] = [float(quality), mt]
 
 
 def inject_face_quality(records, progress=None) -> None:

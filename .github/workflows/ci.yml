@@ -1,0 +1,20 @@
+# Runs the full test suite (CLI package + app) and lint on every push/PR.
+# macOS runner: the code imports osxphotos/pyobjc (Photos, Vision), which
+# only install and import on macOS.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Lint (ruff)
+        run: uv run ruff check
+      - name: Tests
+        run: uv run pytest

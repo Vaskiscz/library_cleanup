@@ -104,6 +104,7 @@ def scan_library(
     exclude_shared: bool = True,
     movies_only: bool = False,
     progress: Optional[callable] = None,
+    db=None,
 ) -> list[Record]:
     """Open the Photos library and return Records. dbpath=None => system library.
 
@@ -115,10 +116,18 @@ def scan_library(
     `progress(done, total)` is called periodically while building records so the
     UI can show live motion through the read (the one part of the read we can
     count — the PhotosDB parse before this is opaque).
+
+    `db` reuses an already-parsed osxphotos.PhotosDB instead of constructing a
+    fresh one — the parse is 30–90s on a big library, so a caller scanning both
+    photos AND videos should share one. It may also be a zero-arg factory
+    returning a PhotosDB, invoked only when this call really reads (lets callers
+    with a RAM memo pass a lazy provider without paying the parse up front).
     """
     import osxphotos  # imported lazily so --help etc. work without the library
 
-    db = osxphotos.PhotosDB(dbpath) if dbpath else osxphotos.PhotosDB()
+    if callable(db):
+        db = db()
+    db = db or (osxphotos.PhotosDB(dbpath) if dbpath else osxphotos.PhotosDB())
     if movies_only:
         photos_iter = db.photos(images=False, movies=True)
         images_only = False

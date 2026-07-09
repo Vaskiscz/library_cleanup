@@ -11,7 +11,8 @@ cd "$(dirname "$0")/.."                      # -> app/
 
 IDENTITY="Library Cleanup Self-Signed"
 KC="$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
-KCPW="${LC_KEYCHAIN_PW:-libraryclean}"
+# Mandatory — see setup-signing.sh: this key is the auto-update trust anchor.
+KCPW="${LC_KEYCHAIN_PW:?set LC_KEYCHAIN_PW to the signing-keychain password (see setup-signing.sh)}"
 APP="build/photocleanup/macos/app/Library Cleanup.app"
 ENT="build/photocleanup/macos/app/Entitlements.plist"
 BUILD_LOG="$(mktemp -t library-cleanup-build)"
@@ -20,7 +21,6 @@ fail() { echo "ERROR: $1" >&2; exit 1; }
 
 # Preflight: the signing identity must exist before we spend minutes building.
 [ -f "$KC" ] || fail "signing keychain missing ($KC) — run app/scripts/setup-signing.sh first"
-[ -n "${LC_KEYCHAIN_PW:-}" ] || echo "WARNING: using the default signing-keychain password (set LC_KEYCHAIN_PW on shared/CI hosts)." >&2
 security unlock-keychain -p "$KCPW" "$KC" \
   || fail "couldn't unlock the signing keychain (set LC_KEYCHAIN_PW if you changed the password)"
 security set-keychain-settings -lt 3600 "$KC" 2>/dev/null || true   # re-assert auto-lock (audit #18)

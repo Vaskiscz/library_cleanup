@@ -18,7 +18,7 @@ from photocleanup.store import Store
 @pytest.fixture
 def client():
     app = create_app(store=Store(":memory:"), engine=make_stub_engine())
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         yield c
 
 
@@ -167,7 +167,7 @@ def test_download_dmg_truncated_body_raises_and_cleans_up(monkeypatch):
         paths.append(p)
         return fd, p
     monkeypatch.setattr(updater.tempfile, "mkstemp", cap)
-    with pytest.raises(Exception):
+    with pytest.raises(IOError, match="incomplete download"):
         updater.download_dmg(updater._ALLOWED_PREFIX + "v0.2.0/Library-Cleanup.dmg")
     assert paths and not os.path.exists(paths[0])
 

@@ -12,7 +12,6 @@ import os
 from typing import Optional
 
 from .analyze import Findings
-from .cluster import DuplicateGroup
 from .model import Config, Record
 from .quality import keeper_score
 

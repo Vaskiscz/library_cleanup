@@ -1,5 +1,6 @@
-"""Cluster shots from the same moment/place, confirm near-duplicates with a
-perceptual hash, and pick the best 1..N keepers per similar group.
+"""Cluster shots from the same moment/place, confirm near-duplicates by
+Vision feature-print (embedding) distance, and pick the best 1..N keepers
+per similar group.
 
 Keep-bias guarantees:
   * A photo alone in its similar group (a one-of-a-kind image) is NEVER flagged.
@@ -10,7 +11,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .model import Config, Record
 from .quality import keeper_score, measure_sharpness

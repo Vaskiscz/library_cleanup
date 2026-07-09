@@ -17,9 +17,13 @@ from typing import Optional
 from photo_cleanup.apply import KW_REVIEWED
 from photo_cleanup.model import Config, Record
 
-# Reuse the CLI's caches so the app inherits already-computed records/embeddings.
-DEFAULT_CACHE = os.path.expanduser("~/.cache/photo-cleanup/records.json")
-DEFAULT_EMB_CACHE = os.path.expanduser("~/.cache/photo-cleanup/embeddings.npz")
+# Reuse the CLI's embedding cache so the app inherits already-computed vectors.
+DEFAULT_EMB_CACHE = os.path.expanduser("~/.cache/photo-cleanup/embeddings.db")
+
+# Heavy per-image work (Vision embeds/face passes, PIL decodes) runs in a small
+# thread pool: pyobjc and PIL release the GIL during the actual work, so this
+# is real parallelism, bounded so a background scan doesn't saturate the Mac.
+MAX_WORKERS = min(8, (os.cpu_count() or 4))
 
 ALL_LAYERS = ("dedup", "videos", "screenshots", "expired")
 # Group-based layers (keep best of a set) vs flat layers (all flagged to remove).
@@ -70,10 +74,9 @@ def _item_bytes(rec: Record) -> int:
 
 class Engine:
     def __init__(self, cfg: Optional[Config] = None,
-                 cache: str = DEFAULT_CACHE, emb_cache: str = DEFAULT_EMB_CACHE,
+                 emb_cache: str = DEFAULT_EMB_CACHE,
                  dbpath: Optional[str] = None):
         self.cfg = cfg or Config()
-        self.cache = cache
         self.emb_cache = emb_cache
         self.dbpath = dbpath
         self._index: dict[str, Record] = {}
@@ -101,22 +104,39 @@ class Engine:
         self._cancel = threading.Event()   # set by request_cancel(), checked mid-scan
 
     # ---- record loading ----------------------------------------------------
-    def _all_records(self, force: bool = False, progress=None):
+    def _shared_db(self):
+        """A lazy PhotosDB provider for one pass: the first REAL read constructs
+        the (30–90s to parse) osxphotos.PhotosDB, every later read in the same
+        pass reuses it — so photos + videos cost ONE Photos.sqlite parse, and a
+        memo-served pass constructs nothing at all."""
+        holder: list = []
+
+        def provider():
+            if not holder:
+                import osxphotos
+                holder.append(osxphotos.PhotosDB(self.dbpath) if self.dbpath
+                              else osxphotos.PhotosDB())
+            return holder[0]
+        return provider
+
+    def _all_records(self, force: bool = False, progress=None, db=None):
         """All photo Records via osxphotos, held in RAM ONLY (never persisted —
         the metadata includes GPS + OCR text; audit #8). Memoized per library
         mtime so repeat analyzes in a session don't re-scan; the memo invalidates
         itself automatically when the library changes. `progress(done, total)` is
-        forwarded to the read loop (only fires on a real read, not a memo hit)."""
+        forwarded to the read loop (only fires on a real read, not a memo hit).
+        `db` (a PhotosDB or lazy provider from _shared_db) is forwarded to
+        scan_library so callers can share a single library parse."""
         from photo_cleanup.scan import _db_mtime, scan_library
         mt = _db_mtime(self.dbpath)
         if (not force and self._records_memo is not None
                 and mt is not None and mt == self._records_mtime):
             return self._records_memo
-        recs = scan_library(self.dbpath, progress=progress)
+        recs = scan_library(self.dbpath, progress=progress, db=db)
         self._records_memo, self._records_mtime = recs, mt
         return recs
 
-    def _all_videos(self, force: bool = False, progress=None):
+    def _all_videos(self, force: bool = False, progress=None, db=None):
         """All video Records via osxphotos, RAM-only and memoized per library
         mtime — same contract as _all_records, so repeat/rescan passes don't
         re-parse the whole PhotosDB."""
@@ -125,7 +145,7 @@ class Engine:
         if (not force and self._videos_memo is not None
                 and mt is not None and mt == self._videos_mtime):
             return self._videos_memo
-        recs = scan_library(self.dbpath, movies_only=True, progress=progress)
+        recs = scan_library(self.dbpath, movies_only=True, progress=progress, db=db)
         self._videos_memo, self._videos_mtime = recs, mt
         return recs
 
@@ -134,7 +154,8 @@ class Engine:
         re-clusters the survivors without re-reading the whole library via
         osxphotos. A delete only ever removes known uuids, so pruning the RAM
         memos is equivalent to — and far cheaper than — a fresh scan, and it
-        writes NOTHING to disk (records stay RAM-only; audit #8).
+        persists NOTHING to disk (records stay RAM-only; audit #8 — the only
+        disk touch is *deleting* the evicted vectors from the embedding cache).
 
         The delete just bumped the library mtime, so we adopt the new mtime for
         the pruned memos: the next analyze then sees them as current and skips
@@ -162,15 +183,26 @@ class Engine:
         with self._thumb_lock:
             for key in [k for k in self._thumb_cache if k[0] in drop]:
                 self._thumb_used -= len(self._thumb_cache.pop(key))
+        # Evict the deleted assets' vectors (and derived video-frame keys) from
+        # the on-disk embedding cache too — otherwise it grows forever. This
+        # only DELETES derived data; no photo metadata is persisted (audit #8).
+        # Best-effort: a cache hiccup must never break the delete flow.
+        try:
+            from photo_cleanup.embedding import EmbeddingCache
+            EmbeddingCache(self.emb_cache).forget(drop)
+        except Exception:  # noqa: BLE001 — cache eviction is opportunistic
+            pass
 
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
-                     force_rescan: bool = False, eligible_only: bool = True, progress=None):
+                     force_rescan: bool = False, eligible_only: bool = True, progress=None,
+                     db=None):
         """Photos in scope. `eligible_only` (default) drops the Hidden album, items
         the library already marks reviewed:keep, and any uuid in `excluded` — the set
         the curated scan should suggest on. Set it False for the manual feed, which
         shows everything in range except Hidden (incl. already-kept photos)."""
         excluded = excluded or set()
-        recs = _filter_by_date(self._all_records(force=force_rescan, progress=progress), since, until)
+        recs = _filter_by_date(self._all_records(force=force_rescan, progress=progress, db=db),
+                               since, until)
         if eligible_only:
             recs = [r for r in recs if not r.is_hidden
                     and KW_REVIEWED not in (r.keywords or []) and r.uuid not in excluded]
@@ -186,10 +218,12 @@ class Engine:
         return recs
 
     def load_videos(self, since=None, until=None, excluded: Optional[set] = None,
-                    eligible_only: bool = True, force_rescan: bool = False, progress=None):
+                    eligible_only: bool = True, force_rescan: bool = False, progress=None,
+                    db=None):
         """Videos in scope (same eligibility rules as load_records)."""
         excluded = excluded or set()
-        recs = _filter_by_date(self._all_videos(force=force_rescan, progress=progress), since, until)
+        recs = _filter_by_date(self._all_videos(force=force_rescan, progress=progress, db=db),
+                               since, until)
         if eligible_only:
             recs = [r for r in recs if KW_REVIEWED not in (r.keywords or [])
                     and r.uuid not in excluded and r.path and os.path.exists(r.path)]
@@ -217,7 +251,7 @@ class Engine:
         cand = [r for c in time_gps_clusters(records, self.cfg) if len(c) >= 2 for r in c]
         ec = EmbeddingCache(self.emb_cache)
         emb_prog = (lambda i, n: progress("Comparing photos", i, n)) if progress else None
-        if embed_records(cand, ec, progress=emb_prog):
+        if embed_records(cand, ec, progress=emb_prog, workers=MAX_WORKERS):
             ec.save()
         inject_face_quality(cand)
         return find_duplicate_groups(records, self.cfg, embeddings=ec)
@@ -227,8 +261,8 @@ class Engine:
         from photo_cleanup.video import duplicate_takes
         ec = EmbeddingCache(self.emb_cache)
         emb_prog = (lambda i, n: progress("Comparing videos", i, n)) if progress else None
-        embed_records(videos, ec, progress=emb_prog)
-        groups = duplicate_takes(videos, ec, self.cfg)
+        embed_records(videos, ec, progress=emb_prog, workers=MAX_WORKERS)
+        groups = duplicate_takes(videos, ec, self.cfg, workers=MAX_WORKERS)
         ec.save()          # persists poster + sampled-frame vectors (no-op if clean)
         return groups
 
@@ -347,11 +381,16 @@ class Engine:
 
     def _analyze(self, since=None, until=None, layers=None, excluded: Optional[set] = None,
                  progress=None, force: bool = False):
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         from photo_cleanup.cluster import find_duplicate_groups, time_gps_clusters
-        from photo_cleanup.embedding import EmbeddingCache, embed_records
+        from photo_cleanup.embedding import (EmbeddingCache, _safe_vector, embed_records,
+                                             feature_print_and_face_quality)
         from photo_cleanup.expired import classify_expired
-        from photo_cleanup.feedback import inject_face_quality
-        from photo_cleanup.quality import measure_sharpness
+        from photo_cleanup.feedback import (face_capture_quality, face_quality_fresh,
+                                            inject_face_quality, load_face_cache,
+                                            save_face_cache, set_face_quality)
+        from photo_cleanup.quality import _best_image_path, measure_sharpness
         from photo_cleanup.screenshots import classify_screenshot
         from photo_cleanup.video import duplicate_takes
 
@@ -403,16 +442,20 @@ class Engine:
         #    look-alike pass [0.88, 1.0].
         dedup_on, videos_on = "dedup" in layers, "videos" in layers
         emit_read("Opening your photo library…", 0.04)
+        # One lazy PhotosDB for the whole pass: the photo read constructs it (a
+        # 30–90s Photos.sqlite parse), the video read reuses it — the parse used
+        # to happen TWICE. Memo-served loads never construct it at all.
+        shared_db = self._shared_db()
         photos = []
         if photo_layers:
             photos = self.load_records(
-                since, until, excluded=excluded, force_rescan=force,
+                since, until, excluded=excluded, force_rescan=force, db=shared_db,
                 progress=lambda i, n: emit_read("Reading photos…", 0.21 + 0.51 * (i / n if n else 1.0), i, n))
         videos = []
         if videos_on:
             emit_read("Reading videos…", 0.72)
             videos = self.load_videos(
-                since, until, excluded=excluded, force_rescan=force,
+                since, until, excluded=excluded, force_rescan=force, db=shared_db,
                 progress=lambda i, n: emit_read("Reading videos…", 0.72 + 0.14 * (i / n if n else 1.0), i, n))
         nphotos, nvideos = len(photos), len(videos)
 
@@ -427,15 +470,15 @@ class Engine:
             emit_read("Finding look-alikes…", 0.99)
         cand_n = len(cand)
 
-        # Phase cost model (≈ wall-clock). The heavy per-candidate image work — the
-        # Vision embed AND the sharpness decode (moved out of grouping, below) — plus
-        # face detection dominate, so weight by candidates, not raw photo count. With
-        # sharpness precomputed in the photo phase, grouping is just vector math now,
-        # so its weight drops sharply.
-        EMBED_W = 5        # a dedup candidate in the photo phase: Vision embed + sharpness decode
-        FACE_W = 4         # a dedup candidate in the face phase: one Vision face pass
+        # Phase cost model (≈ wall-clock). The heavy per-candidate image work — ONE
+        # merged Vision pass (feature print + face-capture quality on a single
+        # decode) plus the sharpness decode — dominates and all lives in the photo
+        # phase now, so weight by candidates, not raw photo count. The face phase
+        # became a cache-hit sweep (qualities were computed alongside the embeds)
+        # and grouping is vector-only — both near-zero.
+        EMBED_W = 6        # a dedup candidate: merged Vision decode (embed + face) + sharpness decode
         photo_cost = (nphotos + cand_n * (EMBED_W - 1)) if photo_layers else 0
-        face_cost = (cand_n * FACE_W) if dedup_on else 0
+        face_cost = max(1.0, cand_n * 0.1) if dedup_on else 0    # cache-hit sweep (no image decode)
         group_cost = max(1.0, cand_n * 0.1) if dedup_on else 0   # vector-only now (no image decode)
         video_cost = (nvideos * 4) if videos_on else 0
         takes_cost = max(1.0, nvideos * 0.4) if videos_on else 0
@@ -457,26 +500,82 @@ class Engine:
                      count_total or None,
                      min(reported, 0.999))
 
-        # 3) per-photo pass: embed dedup candidates + classify. The bar tracks
-        #    embedding work (candidates are heavier); the count shows photos.
+        # 3) per-photo pass: classify + the heavy per-candidate image work. The
+        #    bar tracks decode work (candidates are heavier); the count shows
+        #    photos. Candidates run through a thread pool — Vision and PIL both
+        #    release the GIL, so up to MAX_WORKERS images decode in parallel.
+        #    Workers ONLY compute; this thread applies every cache write and
+        #    progress tick, so ticks stay monotonic and the caches/records never
+        #    see concurrent mutation from the coordinator side.
         shots, exp, cand_recs = [], [], []
         photo_work = 0.0
-        for i, rec in enumerate(photos, 1):
-            check_cancel()
-            is_cand = rec.uuid in cand
-            if is_cand:
-                embed_records([rec], ec)
-                measure_sharpness(rec)   # decode + Laplacian NOW, in this counted phase,
-                cand_recs.append(rec)    # so "Grouping photoshoots…" does no image work
-            if "screenshots" in layers and (sv := classify_screenshot(rec, self.cfg)).is_work:
-                shots.append((rec, sv))
-            if "expired" in layers and (ev := classify_expired(rec, self.cfg)).is_expired:
-                exp.append((rec, ev))
-            photo_work += EMBED_W if is_cand else 1
-            if i % 50 == 0 or i == nphotos:
-                emit_phase("Analyzing photos…", photo_cost, photo_work, photo_cost or 1, i, nphotos)
+        photos_done = 0
+        face_cache = load_face_cache() if dedup_on else {}
+        faces_computed = 0
+
+        def tick_photo(weight):
+            nonlocal photo_work, photos_done
+            photos_done += 1
+            photo_work += weight
+            if photos_done % 50 == 0 or photos_done == nphotos:
+                emit_phase("Analyzing photos…", photo_cost, photo_work, photo_cost or 1,
+                           photos_done, nphotos)
+
+        def candidate_job(rec, path, need_embed, need_face):
+            """Worker thread: pure per-image compute, no shared state. Where BOTH
+            the feature print and face quality are stale, ONE merged Vision pass
+            computes them on a single image decode (instead of two)."""
+            if self._cancel.is_set():        # scan is being torn down — skip the decode
+                return rec, path, None, None
+            vec = fq = None
+            if need_embed and need_face:
+                vec, fq = feature_print_and_face_quality(path)
+            elif need_embed:
+                vec = _safe_vector(path)
+            elif need_face:
+                fq = face_capture_quality(path)
+            measure_sharpness(rec)   # decode + Laplacian NOW, in this counted phase,
+            return rec, path, vec, fq   # so "Grouping photoshoots…" does no image work
+
+        pool = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        try:
+            pending = []
+            for rec in photos:
+                check_cancel()
+                if "screenshots" in layers and (sv := classify_screenshot(rec, self.cfg)).is_work:
+                    shots.append((rec, sv))
+                if "expired" in layers and (ev := classify_expired(rec, self.cfg)).is_expired:
+                    exp.append((rec, ev))
+                if rec.uuid not in cand:
+                    tick_photo(1)
+                    continue
+                cand_recs.append(rec)
+                path = _best_image_path(rec)
+                need_embed = bool(path) and not ec.is_fresh(rec.uuid, path)
+                need_face = bool(path) and not face_quality_fresh(face_cache, rec.uuid, path)
+                if need_embed or need_face or rec.laplacian is None:
+                    pending.append(pool.submit(candidate_job, rec, path, need_embed, need_face))
+                else:
+                    tick_photo(EMBED_W)          # fully cached — no decode at all
+            for fut in as_completed(pending):
+                check_cancel()
+                crec, cpath, vec, fq = fut.result()
+                if vec is not None:
+                    ec.set(crec.uuid, vec, cpath)          # records mtime like compute()
+                if fq is not None:
+                    set_face_quality(face_cache, crec.uuid, cpath, fq)
+                    faces_computed += 1
+                tick_photo(EMBED_W)
+        finally:
+            # On cancel/failure, drop queued decodes instead of draining the whole
+            # backlog; in-flight ones finish in the background and are discarded.
+            pool.shutdown(wait=False, cancel_futures=True)
         if dedup_on:
             ec.save()
+            if faces_computed:
+                # Persist now so inject_face_quality (next phase) finds every
+                # candidate fresh and does no image work of its own.
+                save_face_cache(face_cache)
         done_frac += photo_cost / total_cost
 
         # 4) photo post-passes: face quality (Vision) then grouping
@@ -496,17 +595,19 @@ class Engine:
             if "expired" in layers:
                 self._candidates["expired"] = self.expired_payload(exp)
 
-        # 5) videos: embed poster frames, then group same-scene takes
+        # 5) videos: embed poster frames (the same worker-pool pattern lives
+        #    inside embed_records — cache writes stay on this thread), then group
+        #    same-scene takes with pooled frame sampling. The count during the
+        #    embed tracks stale posters (cache hits are free and skipped).
         if videos_on:
-            for i, rec in enumerate(videos, 1):
-                check_cancel()
-                embed_records([rec], ec)
-                if i % 20 == 0 or i == nvideos:
-                    emit_phase("Analyzing videos…", video_cost, i, nvideos, i, nvideos)
+            emit_phase("Analyzing videos…", video_cost, 0, 1, 0, nvideos)
+            embed_records(videos, ec, workers=MAX_WORKERS,
+                          progress=lambda i, n: emit_phase("Analyzing videos…", video_cost, i, n, i, n))
+            emit_phase("Analyzing videos…", video_cost, 1, 1, nvideos, nvideos)
             ec.save()
             done_frac += video_cost / total_cost
             emit_phase("Comparing video takes…", takes_cost, 0, 1)
-            vgroups = duplicate_takes(videos, ec, self.cfg,
+            vgroups = duplicate_takes(videos, ec, self.cfg, workers=MAX_WORKERS,
                                       progress=lambda i, n: emit_phase("Comparing video takes…", takes_cost, i, n))
             ec.save()      # sampled-frame vectors computed during takes (no-op if clean)
             done_frac += takes_cost / total_cost
@@ -582,23 +683,35 @@ class Engine:
             self._candidates[layer] = pl
         return pl
 
-    def all_items(self, since=None, until=None) -> list[dict]:
+    def all_items(self, since=None, until=None, offset: int = 0,
+                  limit: Optional[int] = None) -> list[dict]:
         """Every photo + video in range as one chronological feed, all suggested to
         keep — for the manual review flow. Shows everything except Hidden, including
-        items already marked reviewed:keep (unlike the curated scan)."""
+        items already marked reviewed:keep (unlike the curated scan).
+
+        `offset`/`limit` page the feed so a 50k-item library isn't serialized into
+        one giant payload; omitting them returns everything. The sort key is
+        (timestamp, uuid) so page windows are stable across requests, and only the
+        requested window pays the photo_dict cost. `size` stays the TOTAL count
+        (with a `total` alias) so callers can tell how much remains."""
         recs = self.load_records(since, until, eligible_only=False) + \
                self.load_videos(since, until, eligible_only=False)
-        recs.sort(key=lambda r: r.timestamp or 0)
-        photos = [self.photo_dict(r, suggested_keep=True) for r in recs]
+        recs.sort(key=lambda r: (r.timestamp or 0, r.uuid))
+        total = len(recs)
+        window = recs[offset:offset + limit] if limit is not None else recs[offset:]
+        photos = [self.photo_dict(r, suggested_keep=True) for r in window]
         return [{"group_key": "all", "title": "All photos & videos", "date_label": "",
-                 "size": len(photos), "suggested_keep": len(photos),
+                 "size": total, "total": total, "suggested_keep": total,
                  "suggested_discard": 0, "photos": photos}]
 
     def library_stats(self) -> dict:
-        """Cheap-ish library totals for the status line (videos counted once)."""
-        photos = len(self._all_records())
+        """Cheap-ish library totals for the status line (videos counted once).
+        Served from the RAM memos when warm; a cold call shares ONE PhotosDB
+        parse between the photo and video reads."""
+        db = self._shared_db()
+        photos = len(self._all_records(db=db))
         if self._video_count is None:
-            self._video_count = len(self._all_videos())
+            self._video_count = len(self._all_videos(db=db))
         return {"photos": photos, "videos": self._video_count}
 
     # ---- thumbnails --------------------------------------------------------
