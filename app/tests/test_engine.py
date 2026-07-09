@@ -90,6 +90,49 @@ def test_read_phase_reports_live_progress(monkeypatch):
     assert compute and min(compute) >= 0.30 - 1e-9         # compute phases sit above the read band
 
 
+def test_sharpness_is_precomputed_before_grouping(monkeypatch):
+    """Sharpness (an image decode) must be measured during the counted photo
+    phase, so 'Grouping photoshoots…' does no image work and stays fast."""
+    from photo_cleanup import cluster, embedding, expired, feedback, quality, scan, screenshots, video
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "is_authorized", lambda: True)
+
+    photos = [mk(f"p{i}", timestamp=1000 + i) for i in range(4)]
+    monkeypatch.setattr(scan, "scan_library",
+                        lambda *a, movies_only=False, **k: [] if movies_only else list(photos))
+    monkeypatch.setattr(cluster, "time_gps_clusters", lambda recs, cfg: [list(recs)] if recs else [])
+
+    class _EC:
+        def __init__(self, *a): pass
+        def save(self): pass
+        def get(self, u): return None
+    monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
+    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec: None)
+    monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
+    monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
+    monkeypatch.setattr(feedback, "inject_face_quality", lambda records, progress=None: None)
+
+    sharp_calls = []
+    def fake_sharp(rec):
+        sharp_calls.append(rec.uuid)
+        rec.laplacian = 100.0
+    monkeypatch.setattr(quality, "measure_sharpness", fake_sharp)
+
+    grouping_saw = {}
+    def fake_grouping(recs, cfg, embeddings=None, progress=None):
+        grouping_saw["laplacians"] = [r.laplacian for r in recs]   # already set?
+        if progress:
+            progress(len(recs), len(recs))
+        return []
+    monkeypatch.setattr(cluster, "find_duplicate_groups", fake_grouping)
+    monkeypatch.setattr(video, "duplicate_takes", lambda *a, **k: [])
+
+    Engine().analyze(layers=["dedup"])
+
+    assert set(sharp_calls) == {"p0", "p1", "p2", "p3"}          # decoded in the photo phase
+    assert grouping_saw["laplacians"] == [100.0] * 4            # grouping saw them cached
+
+
 def test_analyze_requires_photos_access(monkeypatch):
     """Photos read-write must be granted at connection — fail fast (before any
     scanning) rather than after a whole review."""

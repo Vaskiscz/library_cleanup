@@ -351,6 +351,7 @@ class Engine:
         from photo_cleanup.embedding import EmbeddingCache, embed_records
         from photo_cleanup.expired import classify_expired
         from photo_cleanup.feedback import inject_face_quality
+        from photo_cleanup.quality import measure_sharpness
         from photo_cleanup.screenshots import classify_screenshot
         from photo_cleanup.video import duplicate_takes
 
@@ -426,13 +427,17 @@ class Engine:
             emit_read("Finding look-alikes…", 0.99)
         cand_n = len(cand)
 
-        # Phase cost model (≈ wall-clock). The two Vision passes — embedding candidates
-        # and face detection — dominate, so weight by candidates, not raw photo count.
-        EMBED_W = 4
+        # Phase cost model (≈ wall-clock). The heavy per-candidate image work — the
+        # Vision embed AND the sharpness decode (moved out of grouping, below) — plus
+        # face detection dominate, so weight by candidates, not raw photo count. With
+        # sharpness precomputed in the photo phase, grouping is just vector math now,
+        # so its weight drops sharply.
+        EMBED_W = 5        # a dedup candidate in the photo phase: Vision embed + sharpness decode
+        FACE_W = 4         # a dedup candidate in the face phase: one Vision face pass
         photo_cost = (nphotos + cand_n * (EMBED_W - 1)) if photo_layers else 0
-        face_cost = (cand_n * EMBED_W) if dedup_on else 0
-        group_cost = max(1.0, cand_n * 0.4) if dedup_on else 0
-        video_cost = (nvideos * EMBED_W) if videos_on else 0
+        face_cost = (cand_n * FACE_W) if dedup_on else 0
+        group_cost = max(1.0, cand_n * 0.1) if dedup_on else 0   # vector-only now (no image decode)
+        video_cost = (nvideos * 4) if videos_on else 0
         takes_cost = max(1.0, nvideos * 0.4) if videos_on else 0
         total_cost = (photo_cost + face_cost + group_cost + video_cost + takes_cost) or 1.0
         done_frac = 0.0   # bar fraction filled by completed COMPUTE phases (0..1 internally)
@@ -461,7 +466,8 @@ class Engine:
             is_cand = rec.uuid in cand
             if is_cand:
                 embed_records([rec], ec)
-                cand_recs.append(rec)
+                measure_sharpness(rec)   # decode + Laplacian NOW, in this counted phase,
+                cand_recs.append(rec)    # so "Grouping photoshoots…" does no image work
             if "screenshots" in layers and (sv := classify_screenshot(rec, self.cfg)).is_work:
                 shots.append((rec, sv))
             if "expired" in layers and (ev := classify_expired(rec, self.cfg)).is_expired:
