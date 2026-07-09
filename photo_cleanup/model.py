@@ -137,6 +137,14 @@ class Record:
     # paths to existing thumbnails/previews (avoid decoding originals for display)
     derivatives: list[str] = field(default_factory=list)
 
+    # Apple stores edits non-destructively: `path` is the ORIGINAL master, while
+    # `path_edited` is the rendered CURRENT version (crop, trim, adjustments). When
+    # `has_adjustments` is set, the edited render is what the user sees in Photos —
+    # so it, never the original master, is the source for display and streaming
+    # (otherwise a cropped photo shows the uncropped original composited over it).
+    path_edited: Optional[str] = None
+    has_adjustments: bool = False
+
     duration: Optional[float] = None        # video length in seconds (None for photos)
 
     # --- filled in by later pipeline stages ---

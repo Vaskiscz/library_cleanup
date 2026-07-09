@@ -93,6 +93,8 @@ def photo_to_record(photo) -> Record:
         media_types=[str(x).lower() for x in (media_types or [])],
         features=feats,
         derivatives=_safe(lambda: list(photo.path_derivatives), []) or [],
+        path_edited=_safe(lambda: photo.path_edited, None),
+        has_adjustments=bool(_safe(lambda: photo.hasadjustments, False)),
         **scores,
     )
 

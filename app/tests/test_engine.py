@@ -307,6 +307,37 @@ def test_thumb_bytes_unknown_uuid_is_none():
     assert Engine().thumb_bytes("nope") is None
 
 
+def _jpeg(path, w, h, color):
+    from PIL import Image
+    Image.new("RGB", (w, h), color).save(path, format="JPEG")
+
+
+def test_edited_photo_preview_uses_edited_render_not_original(tmp_path):
+    """A cropped photo must render from its edited (cropped) render — never the
+    uncropped original master, which would otherwise win the large-px preview as
+    the biggest source and show the original composited over the crop."""
+    orig = tmp_path / "orig.jpg"; _jpeg(orig, 400, 400, (255, 0, 0))     # square original
+    edited = tmp_path / "edited.jpg"; _jpeg(edited, 400, 100, (0, 0, 255))  # wide crop
+    eng = Engine()
+    rec = mk("x", path=str(orig), path_edited=str(edited), has_adjustments=True,
+             derivatives=[], width=400, height=100)
+    eng._index["x"] = rec
+    data = eng.thumb_bytes("x", px=2048)                 # hi-res detail preview
+    assert data is not None
+    from io import BytesIO
+    from PIL import Image
+    with Image.open(BytesIO(data)) as im:
+        assert im.width > im.height          # wide crop, not the square original
+
+
+def test_unedited_photo_preview_uses_original(tmp_path):
+    orig = tmp_path / "orig.jpg"; _jpeg(orig, 400, 400, (255, 0, 0))
+    eng = Engine()
+    eng._index["y"] = mk("y", path=str(orig), has_adjustments=False, derivatives=[])
+    data = eng.thumb_bytes("y", px=2048)
+    assert data is not None                  # falls back to the original master as before
+
+
 def test_summarize_counts_and_bytes():
     eng = Engine()
     payload = eng.dedup_payload([DuplicateGroup(keepers=[mk("a")], discards=[mk("b")])])

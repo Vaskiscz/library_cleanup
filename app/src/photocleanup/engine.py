@@ -745,10 +745,15 @@ class Engine:
         except Exception:
             return None
         candidates = list(rec.derivatives)
-        if rec.path:
-            candidates.append(rec.path)
+        # For an EDITED item the full-res source must be the edited render, NOT the
+        # original master: Photos' derivatives are already the cropped/adjusted
+        # version, so adding the uncropped original would make the large-px preview
+        # pick it and show the original composited over the cropped thumb.
+        full = rec.path_edited if (rec.has_adjustments and rec.path_edited) else rec.path
+        if full:
+            candidates.append(full)
         # Grid thumbs (small px) take the smallest source — fastest. The detail
-        # preview (large px) takes the largest/original so fine differences between
+        # preview (large px) takes the largest source so fine differences between
         # near-identical shots actually survive; `thumbnail()` only downscales, so a
         # small source could never produce a sharp preview. Higher JPEG quality too.
         hi = px > 512

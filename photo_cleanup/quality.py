@@ -21,6 +21,10 @@ def _best_image_path(rec: Record) -> Optional[str]:
             return max(rec.derivatives, key=lambda p: _file_size(p))
         except Exception:
             return rec.derivatives[0]
+    # No derivatives: fall back to the on-disk file the user actually sees — the
+    # edited render for edited items, otherwise the original master.
+    if rec.has_adjustments and rec.path_edited:
+        return rec.path_edited
     return rec.path
 
 

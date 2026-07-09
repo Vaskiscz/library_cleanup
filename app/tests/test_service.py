@@ -135,6 +135,19 @@ def test_video_streams_with_range(tmp_path):
         assert rng.status_code == 206 and rng.content == b"\x01\x02"
 
 
+def test_video_streams_edited_render_for_trimmed_clip(tmp_path):
+    """A time-trimmed clip must stream its edited render, not the full original."""
+    eng = make_stub_engine()
+    orig = tmp_path / "orig.mov"; orig.write_bytes(b"ORIGINALFULL")
+    trimmed = tmp_path / "trim.mov"; trimmed.write_bytes(b"TRIM")
+    eng._index["vt"] = mkv("vt", path=str(orig), path_edited=str(trimmed),
+                           has_adjustments=True)
+    app = create_app(store=Store(":memory:"), engine=eng)
+    with TestClient(app, base_url="http://127.0.0.1") as c:
+        r = c.get("/api/video/vt")
+        assert r.status_code == 200 and r.content == b"TRIM"   # trimmed, not the original
+
+
 def test_all_items_feed(client):
     body = client.get("/api/all-items").json()
     assert body["layer"] == "all" and len(body["groups"]) == 1

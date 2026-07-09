@@ -361,18 +361,26 @@ function timeFilterHtml() {
   </div>`;
 }
 
+// Right-hand cell of a category row. Both empty states render the SAME muted
+// pill so the rows line up — only the wording differs: "None identified" when a
+// category has nothing in the whole library, "None in range" when it has items
+// but none in the current time filter.
+function catRightHtml(c, s, f) {
+  const identified = s && s.items > 0;
+  const has = identified && f.items > 0;
+  if (!has) return `<span class="none">${identified ? "None in range" : "None identified"}</span>`;
+  const sub = c.grouped ? `across ${fmtN(f.groups)} ${c.setword}` : "flagged to remove";
+  return `<div class="count"><span data-count>${fmtN(f.items)}</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
+       <div class="save" data-save>Save up to ${fmtSave(f.bytes)}</div>
+       <div class="desc"><span data-groups>${sub}</span></div>`;
+}
 function catCard(c) {
   const s = state.summary && state.summary[c.id];
   const identified = s && s.items > 0;
   const f = filteredCat(c.id);
   const has = identified && f.items > 0;
   const on = state.selected.has(c.id) && has;
-  const sub = c.grouped ? `across ${fmtN(f.groups)} ${c.setword}` : "flagged to remove";
-  const right = !identified
-    ? `<span class="none">None identified</span>`
-    : `<div class="count${has ? "" : " dim"}"><span data-count>${fmtN(f.items)}</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
-       <div class="save" data-save>${has ? `Save up to ${fmtSave(f.bytes)}` : "Nothing here"}</div>
-       <div class="desc"><span data-groups>${has ? sub : "—"}</span></div>`;
+  const right = catRightHtml(c, s, f);
   return `
     <button class="cat ${on ? "on" : ""} ${identified ? "" : "disabled"}" data-cat="${c.id}" ${identified ? "" : "disabled"} style="${identified && !has ? "opacity:.55" : ""}">
       <span class="check">${icon("i-check")}</span>
@@ -501,11 +509,10 @@ function updateFilter() {
   const rst = $("#tfReset"); if (rst) rst.classList.toggle("show", !all);
   let selN = 0, selBytes = 0;                                 // tally selected-in-range as we go
   app.querySelectorAll(".cat[data-cat]").forEach((row) => {
-    const id = row.dataset.cat, f = filteredCat(id), c = CAT[id];
-    const cnt = $("[data-count]", row); if (cnt) { cnt.textContent = fmtN(f.items); cnt.parentElement.classList.toggle("dim", f.items === 0); }
-    const sv = $("[data-save]", row); if (sv) sv.textContent = f.items ? `Save up to ${fmtSave(f.bytes)}` : "Nothing here";
-    const gp = $("[data-groups]", row); if (gp) gp.textContent = f.items ? (c.grouped ? `across ${fmtN(f.groups)} ${c.setword}` : "flagged to remove") : "—";
-    row.style.opacity = f.items ? "" : ".55";
+    const id = row.dataset.cat, f = filteredCat(id), c = CAT[id], s = state.summary && state.summary[id];
+    const rt = $(".right", row); if (rt) rt.innerHTML = catRightHtml(c, s, f);   // same helper as first render
+    const identified = s && s.items > 0;
+    row.style.opacity = (identified && f.items === 0) ? ".55" : "";
     if (!f.items) { state.selected.delete(id); row.classList.remove("on"); }
     else if (state.selected.has(id)) { row.classList.add("on"); selN++; selBytes += f.bytes; }
   });
@@ -576,6 +583,12 @@ function bindHome() {
 // refreshes — after a review, on resume, first analyze — leave it off so they
 // reuse the pruned in-RAM records and return fast.
 async function startAnalyze(range, { force = false } = {}) {
+  // A full-library scan (no date scope) resets the time filter to "all time":
+  // a stale narrow range left over from a previous session must not carry onto
+  // the fresh full axis, where buildMonthAxis would keep it and strand the
+  // picker on an irrelevant window (e.g. the first two months). Scoped scans
+  // (resume) keep their range — they go straight into review, not the picker.
+  if (!range || (!range.since && !range.until)) state.range = null;
   state.phase = "scanning";
   state.cancelled = false;
   state.flash = null; flashRetry = null;
@@ -1335,13 +1348,15 @@ function bindModal() {
     const sd = $("#supportDone"); if (sd) sd.onclick = donate;
     const mn = $("#m-new"); if (mn) mn.onclick = () => {
       if (wasManual) {
-        // Manual flow: re-scan the period the user just reviewed (faster than a
-        // full library scan) and land back on the categories picker with fresh
-        // counts. Capture the range before clearing review state.
-        const range = state.reviewDates || rangeDates();
+        // Manual flow: land back on the categories picker with fresh counts.
+        // Re-scan the WHOLE library (range null), NOT just the period the user
+        // reviewed: a scoped re-scan rebuilds the month axis from only those
+        // months, stranding the time filter there with no way to widen back to
+        // the full range. The post-delete in-RAM memo is still warm, so a
+        // full-range re-scan is nearly as fast as a scoped one anyway.
         Object.assign(state, { view: "home", finalize: null, done: null,
           candidates: {}, decisions: {}, manual: false, range: null });
-        startAnalyze(range);
+        startAnalyze(null);
         return;
       }
       Object.assign(state, { view: "home", phase: "idle", finalize: null, done: null,

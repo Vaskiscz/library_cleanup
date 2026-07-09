@@ -249,13 +249,18 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
 
     @app.get("/api/video/{uuid}")
     def video(uuid: str):
-        """Stream the original video file for in-app playback. FileResponse honours
-        Range requests so the <video> element can seek/scrub. Stays on 127.0.0.1 and
-        is no-store, so nothing is copied off the device."""
+        """Stream the video file for in-app playback. FileResponse honours Range
+        requests so the <video> element can seek/scrub. Stays on 127.0.0.1 and is
+        no-store, so nothing is copied off the device."""
         rec = _engine().record(uuid)
-        if rec is None or not rec.is_movie or not rec.path or not os.path.exists(rec.path):
+        if rec is None or not rec.is_movie:
             raise HTTPException(404, "no video")
-        return FileResponse(rec.path, headers={"Cache-Control": "no-store"})
+        # Serve the edited (e.g. time-trimmed) render for edited clips — never the
+        # untrimmed original master, which is what the user sees in Photos.
+        src = rec.path_edited if (rec.has_adjustments and rec.path_edited) else rec.path
+        if not src or not os.path.exists(src):
+            raise HTTPException(404, "no video")
+        return FileResponse(src, headers={"Cache-Control": "no-store"})
 
     @app.post("/api/decisions")
     def decisions(body: DecisionsBody):
