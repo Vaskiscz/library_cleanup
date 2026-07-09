@@ -288,6 +288,8 @@
   .split .body{font-size:16.5px; color:var(--text-2); line-height:1.6;}
   .split .body p{margin:0 0 16px;}
   .split .body strong{color:var(--text); font-weight:600;}
+  .split .body a{color:var(--brand); font-weight:600; text-decoration:none;}
+  .split .body a:hover{text-decoration:underline;}
   .note{
     background:var(--warn); background:rgba(178,106,0,.08);
     border:1px solid rgba(178,106,0,.25); border-radius:14px;
@@ -765,6 +767,7 @@
       <div class="body">
         <p>To do its job, Library Cleanup needs to read your <strong>entire</strong> Photos library and delete photos through Apple's PhotoKit. That requires <strong>Full Disk Access</strong> and delete permissions the Mac App Store sandbox simply doesn't hand out.</p>
         <p>Rather than strip out what makes it useful to fit the sandbox, it's distributed directly.</p>
+        <p>And because it asks for that much access, the full source is public — so you (or anyone) can <a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit">audit the code on GitHub</a> and see exactly what it does before trusting it with your library.</p>
         <div class="note">
           <h4><svg viewBox="0 0 24 24"><use href="#i-warn"/></svg> One honest heads-up</h4>
           <p>This is a free passion project without a paid Apple Developer account, so the app is signed but <strong>not notarized</strong>. macOS will warn you the first time you open it. That's expected — the two-minute install steps below walk you through it.</p>
