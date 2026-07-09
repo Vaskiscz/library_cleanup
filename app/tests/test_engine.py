@@ -47,6 +47,49 @@ def test_analyze_progress_is_monotonic_and_phased(monkeypatch, tmp_path):
     assert photo[1] == 6 and photo[2] == 6  # count = photos in that phase
 
 
+def test_read_phase_reports_live_progress(monkeypatch):
+    """The read preamble must emit live, increasing counts (not one frozen
+    'Reading…' state), stay within the read band [0, 0.30], and hand off to the
+    compute phases above it."""
+    from photo_cleanup import cluster, embedding, expired, feedback, scan, screenshots, video
+    import photocleanup.delete as delete
+    monkeypatch.setattr(delete, "is_authorized", lambda: True)
+
+    photos = [mk(f"p{i}") for i in range(500)]
+
+    def fake_scan(dbpath=None, movies_only=False, progress=None, **k):
+        if progress and not movies_only:          # emulate scan_library's periodic callback
+            for i in (100, 300, 500):
+                progress(i, 500)
+        return [] if movies_only else list(photos)
+    monkeypatch.setattr(scan, "scan_library", fake_scan)
+    monkeypatch.setattr(cluster, "time_gps_clusters", lambda recs, cfg: [recs[:2]])
+
+    class _EC:
+        def __init__(self, *a): pass
+        def save(self): pass
+        def get(self, u): return None
+    monkeypatch.setattr(embedding, "EmbeddingCache", _EC)
+    monkeypatch.setattr(embedding, "embed_records", lambda recs, ec: None)
+    monkeypatch.setattr(screenshots, "classify_screenshot", lambda r, cfg: type("V", (), {"is_work": False})())
+    monkeypatch.setattr(expired, "classify_expired", lambda r, cfg: type("V", (), {"is_expired": False})())
+    monkeypatch.setattr(feedback, "inject_face_quality", lambda records, progress=None: progress and progress(1, 1))
+    monkeypatch.setattr(cluster, "find_duplicate_groups", lambda recs, cfg, embeddings=None, progress=None: [])
+    monkeypatch.setattr(video, "duplicate_takes", lambda recs, cache, cfg, progress=None: [])
+
+    events = []
+    Engine().analyze(layers=["dedup"], progress=lambda m, d, t, f: events.append((m, d, t, f)))
+
+    fracs = [f for *_, f in events if f is not None]
+    assert fracs == sorted(fracs)                          # monotonic overall
+    reading = [e for e in events if e[0] == "Reading photos…"]
+    assert [e[1] for e in reading] == [100, 300, 500]      # live per-item count
+    assert all(e[3] <= 0.30 + 1e-9 for e in reading)       # within the read band
+    assert len({round(e[3], 4) for e in reading}) >= 3     # distinct -> the bar moves
+    compute = [f for m, d, t, f in events if m == "Analyzing photos…" and f is not None]
+    assert compute and min(compute) >= 0.30 - 1e-9         # compute phases sit above the read band
+
+
 def test_analyze_requires_photos_access(monkeypatch):
     """Photos read-write must be granted at connection — fail fast (before any
     scanning) rather than after a whole review."""

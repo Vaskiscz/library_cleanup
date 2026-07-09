@@ -103,6 +103,7 @@ def scan_library(
     exclude_hidden: bool = True,
     exclude_shared: bool = True,
     movies_only: bool = False,
+    progress: Optional[callable] = None,
 ) -> list[Record]:
     """Open the Photos library and return Records. dbpath=None => system library.
 
@@ -110,6 +111,10 @@ def scan_library(
     Album assets (a separate namespace, not the user's main library — they don't
     appear in main-library Smart Albums and must not be tagged/deleted here).
     Set movies_only=True to scan videos instead of photos.
+
+    `progress(done, total)` is called periodically while building records so the
+    UI can show live motion through the read (the one part of the read we can
+    count — the PhotosDB parse before this is opaque).
     """
     import osxphotos  # imported lazily so --help etc. work without the library
 
@@ -119,15 +124,20 @@ def scan_library(
         images_only = False
     else:
         photos_iter = db.photos()
+    photos_iter = list(photos_iter)          # materialise so we have a total to report against
+    total = len(photos_iter)
     records: list[Record] = []
-    for photo in photos_iter:
+    for i, photo in enumerate(photos_iter, 1):
         if images_only and not _safe(lambda: photo.isphoto, True):
-            continue
-        if exclude_hidden and _safe(lambda: photo.hidden, False):
-            continue
-        if exclude_shared and _safe(lambda: photo.shared, False):
-            continue
-        records.append(photo_to_record(photo))
+            pass
+        elif exclude_hidden and _safe(lambda: photo.hidden, False):
+            pass
+        elif exclude_shared and _safe(lambda: photo.shared, False):
+            pass
+        else:
+            records.append(photo_to_record(photo))
+        if progress is not None and (i % 200 == 0 or i == total):
+            progress(i, total)
     return records
 
 

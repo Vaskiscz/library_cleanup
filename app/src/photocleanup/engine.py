@@ -101,21 +101,22 @@ class Engine:
         self._cancel = threading.Event()   # set by request_cancel(), checked mid-scan
 
     # ---- record loading ----------------------------------------------------
-    def _all_records(self, force: bool = False):
+    def _all_records(self, force: bool = False, progress=None):
         """All photo Records via osxphotos, held in RAM ONLY (never persisted —
         the metadata includes GPS + OCR text; audit #8). Memoized per library
         mtime so repeat analyzes in a session don't re-scan; the memo invalidates
-        itself automatically when the library changes."""
+        itself automatically when the library changes. `progress(done, total)` is
+        forwarded to the read loop (only fires on a real read, not a memo hit)."""
         from photo_cleanup.scan import _db_mtime, scan_library
         mt = _db_mtime(self.dbpath)
         if (not force and self._records_memo is not None
                 and mt is not None and mt == self._records_mtime):
             return self._records_memo
-        recs = scan_library(self.dbpath)
+        recs = scan_library(self.dbpath, progress=progress)
         self._records_memo, self._records_mtime = recs, mt
         return recs
 
-    def _all_videos(self, force: bool = False):
+    def _all_videos(self, force: bool = False, progress=None):
         """All video Records via osxphotos, RAM-only and memoized per library
         mtime — same contract as _all_records, so repeat/rescan passes don't
         re-parse the whole PhotosDB."""
@@ -124,7 +125,7 @@ class Engine:
         if (not force and self._videos_memo is not None
                 and mt is not None and mt == self._videos_mtime):
             return self._videos_memo
-        recs = scan_library(self.dbpath, movies_only=True)
+        recs = scan_library(self.dbpath, movies_only=True, progress=progress)
         self._videos_memo, self._videos_mtime = recs, mt
         return recs
 
@@ -163,13 +164,13 @@ class Engine:
                 self._thumb_used -= len(self._thumb_cache.pop(key))
 
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
-                     force_rescan: bool = False, eligible_only: bool = True):
+                     force_rescan: bool = False, eligible_only: bool = True, progress=None):
         """Photos in scope. `eligible_only` (default) drops the Hidden album, items
         the library already marks reviewed:keep, and any uuid in `excluded` — the set
         the curated scan should suggest on. Set it False for the manual feed, which
         shows everything in range except Hidden (incl. already-kept photos)."""
         excluded = excluded or set()
-        recs = _filter_by_date(self._all_records(force=force_rescan), since, until)
+        recs = _filter_by_date(self._all_records(force=force_rescan, progress=progress), since, until)
         if eligible_only:
             recs = [r for r in recs if not r.is_hidden
                     and KW_REVIEWED not in (r.keywords or []) and r.uuid not in excluded]
@@ -185,10 +186,10 @@ class Engine:
         return recs
 
     def load_videos(self, since=None, until=None, excluded: Optional[set] = None,
-                    eligible_only: bool = True, force_rescan: bool = False):
+                    eligible_only: bool = True, force_rescan: bool = False, progress=None):
         """Videos in scope (same eligibility rules as load_records)."""
         excluded = excluded or set()
-        recs = _filter_by_date(self._all_videos(force=force_rescan), since, until)
+        recs = _filter_by_date(self._all_videos(force=force_rescan, progress=progress), since, until)
         if eligible_only:
             recs = [r for r in recs if KW_REVIEWED not in (r.keywords or [])
                     and r.uuid not in excluded and r.path and os.path.exists(r.path)]
@@ -357,16 +358,27 @@ class Engine:
         excluded = excluded or set()
         photo_layers = [l for l in layers if l in ("dedup", "screenshots", "expired")]
 
-        # ---- progress: ONE monotonic bar split into cost-weighted phases. The
-        #      "x / y" count reflects the CURRENT phase; the label says what it is.
-        def emit_indet(label):                       # pre-scan steps: animated, no count
+        # ---- progress: ONE monotonic bar. The read + look-alike preamble owns the
+        #      first READ_FRAC of the bar; the cost-weighted compute phases own the
+        #      rest (remapped in emit_phase). Every phase reports a numeric frac so
+        #      the bar always advances — no static "pulse" states.
+        READ_FRAC = 0.30
+
+        def check_cancel():
+            if self._cancel.is_set():
+                raise AnalysisCancelled()
+
+        def emit_read(label, r, done=None, total=None):
+            """Report progress within the read preamble: r in [0,1] maps to the
+            first READ_FRAC of the bar. Also a cancellation checkpoint."""
+            check_cancel()
             if progress:
-                progress(label, None, None, None)
+                progress(label, done, total, min(READ_FRAC * max(0.0, min(r, 1.0)), READ_FRAC))
 
         # 1) privileges — deletion needs Photos read-write. The prompt is fired on the
         #    app's MAIN thread at launch (a background-thread request can't show the
         #    dialog and gets recorded as a denial); here we only CHECK it.
-        emit_indet("Checking photo access…")
+        emit_read("Checking photo access…", 0.02)
         auth_status = None
         try:
             from .delete import authorization_status, is_authorized
@@ -381,20 +393,37 @@ class Engine:
         if not authorized:
             raise PermissionError(f"photos-access (status={auth_status})")
 
-        # 2) connect + load the scope (one osxphotos pass; can't sub-divide → indeterminate)
-        emit_indet("Reading your library…")
-        photos = self.load_records(since, until, excluded=excluded, force_rescan=force) if photo_layers else []
-        videos = self.load_videos(since, until, excluded=excluded, force_rescan=force) if "videos" in layers else []
+        # 2) read the scope. The PhotosDB parse itself is opaque (the frontend
+        #    creeps the bar through the "Opening…" step); the per-record build IS
+        #    counted, so photos and videos each report live x/y. The counted read
+        #    starts at r≈0.21 — just above where the frontend creep tops out during
+        #    the opaque parse — so the two hand off without a visible stall.
+        #    Read-budget segments: photos [0.21, 0.72], videos [0.72, 0.86],
+        #    look-alike pass [0.88, 1.0].
         dedup_on, videos_on = "dedup" in layers, "videos" in layers
+        emit_read("Opening your photo library…", 0.04)
+        photos = []
+        if photo_layers:
+            photos = self.load_records(
+                since, until, excluded=excluded, force_rescan=force,
+                progress=lambda i, n: emit_read("Reading photos…", 0.21 + 0.51 * (i / n if n else 1.0), i, n))
+        videos = []
+        if videos_on:
+            emit_read("Reading videos…", 0.72)
+            videos = self.load_videos(
+                since, until, excluded=excluded, force_rescan=force,
+                progress=lambda i, n: emit_read("Reading videos…", 0.72 + 0.14 * (i / n if n else 1.0), i, n))
         nphotos, nvideos = len(photos), len(videos)
 
         # dedup candidates (photos in a multi-shot time/GPS cluster)
         ec = EmbeddingCache(self.emb_cache)
         cand = set()
         if dedup_on:
+            emit_read("Finding look-alikes…", 0.88)
             for c in time_gps_clusters(photos, self.cfg):
                 if len(c) >= 2:
                     cand.update(r.uuid for r in c)
+            emit_read("Finding look-alikes…", 0.99)
         cand_n = len(cand)
 
         # Phase cost model (≈ wall-clock). The two Vision passes — embedding candidates
@@ -406,25 +435,22 @@ class Engine:
         video_cost = (nvideos * EMBED_W) if videos_on else 0
         takes_cost = max(1.0, nvideos * 0.4) if videos_on else 0
         total_cost = (photo_cost + face_cost + group_cost + video_cost + takes_cost) or 1.0
-        done_frac = 0.0   # bar fraction filled by completed phases
-
-        def check_cancel():
-            if self._cancel.is_set():
-                raise AnalysisCancelled()
+        done_frac = 0.0   # bar fraction filled by completed COMPUTE phases (0..1 internally)
 
         def emit_phase(label, cost, frac_done, frac_total, count_done=None, count_total=None):
-            """Overall bar = finished phases + this phase's share × its sub-progress.
-            `count_*` (optional) drive the on-screen 'x / y' for this phase.
-            Doubles as the cancellation checkpoint: every progress callback from
-            the heavy passes (faces, grouping, takes) funnels through here."""
+            """Overall bar = READ_FRAC (read preamble) + finished compute phases +
+            this phase's share × its sub-progress, all compressed into the compute
+            band [READ_FRAC, 1]. `count_*` drive the on-screen 'x / y'. Doubles as
+            the cancellation checkpoint for the heavy passes (faces, grouping, takes)."""
             check_cancel()
             if not progress:
                 return
             f = done_frac + (cost / total_cost) * (min(frac_done, frac_total) / frac_total if frac_total else 1.0)
+            reported = READ_FRAC + (1.0 - READ_FRAC) * min(f, 1.0)
             progress(label,
                      int(min(count_done, count_total)) if count_total else None,
                      count_total or None,
-                     min(f, 0.999))
+                     min(reported, 0.999))
 
         # 3) per-photo pass: embed dedup candidates + classify. The bar tracks
         #    embedding work (candidates are heavier); the count shows photos.

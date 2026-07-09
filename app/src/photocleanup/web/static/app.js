@@ -218,7 +218,7 @@ function renderHome() {
         <div class="spinner"></div>
         <h2>Analyzing your library…</h2>
         <div class="step" id="step">Starting…</div>
-        <div class="progress indet" id="prog"><span id="bar" style="width:100%"></span></div>
+        <div class="progress" id="prog"><span id="bar" style="width:0"></span></div>
         <div class="count" id="count"></div>
         <div style="margin-top:22px"><button class="btn-secondary" id="cancel">Cancel</button></div>
       </div></div></div>`;
@@ -576,6 +576,7 @@ async function startAnalyze(range, { force = false } = {}) {
   state.phase = "scanning";
   state.cancelled = false;
   state.flash = null; flashRetry = null;
+  resetScanBar();                 // fresh bar for this scan (starts at 0)
   render();
   let res;
   try {
@@ -600,6 +601,7 @@ async function pollProgress() {
   catch { return void setTimeout(pollProgress, 600); }
   updateScanning(p);
   if (p.status === "done") {
+    resetScanBar();
     state.libStatus = "connected";   // the library was read successfully
     state.summary = p.summary;
     state.selected = new Set(CATS.filter((c) => p.summary[c.id]?.items > 0).map((c) => c.id));
@@ -614,11 +616,13 @@ async function pollProgress() {
     }
     render();
   } else if (p.status === "error") {
+    resetScanBar();
     state.libStatus = "error";
     state.errorMsg = p.error || "Something went wrong.";
     state.errorLog = p.log || "";
     state.phase = "idle"; render();
   } else if (p.status === "cancelled") {
+    resetScanBar();
     state.phase = "idle"; render();     // scan stopped server-side; back to start
   } else {
     // Library is connected the moment scanning gets past access/connect (real
@@ -631,23 +635,47 @@ async function pollProgress() {
   }
 }
 
+// The scan bar is JS-driven so it's always moving: it eases toward the backend's
+// reported fraction, and when the backend goes quiet (the opaque PhotosDB parse,
+// or a slow per-face pass) it creeps a little past the last real point rather
+// than freezing. `shown` only ever increases, so the bar never jumps backwards.
+let scanAnim = null;
+
+function resetScanBar() {
+  if (scanAnim && scanAnim.timer) clearInterval(scanAnim.timer);
+  scanAnim = null;
+}
+
 function updateScanning(p) {
   const step = $("#step"), bar = $("#bar"), count = $("#count"), prog = $("#prog");
   if (!step) return;
   step.textContent = p.message || "Working…";
-  if (p.frac != null) {                       // determinate weighted bar across phases
-    prog.classList.remove("indet");
-    bar.style.width = Math.round(p.frac * 100) + "%";
-    count.textContent = p.total ? `${fmtN(p.done)} / ${fmtN(p.total)}` : "";   // current-phase count
-  } else if (p.total) {                       // fallback: determinate from done/total
-    prog.classList.remove("indet");
-    bar.style.width = Math.round((p.done / p.total) * 100) + "%";
-    count.textContent = `${fmtN(p.done)} / ${fmtN(p.total)}`;
-  } else {                                    // pre-scan / unknown → animated
-    prog.classList.add("indet");
-    bar.style.width = "100%";
-    count.textContent = "";
+  count.textContent = p.total ? `${fmtN(p.done)} / ${fmtN(p.total)}` : "";
+  if (prog) prog.classList.remove("indet");
+  const real = (p.frac != null) ? p.frac : (p.total ? p.done / p.total : null);
+  if (!scanAnim) {
+    scanAnim = { shown: 0, floor: 0, lastRealAt: Date.now() };
+    if (bar) bar.style.transition = "none";     // JS owns the width; no CSS lag
+    scanAnim.timer = setInterval(tickScanBar, 65);
   }
+  if (real != null) {
+    scanAnim.floor = Math.max(scanAnim.floor, real);   // last real point, monotonic
+    scanAnim.lastRealAt = Date.now();
+  }
+}
+
+function tickScanBar() {
+  const a = scanAnim;
+  if (!a) return;
+  const bar = $("#bar");
+  if (!bar) { resetScanBar(); return; }          // left the scanning view
+  const quiet = Date.now() - a.lastRealAt > 300;
+  // Quiet → creep toward a small cap past the last real point (keeps moving);
+  // active → ease toward the real point. Either way shown only rises.
+  const cap = quiet ? Math.min(0.985, a.floor + 0.05) : a.floor;
+  const ease = quiet ? 0.05 : 0.18;
+  a.shown = Math.min(0.995, a.shown + Math.max(0, cap - a.shown) * ease);
+  bar.style.width = (a.shown * 100).toFixed(1) + "%";
 }
 
 /* ---- review --------------------------------------------------------------- */
