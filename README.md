@@ -1,119 +1,68 @@
 # Library Cleanup
 
-On-device deduplication & work-screenshot triage for the Apple Photos library.
+[![CI](https://github.com/Vaskiscz/library_cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/Vaskiscz/library_cleanup/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Vaskiscz/library_cleanup?label=download&color=success)](https://github.com/Vaskiscz/library_cleanup/releases/latest)
+[![License: PolyForm NC 1.0.0](https://img.shields.io/badge/license-PolyForm%20NC%201.0.0-blue)](LICENSE)
 
-> The CLI is `library-cleanup`; the Python package is `photo_cleanup`.
+On-device cleanup for your Apple Photos library. It finds the clutter and hands back the storage, without anything leaving your Mac.
 
-Built for two jobs:
-1. **Dedup photoshoots** — many near-identical shots of the same place/person → keep the best 1–3, flag the rest.
-2. **Remove work screenshots** — Slack/code/docs/spreadsheets/tickets → flag for deletion. Memes, recipes, maps, photos-of-people are kept.
+Two jobs:
 
-**Guiding rule: when in doubt, keep.** A one-of-a-kind photo is *never* flagged. The tool only proposes removing something that has a better near-duplicate, or a high-confidence work screenshot.
+1. **Dedup photoshoots and videos.** Many near-identical shots of one moment: keep the sharpest one or two, flag the rest.
+2. **Clear the junk drawer.** Work screenshots (Slack, code, docs, tickets) and aged single-purpose photos (receipts, wifi codes, parking spots). Memes, recipes, maps, and photos of people are kept.
 
-🖥️ **Prefer an app over a CLI?** The same engine ships as **Library Cleanup**, a native Mac app (scan → pick categories → review grid → delete via PhotoKit) in [app/](app/) — see [USAGE.md § Running the Mac app](USAGE.md#running-the-mac-app-library-cleanup).
+**Guiding rule: when in doubt, keep.** A one-of-a-kind photo is never flagged. The tool only proposes removing something that has a better near-duplicate or is high-confidence clutter, and nothing is deleted until you confirm.
 
-📖 **[USAGE.md](USAGE.md) — exact step-by-step runbook** (setup, the full tag → review → rescue → delete sequence, tuning, troubleshooting).
+## Get it
 
-## Everything stays on your Mac
+**Mac app (recommended).** Download the latest `Library-Cleanup.dmg` from the [releases page](https://github.com/Vaskiscz/library_cleanup/releases/latest), open it, and drag the app to Applications. Then: scan, pick categories, review a grid, delete through macOS. It keeps itself up to date from here.
 
-No network, no cloud APIs, no uploads, no telemetry. Specifically:
+**Command line.** `uv sync`, then `uv run library-cleanup scan --open` for a read-only HTML report. See [USAGE.md](USAGE.md) for the full runbook (tag, review, rescue, delete, tuning, troubleshooting).
 
-- `osxphotos` reads the local library database & files directly.
-- Perceptual hashing & sharpness (`Pillow`, `numpy`, `scipy`, `imagehash`) run in local memory.
-- Screenshot classification uses **Apple's own on-device data** already stored in the library — Vision OCR text and ML scene labels. Nothing is re-uploaded for analysis.
-- The HTML report is a single local file (thumbnails embedded as base64); it is opened from disk, never served.
+## Is it safe? Privacy and signing
 
-The only "cloud" anywhere near this is *your existing* iCloud Photos sync. This tool never enables or uses it. (Stage 2 write-back sets a Favorite/keyword, which Apple may later sync as a metadata change — the same as hearting a photo by hand. Pause iCloud if you want to avoid even that.)
+**Nothing leaves your Mac.** No cloud, no uploads, no telemetry, no analytics. All processing is local:
 
-## Install
+- `osxphotos` reads the local Photos database and files directly.
+- Near-duplicate detection uses on-device **Apple Vision feature prints**; sharpness is a local Laplacian estimate (Pillow + numpy). Screenshot and expired-photo detection reuse **Apple's own Vision OCR and scene labels** already stored in your library.
+- The only bytes that ever leave the device are the app's anonymous version check against GitHub and, when you choose to update, the download of the new release. Both are disclosed in [SECURITY.md](SECURITY.md). Nothing about your photos is ever sent.
+
+The one exception is *your own* iCloud Photos sync, which this tool never enables or uses. Setting a Favorite or keyword during write-back may sync as a metadata change, exactly like hearting a photo by hand. Pause iCloud if you want to avoid even that.
+
+**First launch.** The app is code-signed with a stable identity but not yet Apple-notarized, so macOS shows an "unidentified developer" prompt the first time. Right-click the app and choose **Open** once; after that it launches normally. It runs under the hardened runtime and asks only for Photos access. Every deletion is confirmed by macOS itself and goes to Recently Deleted, so nothing is unrecoverable.
+
+**Updates are verified before they install.** The built-in updater only downloads over HTTPS from this repository's Releases, then checks the downloaded app's code signature and pins the expected signing identity before it replaces anything. An update that has been tampered with, or signed by anyone else, is refused. See [SECURITY.md](SECURITY.md) for the full threat model and how to report a vulnerability privately.
+
+## What it finds
+
+- **Photoshoot dedup** with adaptive, diversity-aware keepers (the best 1 to 3 of a burst).
+- **Duplicate video takes** (near-identical clips, keep the largest) and oversized videos. Apple Photos does neither.
+- **Work screenshots**: Slack, code, docs, spreadsheets, tickets.
+- **Expired utility photos**: aged receipts, wifi codes, parking spots and tickets, via Apple labels, OCR, and age.
+- **A "don't re-review" lock** so anything you have decided to keep is excluded from every future pass.
+- **A learning engine** that trains an on-device keeper model from your own keep and discard choices, anchored to the built-in heuristic so it only improves.
+
+Everything is reversible until you delete: the CLI tags candidates with `cleanup:*` keywords you can clear, and the app never removes anything without your confirmation.
+
+## Development
 
 ```sh
 uv sync
+uv run ruff check && uv run pytest -q   # exactly what CI runs
 ```
 
-## Tests
-
-Pure-logic unit tests (no Photos library needed):
-
-```sh
-uv run pytest -q
-```
-
-## Usage (stage 1 — read-only)
-
-```sh
-uv run library-cleanup scan --open
-```
-
-This reads the library, finds work screenshots and near-duplicate groups, and writes a local `cleanup-report.html` for review. **It changes nothing.**
-
-Useful flags: `--limit 2000` (test on a subset), `--rescan` (refresh the cache), `--db /path/to/Library.photoslibrary`.
-
-### macOS permission (required)
-
-Reading the Photos library needs **Full Disk Access** for your terminal:
-*System Settings → Privacy & Security → Full Disk Access* → enable your terminal app → fully quit and reopen it.
-
-## Stage 2 — tagging, review & rescue
-
-Write-back uses `photoscript` (local AppleScript → Photos app).
-
-```sh
-uv run library-cleanup apply              # dry run: how many work screenshots
-uv run library-cleanup apply --apply      # tag them all with cleanup:screenshot
-uv run library-cleanup apply --limit 5 --apply   # safe test batch
-uv run library-cleanup undo --apply       # remove every cleanup:* keyword
-```
-
-**Review & rescue workflow** (mark keepers without losing them):
-
-1. `uv run library-cleanup fav-baseline` — snapshot which candidates are *already* Favorited (so genuine favorites are never un-favorited later).
-2. In Photos, make a Smart Album on keyword `cleanup:screenshot`, review it, and **Favorite (♥) anything you want to keep**.
-3. `uv run library-cleanup rescue-plan` — finds your favorited keepers (read-only).
-4. `uv run library-cleanup clear-tags --apply` — un-tags those keepers (they leave the album).
-5. `uv run library-cleanup unfavorite --apply` — removes the heart from only the keepers *you* added (pre-existing favorites are preserved).
-6. Delete everything still carrying `cleanup:screenshot`.
-
-### Writing requires Automation permission — run write-back from Terminal
-
-The read path (`scan`, `rescue-plan`, `fav-baseline`) works anywhere with Full Disk Access. The **write** commands (`apply`, `clear-tags`, `unfavorite`, `undo`) send Apple events to Photos, which needs **Automation** access (*System Settings → Privacy & Security → Automation → enable Photos*). macOS only shows that consent prompt for an **interactive Terminal**, so run the `--apply` commands from Terminal.app. The write-only commands (`apply`, `clear-tags`, `unfavorite`) don't read the library, so Terminal needs only the Photos prompt — not Full Disk Access.
-
-## Status
-
-- [x] Stage 1 — read-only scan + analysis + HTML review report
-- [x] Stage 2 — `apply`/`undo` write-back, plus `fav-baseline`/`rescue-plan`/`clear-tags`/`unfavorite` review-and-rescue workflow
-- [x] Photoshoot dedup — `embed` (Vision-embedding precompute) + `dedup` (staged near-duplicate report; `--apply` tags discards `cleanup:duplicate`), with adaptive, diversity-aware keepers
-- [x] `reviewed:keep` — permanent "don't re-review" lock (per-keeper or per-event), excluded from all passes
-- [x] Video cleanup (`videos`) — near-duplicate takes (poster-frame embeddings, keep largest) `cleanup:video` + oversized videos `cleanup:large`; Apple Photos does neither
-- [x] Expired-utility layer (`expired`) — flags aged single-purpose photos (receipts/wifi/parking/tickets) via Apple labels + OCR + age; tags `cleanup:expired`
-- [x] Learning engine (`learn`) — trains an on-device keeper model from your keep/discard choices over Apple's aesthetic sub-scores + `VNDetectFaceCaptureQuality`; anchored to the heuristic, improves each iteration
-
-## Layout
-
-| Module | Responsibility |
+| Area | Where |
 |---|---|
-| `model.py` | `Config` (thresholds) + `Record` (serializable per-photo data) |
-| `scan.py` | read library → Records (metadata only, no decoding; held in RAM, never written to disk) |
-| `screenshots.py` | high-confidence work-screenshot classifier |
-| `cluster.py` | time/GPS clustering, pHash near-dup confirmation, keeper selection |
-| `quality.py` | Laplacian sharpness + Apple-score keeper ranking |
-| `analyze.py` | orchestrates findings |
-| `report.py` | self-contained local HTML report |
-| `cli.py` | `library-cleanup` command |
+| Scan, classify, cluster, score (the CLI engine) | `photo_cleanup/` |
+| Mac app: local service + WebView UI + PhotoKit delete + self-updater | `app/` |
+| Step-by-step runbook | [USAGE.md](USAGE.md) |
+| Distribution and signing | [app/DISTRIBUTION.md](app/DISTRIBUTION.md) |
+| Security model and reporting | [SECURITY.md](SECURITY.md) |
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) — **free for any noncommercial use**:
-personal use, study, hobby projects, research, and use by nonprofits, schools,
-and government. You may use, modify, and share it, provided you keep the
-attribution notice.
+[PolyForm Noncommercial 1.0.0](LICENSE): **free for any noncommercial use**, including personal use, study, hobby projects, research, and use by nonprofits, schools, and government. You may use, modify, and share it, provided you keep the attribution notice.
 
-**Commercial use — including selling it, or running it as a paid product or
-service — is not permitted** without a separate license. For a commercial
-license, contact the author (Václav Trnka).
+**Commercial use, including selling it or running it as a paid product or service, is not permitted** without a separate license. For a commercial license, contact the author (Václav Trnka).
 
-## Contributing
-
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Note that
-submitting a contribution grants the author the right to relicense it (including
-commercially), so the project's licensing stays flexible.
+Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Submitting a contribution grants the author the right to relicense it (including commercially), so the project's licensing stays flexible.
