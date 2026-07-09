@@ -17,12 +17,16 @@ INIT = ROOT / "src" / "photocleanup" / "__init__.py"
 PYPROJECT = ROOT / "pyproject.toml"
 
 minor_release = "--minor" in sys.argv[1:]
+show_only = "--show" in sys.argv[1:]   # print the current version, change nothing
 
 text = INIT.read_text()
 m = re.search(r'__version__\s*=\s*"(\d+)\.(\d+)\.(\d+)"', text)
 if not m:
     sys.exit("could not find __version__ in __init__.py")
 major, minor, patch = (int(x) for x in m.groups())
+if show_only:
+    print(f"{major}.{minor}.{patch}")
+    sys.exit(0)
 new = f"{major}.{minor + 1}.0" if minor_release else f"{major}.{minor}.{patch + 1}"
 
 INIT.write_text(re.sub(r'(__version__\s*=\s*")\d+\.\d+\.\d+(")', rf"\g<1>{new}\g<2>", text))

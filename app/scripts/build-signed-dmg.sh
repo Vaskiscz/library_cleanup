@@ -38,12 +38,16 @@ fi
 
 # Public release: `build-signed-dmg.sh --minor` bumps the MINOR digit and resets
 # patch to 0, so the artifact lands on exactly x.y.0. Default = patch bump.
+# `--no-bump` rebuilds at the CURRENT version without touching it — for rebuilding
+# a release that failed QA (the version is already committed; don't advance it).
 case "${1:-}" in
   --minor|--release) echo "[0/4] Bumping MINOR version (public release) ..."
                      VERSION="$(python3 scripts/bump-version.py --minor)" ;;
+  --no-bump)         echo "[0/4] Rebuilding at the current version (no bump) ..."
+                     VERSION="$(python3 scripts/bump-version.py --show)" ;;
   "")                echo "[0/4] Bumping patch version ..."
                      VERSION="$(python3 scripts/bump-version.py)" ;;
-  *)                 fail "unknown flag '$1' (use --minor for a public release, or no flag for a normal build)" ;;
+  *)                 fail "unknown flag '$1' (use --minor for a public release, --no-bump to rebuild the current version, or no flag for a normal build)" ;;
 esac
 echo "  -> v$VERSION"
 VOL="Library Cleanup $VERSION"           # volume label (Finder) stays versioned
