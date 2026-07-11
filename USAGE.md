@@ -322,6 +322,7 @@ WORK list; a private one wrongly flagged → add its word to a PRIVATE list.
 | `finalize` | yes (with `--since`) | yes | one-shot: un-tag + unfavorite + mark-reviewed + lock range |
 | `unfavorite` | no | yes | un-favorite the rescue-only hearts |
 | `undo` | yes | yes | remove all `cleanup:*` keywords |
+| `export-fixtures` | no | no | write deterministic golden clustering/keeper fixtures (`tests/fixtures/dedup_fixtures.json`) for cross-language parity tests |
 
 All write commands are **dry-run by default**; add `--apply` to commit.
 

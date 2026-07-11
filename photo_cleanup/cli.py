@@ -701,6 +701,28 @@ def finalize(since, until, prefix, baseline, cache, lock, rescue_file, unfav_fil
                f"errors {r1.errors + r2.errors + r3.errors}{_err_note(r1, r2, r3)}")
 
 
+DEFAULT_FIXTURES = os.path.abspath("./tests/fixtures/dedup_fixtures.json")
+
+
+@cli.command(name="export-fixtures")
+@click.option("--out", "out_path", default=DEFAULT_FIXTURES, show_default=True,
+              help="Where to write the golden fixtures JSON.")
+def export_fixtures(out_path):
+    """Generate deterministic golden test fixtures capturing the clustering +
+    keeper-selection behavior (for a cross-language port to test parity).
+
+    Image-free and read-only w.r.t. Photos: builds synthetic Records in memory,
+    runs the REAL engine over them, and serializes exactly what it produced."""
+    from .fixtures import build_fixtures, to_json
+    doc = build_fixtures()
+    out = os.path.abspath(out_path)
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "w") as fh:
+        fh.write(to_json(doc))
+    n_photos = sum(len(c["photos"]) for c in doc["cases"])
+    click.echo(f"wrote {len(doc['cases'])} cases, {n_photos} photos -> {out}")
+
+
 def _hint_automation(e: Exception):
     click.echo(f"\nERROR writing to Photos: {e}\n", err=True)
     click.echo(

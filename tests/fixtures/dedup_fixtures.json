@@ -1,0 +1,2038 @@
+{
+  "schemaVersion": 1,
+  "generator": "library-cleanup export-fixtures",
+  "config": {
+    "clusterGapSeconds": 600.0,
+    "clusterGpsMeters": 150.0,
+    "keeperTiers": [
+      [
+        3,
+        1
+      ],
+      [
+        9,
+        3
+      ],
+      [
+        19,
+        5
+      ],
+      [
+        39,
+        8
+      ]
+    ],
+    "keepersMax": 10,
+    "keeperDiversityMin": 0.3,
+    "keeperDiversityAbsMin": 0.15
+  },
+  "cases": [
+    {
+      "name": "rapid-burst-tight",
+      "photos": [
+        {
+          "id": "rbt0",
+          "t": 1000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.1,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "rbt1",
+          "t": 1012.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.4,
+          "favorite": false,
+          "vec": [
+            0.08,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "rbt2",
+          "t": 1024.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.9,
+          "favorite": false,
+          "vec": [
+            0.17,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "rbt3",
+          "t": 1036.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.7,
+          "favorite": false,
+          "vec": [
+            0.26,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "rbt4",
+          "t": 1048.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.2,
+          "favorite": false,
+          "vec": [
+            0.33,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "rbt0",
+            "rbt1",
+            "rbt2",
+            "rbt3",
+            "rbt4"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "rbt3",
+              "rbt0",
+              "rbt1",
+              "rbt4",
+              "rbt2"
+            ],
+            "keepers": [
+              "rbt3",
+              "rbt0"
+            ],
+            "discards": [
+              "rbt1",
+              "rbt4",
+              "rbt2"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "diverse-shoot",
+      "photos": [
+        {
+          "id": "div0",
+          "t": 5000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 4.1,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "div1",
+          "t": 5020.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.8,
+          "favorite": false,
+          "vec": [
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "div2",
+          "t": 5040.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 4.4,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "div3",
+          "t": 5060.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.5,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "div4",
+          "t": 5080.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 4.0,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "id": "div5",
+          "t": 5100.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.6,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "div0",
+            "div1",
+            "div2",
+            "div3",
+            "div4",
+            "div5"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "div2",
+              "div0",
+              "div4",
+              "div1",
+              "div5",
+              "div3"
+            ],
+            "keepers": [
+              "div2",
+              "div0",
+              "div4"
+            ],
+            "discards": [
+              "div1",
+              "div5",
+              "div3"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "singleton",
+      "photos": [
+        {
+          "id": "sole0",
+          "t": 100.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.3,
+          "favorite": false,
+          "vec": [
+            0.2,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "sole1",
+          "t": 100000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.9,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.4,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "sole0"
+          ],
+          [
+            "sole1"
+          ]
+        ],
+        "groups": []
+      }
+    },
+    {
+      "name": "favorite-promoted",
+      "photos": [
+        {
+          "id": "fav0",
+          "t": 8000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.6,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fav1",
+          "t": 8009.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.2,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.01,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fav2",
+          "t": 8018.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.9,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.02,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fav3",
+          "t": 8027.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 0.8,
+          "favorite": true,
+          "vec": [
+            1.0,
+            0.03,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "fav0",
+            "fav1",
+            "fav2",
+            "fav3"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "fav2",
+              "fav3",
+              "fav0",
+              "fav1"
+            ],
+            "keepers": [
+              "fav2",
+              "fav3"
+            ],
+            "discards": [
+              "fav0",
+              "fav1"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "time-split",
+      "photos": [
+        {
+          "id": "tsA0",
+          "t": 20000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.0,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "tsA1",
+          "t": 20015.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.3,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.05
+          ]
+        },
+        {
+          "id": "tsA2",
+          "t": 20030.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.6,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.1
+          ]
+        },
+        {
+          "id": "tsB0",
+          "t": 21000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.1,
+          "favorite": false,
+          "vec": [
+            0.9,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "tsB1",
+          "t": 21015.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.3000000000000003,
+          "favorite": false,
+          "vec": [
+            0.9,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.04
+          ]
+        },
+        {
+          "id": "tsB2",
+          "t": 21030.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.5,
+          "favorite": false,
+          "vec": [
+            0.9,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.08
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "tsA0",
+            "tsA1",
+            "tsA2"
+          ],
+          [
+            "tsB0",
+            "tsB1",
+            "tsB2"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "tsA2",
+              "tsA1",
+              "tsA0"
+            ],
+            "keepers": [
+              "tsA2"
+            ],
+            "discards": [
+              "tsA1",
+              "tsA0"
+            ]
+          },
+          {
+            "members": [
+              "tsB2",
+              "tsB1",
+              "tsB0"
+            ],
+            "keepers": [
+              "tsB2"
+            ],
+            "discards": [
+              "tsB1",
+              "tsB0"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "gps-split",
+      "photos": [
+        {
+          "id": "gpA0",
+          "t": 30000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.2,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "gpA1",
+          "t": 30010.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.3000000000000003,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.03,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "gpA2",
+          "t": 30020.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.4000000000000004,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.06,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "gpB0",
+          "t": 30100.0,
+          "lat": 50.085,
+          "lon": 14.42,
+          "quality": 3.3,
+          "favorite": false,
+          "vec": [
+            0.8,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "gpB1",
+          "t": 30110.0,
+          "lat": 50.085,
+          "lon": 14.42,
+          "quality": 3.4,
+          "favorite": false,
+          "vec": [
+            0.8,
+            0.0,
+            0.02,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "gpB2",
+          "t": 30120.0,
+          "lat": 50.085,
+          "lon": 14.42,
+          "quality": 3.5,
+          "favorite": false,
+          "vec": [
+            0.8,
+            0.0,
+            0.04,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "gpA0",
+            "gpA1",
+            "gpA2"
+          ],
+          [
+            "gpB0",
+            "gpB1",
+            "gpB2"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "gpA2",
+              "gpA1",
+              "gpA0"
+            ],
+            "keepers": [
+              "gpA2"
+            ],
+            "discards": [
+              "gpA1",
+              "gpA0"
+            ]
+          },
+          {
+            "members": [
+              "gpB2",
+              "gpB1",
+              "gpB0"
+            ],
+            "keepers": [
+              "gpB2"
+            ],
+            "discards": [
+              "gpB1",
+              "gpB0"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "large-40",
+      "photos": [
+        {
+          "id": "big00",
+          "t": 40000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.0,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "big01",
+          "t": 40008.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.21,
+          "favorite": false,
+          "vec": [
+            0.167,
+            0.25,
+            0.5,
+            0.1,
+            1.0,
+            0.083
+          ]
+        },
+        {
+          "id": "big02",
+          "t": 40016.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.42,
+          "favorite": false,
+          "vec": [
+            0.333,
+            0.5,
+            1.0,
+            0.2,
+            0.0,
+            0.167
+          ]
+        },
+        {
+          "id": "big03",
+          "t": 40024.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.63,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.75,
+            0.0,
+            0.3,
+            1.0,
+            0.25
+          ]
+        },
+        {
+          "id": "big04",
+          "t": 40032.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.84,
+          "favorite": false,
+          "vec": [
+            0.667,
+            1.0,
+            0.5,
+            0.4,
+            0.0,
+            0.333
+          ]
+        },
+        {
+          "id": "big05",
+          "t": 40040.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.05,
+          "favorite": false,
+          "vec": [
+            0.833,
+            0.0,
+            1.0,
+            0.5,
+            1.0,
+            0.417
+          ]
+        },
+        {
+          "id": "big06",
+          "t": 40048.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.26,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.25,
+            0.0,
+            0.6,
+            0.0,
+            0.5
+          ]
+        },
+        {
+          "id": "big07",
+          "t": 40056.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.47,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.5,
+            0.5,
+            0.7,
+            1.0,
+            0.583
+          ]
+        },
+        {
+          "id": "big08",
+          "t": 40064.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.68,
+          "favorite": false,
+          "vec": [
+            0.167,
+            0.75,
+            1.0,
+            0.8,
+            0.0,
+            0.667
+          ]
+        },
+        {
+          "id": "big09",
+          "t": 40072.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.0,
+          "favorite": false,
+          "vec": [
+            0.333,
+            1.0,
+            0.0,
+            0.9,
+            1.0,
+            0.75
+          ]
+        },
+        {
+          "id": "big10",
+          "t": 40080.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.21,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.5,
+            1.0,
+            0.0,
+            0.833
+          ]
+        },
+        {
+          "id": "big11",
+          "t": 40088.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.42,
+          "favorite": false,
+          "vec": [
+            0.667,
+            0.25,
+            1.0,
+            0.0,
+            1.0,
+            0.917
+          ]
+        },
+        {
+          "id": "big12",
+          "t": 40096.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.63,
+          "favorite": false,
+          "vec": [
+            0.833,
+            0.5,
+            0.0,
+            0.1,
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "id": "big13",
+          "t": 40104.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.84,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.75,
+            0.5,
+            0.2,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "id": "big14",
+          "t": 40112.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.05,
+          "favorite": false,
+          "vec": [
+            0.0,
+            1.0,
+            1.0,
+            0.3,
+            0.0,
+            0.083
+          ]
+        },
+        {
+          "id": "big15",
+          "t": 40120.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.26,
+          "favorite": false,
+          "vec": [
+            0.167,
+            0.0,
+            0.0,
+            0.4,
+            1.0,
+            0.167
+          ]
+        },
+        {
+          "id": "big16",
+          "t": 40128.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.47,
+          "favorite": false,
+          "vec": [
+            0.333,
+            0.25,
+            0.5,
+            0.5,
+            0.0,
+            0.25
+          ]
+        },
+        {
+          "id": "big17",
+          "t": 40136.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.68,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.5,
+            1.0,
+            0.6,
+            1.0,
+            0.333
+          ]
+        },
+        {
+          "id": "big18",
+          "t": 40144.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.0,
+          "favorite": false,
+          "vec": [
+            0.667,
+            0.75,
+            0.0,
+            0.7,
+            0.0,
+            0.417
+          ]
+        },
+        {
+          "id": "big19",
+          "t": 40152.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.21,
+          "favorite": false,
+          "vec": [
+            0.833,
+            1.0,
+            0.5,
+            0.8,
+            1.0,
+            0.5
+          ]
+        },
+        {
+          "id": "big20",
+          "t": 40160.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.42,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.0,
+            1.0,
+            0.9,
+            0.0,
+            0.583
+          ]
+        },
+        {
+          "id": "big21",
+          "t": 40168.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.63,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.25,
+            0.0,
+            1.0,
+            1.0,
+            0.667
+          ]
+        },
+        {
+          "id": "big22",
+          "t": 40176.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.84,
+          "favorite": false,
+          "vec": [
+            0.167,
+            0.5,
+            0.5,
+            0.0,
+            0.0,
+            0.75
+          ]
+        },
+        {
+          "id": "big23",
+          "t": 40184.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.05,
+          "favorite": false,
+          "vec": [
+            0.333,
+            0.75,
+            1.0,
+            0.1,
+            1.0,
+            0.833
+          ]
+        },
+        {
+          "id": "big24",
+          "t": 40192.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.26,
+          "favorite": false,
+          "vec": [
+            0.5,
+            1.0,
+            0.0,
+            0.2,
+            0.0,
+            0.917
+          ]
+        },
+        {
+          "id": "big25",
+          "t": 40200.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.47,
+          "favorite": false,
+          "vec": [
+            0.667,
+            0.0,
+            0.5,
+            0.3,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "id": "big26",
+          "t": 40208.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.68,
+          "favorite": false,
+          "vec": [
+            0.833,
+            0.25,
+            1.0,
+            0.4,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "big27",
+          "t": 40216.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.0,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.5,
+            0.0,
+            0.5,
+            1.0,
+            0.083
+          ]
+        },
+        {
+          "id": "big28",
+          "t": 40224.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.21,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.75,
+            0.5,
+            0.6,
+            0.0,
+            0.167
+          ]
+        },
+        {
+          "id": "big29",
+          "t": 40232.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.42,
+          "favorite": false,
+          "vec": [
+            0.167,
+            1.0,
+            1.0,
+            0.7,
+            1.0,
+            0.25
+          ]
+        },
+        {
+          "id": "big30",
+          "t": 40240.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.63,
+          "favorite": false,
+          "vec": [
+            0.333,
+            0.0,
+            0.0,
+            0.8,
+            0.0,
+            0.333
+          ]
+        },
+        {
+          "id": "big31",
+          "t": 40248.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.84,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.25,
+            0.5,
+            0.9,
+            1.0,
+            0.417
+          ]
+        },
+        {
+          "id": "big32",
+          "t": 40256.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.05,
+          "favorite": false,
+          "vec": [
+            0.667,
+            0.5,
+            1.0,
+            1.0,
+            0.0,
+            0.5
+          ]
+        },
+        {
+          "id": "big33",
+          "t": 40264.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.26,
+          "favorite": false,
+          "vec": [
+            0.833,
+            0.75,
+            0.0,
+            0.0,
+            1.0,
+            0.583
+          ]
+        },
+        {
+          "id": "big34",
+          "t": 40272.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.47,
+          "favorite": false,
+          "vec": [
+            1.0,
+            1.0,
+            0.5,
+            0.1,
+            0.0,
+            0.667
+          ]
+        },
+        {
+          "id": "big35",
+          "t": 40280.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.68,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            1.0,
+            0.2,
+            1.0,
+            0.75
+          ]
+        },
+        {
+          "id": "big36",
+          "t": 40288.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.0,
+          "favorite": false,
+          "vec": [
+            0.167,
+            0.25,
+            0.0,
+            0.3,
+            0.0,
+            0.833
+          ]
+        },
+        {
+          "id": "big37",
+          "t": 40296.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.21,
+          "favorite": false,
+          "vec": [
+            0.333,
+            0.5,
+            0.5,
+            0.4,
+            1.0,
+            0.917
+          ]
+        },
+        {
+          "id": "big38",
+          "t": 40304.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.42,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.75,
+            1.0,
+            0.5,
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "id": "big39",
+          "t": 40312.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 2.63,
+          "favorite": false,
+          "vec": [
+            0.667,
+            1.0,
+            0.0,
+            0.6,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "big00",
+            "big01",
+            "big02",
+            "big03",
+            "big04",
+            "big05",
+            "big06",
+            "big07",
+            "big08",
+            "big09",
+            "big10",
+            "big11",
+            "big12",
+            "big13",
+            "big14",
+            "big15",
+            "big16",
+            "big17",
+            "big18",
+            "big19",
+            "big20",
+            "big21",
+            "big22",
+            "big23",
+            "big24",
+            "big25",
+            "big26",
+            "big27",
+            "big28",
+            "big29",
+            "big30",
+            "big31",
+            "big32",
+            "big33",
+            "big34",
+            "big35",
+            "big36",
+            "big37",
+            "big38",
+            "big39"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "big08",
+              "big33",
+              "big35",
+              "big21",
+              "big06",
+              "big26",
+              "big29",
+              "big24",
+              "big05",
+              "big39",
+              "big17",
+              "big07",
+              "big16",
+              "big25",
+              "big34",
+              "big15",
+              "big14",
+              "big23",
+              "big32",
+              "big04",
+              "big13",
+              "big22",
+              "big31",
+              "big03",
+              "big12",
+              "big30",
+              "big02",
+              "big11",
+              "big20",
+              "big38",
+              "big01",
+              "big10",
+              "big19",
+              "big28",
+              "big37",
+              "big00",
+              "big09",
+              "big18",
+              "big27",
+              "big36"
+            ],
+            "keepers": [
+              "big08",
+              "big33",
+              "big35",
+              "big21",
+              "big06",
+              "big26",
+              "big29",
+              "big24",
+              "big05",
+              "big39"
+            ],
+            "discards": [
+              "big17",
+              "big07",
+              "big16",
+              "big25",
+              "big34",
+              "big15",
+              "big14",
+              "big23",
+              "big32",
+              "big04",
+              "big13",
+              "big22",
+              "big31",
+              "big03",
+              "big12",
+              "big30",
+              "big02",
+              "big11",
+              "big20",
+              "big38",
+              "big01",
+              "big10",
+              "big19",
+              "big28",
+              "big37",
+              "big00",
+              "big09",
+              "big18",
+              "big27",
+              "big36"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "uniform-burst",
+      "photos": [
+        {
+          "id": "uni0",
+          "t": 60000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.0,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "uni1",
+          "t": 60006.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.05,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "uni2",
+          "t": 60012.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.1,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "uni3",
+          "t": 60018.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.15,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "uni4",
+          "t": 60024.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.2,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "uni5",
+          "t": 60030.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.25,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "uni6",
+          "t": 60036.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.3,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "uni7",
+          "t": 60042.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.35,
+          "favorite": false,
+          "vec": [
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "uni0",
+            "uni1",
+            "uni2",
+            "uni3",
+            "uni4",
+            "uni5",
+            "uni6",
+            "uni7"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "uni7",
+              "uni6",
+              "uni5",
+              "uni4",
+              "uni3",
+              "uni2",
+              "uni1",
+              "uni0"
+            ],
+            "keepers": [
+              "uni7"
+            ],
+            "discards": [
+              "uni6",
+              "uni5",
+              "uni4",
+              "uni3",
+              "uni2",
+              "uni1",
+              "uni0"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "bimodal-burst",
+      "photos": [
+        {
+          "id": "bmA0",
+          "t": 70000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.4,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bmA1",
+          "t": 70007.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.5,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.02,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bmA2",
+          "t": 70014.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.6,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.04,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bmB0",
+          "t": 70030.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.5,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bmB1",
+          "t": 70037.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.6,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.02,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bmB2",
+          "t": 70044.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.7,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.04,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "bmA0",
+            "bmA1",
+            "bmA2",
+            "bmB0",
+            "bmB1",
+            "bmB2"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "bmB2",
+              "bmA1",
+              "bmA2",
+              "bmB1",
+              "bmB0",
+              "bmA0"
+            ],
+            "keepers": [
+              "bmB2",
+              "bmA1"
+            ],
+            "discards": [
+              "bmA2",
+              "bmB1",
+              "bmB0",
+              "bmA0"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "quality-gate-outlier",
+      "photos": [
+        {
+          "id": "qg0",
+          "t": 80000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.5,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "qg1",
+          "t": 80005.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.65,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.015,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "qg2",
+          "t": 80010.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.8,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.03,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "qg3",
+          "t": 80015.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.95,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.045,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "qg4",
+          "t": 80020.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 4.1,
+          "favorite": false,
+          "vec": [
+            1.0,
+            0.06,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "qgX",
+          "t": 80030.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 0.4,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "qg0",
+            "qg1",
+            "qg2",
+            "qg3",
+            "qg4",
+            "qgX"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "qg4",
+              "qg3",
+              "qg2",
+              "qg1",
+              "qg0",
+              "qgX"
+            ],
+            "keepers": [
+              "qg4"
+            ],
+            "discards": [
+              "qg3",
+              "qg2",
+              "qg1",
+              "qg0",
+              "qgX"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing-gps-no-split",
+      "photos": [
+        {
+          "id": "mg0",
+          "t": 90000.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.2,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "mg1",
+          "t": 90011.0,
+          "lat": null,
+          "lon": null,
+          "quality": 3.3000000000000003,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.1,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "mg2",
+          "t": 90022.0,
+          "lat": 50.08,
+          "lon": 14.42,
+          "quality": 3.4000000000000004,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.2,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "mg3",
+          "t": 90033.0,
+          "lat": null,
+          "lon": null,
+          "quality": 3.5,
+          "favorite": false,
+          "vec": [
+            0.0,
+            0.0,
+            0.0,
+            0.30000000000000004,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected": {
+        "sessions": [
+          [
+            "mg0",
+            "mg1",
+            "mg2",
+            "mg3"
+          ]
+        ],
+        "groups": [
+          {
+            "members": [
+              "mg3",
+              "mg1",
+              "mg2",
+              "mg0"
+            ],
+            "keepers": [
+              "mg3",
+              "mg1"
+            ],
+            "discards": [
+              "mg2",
+              "mg0"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
