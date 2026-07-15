@@ -63,6 +63,25 @@ def test_diverse_burst_keeps_several():
     assert len(dg.keepers) >= 3
 
 
+def test_mega_cluster_median_sampled_and_deterministic():
+    """Above MEDIAN_SAMPLE_MAX the adaptive-floor median runs on an evenly-
+    strided subsample. The expected ordered keeper list is asserted VERBATIM in
+    the iOS engine's test (SelectsCore AlgorithmTests, same synthetic data) —
+    change one side only in lockstep with the other."""
+    n = 500
+    photos = [mk(f"p{i:03d}", timestamp=float(i)) for i in range(n)]
+    emb = FakeEmbeddings({f"p{i:03d}": [i * 0.01, 0.0] for i in range(n)})
+    dg = select_keepers(photos, CFG, embeddings=emb)
+    assert [r.uuid for r in dg.keepers] == [
+        "p000", "p499", "p249", "p374", "p125",
+        "p187", "p312", "p436", "p062", "p468",
+    ]
+    assert len(dg.discards) == n - 10
+    # Deterministic across runs.
+    dg2 = select_keepers(photos, CFG, embeddings=emb)
+    assert [r.uuid for r in dg2.keepers] == [r.uuid for r in dg.keepers]
+
+
 def test_favorite_never_discarded():
     photos = [mk("a"), mk("b"), mk("c", favorite=True)]  # all identical embedding
     emb = FakeEmbeddings({u: [1.0, 0.0] for u in ["a", "b", "c"]})

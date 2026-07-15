@@ -15,6 +15,14 @@ from dataclasses import dataclass, field
 from .model import Config, Record
 from .quality import keeper_score, measure_sharpness
 
+# Cap on how many vectors feed the adaptive-floor MEDIAN estimate in
+# select_keepers (the estimate is O(k^2) in pairs; a 5,000-photo timelapse
+# cluster would materialize ~12.5M distances). Selection itself is never
+# sampled. A perf bound, not a tuning constant — deliberately NOT in Config
+# (fixtures embed their config). Must match the iOS engine's
+# `keeperMedianSampleMax` (SelectsCore/Clustering.swift) for parity.
+MEDIAN_SAMPLE_MAX = 200
+
 
 # ---- geo / time clustering -------------------------------------------------
 
@@ -112,6 +120,12 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         div_min = cfg.keeper_diversity_min
         vecs = [v for v in (embeddings.get(r.uuid) for r in eligible) if v is not None]
         if len(vecs) >= 3:
+            # Bound the O(k^2) median estimate for mega-clusters: above the cap,
+            # estimate over an evenly-strided DETERMINISTIC subsample (indices
+            # 0, step, 2*step, ...). Mirrors the iOS engine exactly.
+            if len(vecs) > MEDIAN_SAMPLE_MAX:
+                step = -(-len(vecs) // MEDIAN_SAMPLE_MAX)   # ceil division
+                vecs = vecs[::step]
             ds = sorted(distance(vecs[i], vecs[j])
                         for i in range(len(vecs)) for j in range(i + 1, len(vecs)))
             median = ds[len(ds) // 2]
