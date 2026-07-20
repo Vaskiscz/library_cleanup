@@ -12,9 +12,27 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Frame-Options = "SAMEORIGIN"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
 
 # Long-cache the SVG favicons (they rarely change).
 [[headers]]
   for = "/*.svg"
   [headers.values]
     Cache-Control = "public, max-age=604800"
+
+# Long-cache raster images (favicons, OG cards, screenshots).
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/selects/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
