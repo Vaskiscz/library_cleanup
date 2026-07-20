@@ -21,6 +21,7 @@
 </head>
 <body>
 <style>
+  :root{color-scheme:light;}
   .site{
     /* ---- family palette (shared with the Library Cleanup page) ---- */
     --bg:#f4f4f6; --surface:#fff; --surface-2:#fbfbfd; --sunken:#ececef;
@@ -46,36 +47,6 @@
   .wrap{max-width:var(--maxw); margin:0 auto; padding:0 28px;}
   .site h1,.site h2,.site h3{text-wrap:balance; letter-spacing:-.022em; margin:0;}
 
-  @media (prefers-color-scheme:dark){
-    .site{
-      --bg:#111214; --surface:#1c1d20; --surface-2:#17181a; --sunken:#26272b;
-      --text:#f1f2f4; --text-2:#a3a5aa; --text-3:#727378;
-      --border:#34353a; --separator:#28292d;
-      --brand:#34b89e; --brand-strong:#43c5ab;
-      --brand-teal:#25b6a7; --brand-green:#40b079;
-      --grad:linear-gradient(135deg,#25b6a7,#40b079);
-      --keep:#56c98a; --clear:#ff6166; --warn:#d9a44a;
-      --shadow-phone:0 40px 90px rgba(0,0,0,.65),0 8px 24px rgba(0,0,0,.5);
-    }
-  }
-  .site[data-theme="light"]{
-    --bg:#f4f4f6; --surface:#fff; --surface-2:#fbfbfd; --sunken:#ececef;
-    --text:#1d1d1f; --text-2:#6e6e73; --text-3:#98989d;
-    --border:#d9d9de; --separator:#e7e7eb;
-    --brand:#1f9e86; --brand-strong:#178a74; --brand-teal:#15a89a; --brand-green:#2f9e5f;
-    --grad:linear-gradient(135deg,#15a89a,#2f9e5f);
-    --keep:#2e9e57; --clear:#e5484d; --warn:#b26a00;
-    --shadow-phone:0 40px 90px rgba(20,45,40,.28),0 8px 24px rgba(20,45,40,.14);
-  }
-  .site[data-theme="dark"]{
-    --bg:#111214; --surface:#1c1d20; --surface-2:#17181a; --sunken:#26272b;
-    --text:#f1f2f4; --text-2:#a3a5aa; --text-3:#727378;
-    --border:#34353a; --separator:#28292d;
-    --brand:#34b89e; --brand-strong:#43c5ab; --brand-teal:#25b6a7; --brand-green:#40b079;
-    --grad:linear-gradient(135deg,#25b6a7,#40b079);
-    --keep:#56c98a; --clear:#ff6166; --warn:#d9a44a;
-    --shadow-phone:0 40px 90px rgba(0,0,0,.65),0 8px 24px rgba(0,0,0,.5);
-  }
 
   /* ---------------- bands ---------------- */
   .band{padding:96px 0;}
