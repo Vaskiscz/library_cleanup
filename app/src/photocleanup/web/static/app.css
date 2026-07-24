@@ -21,7 +21,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 0 var(--pc-sp-5); border-bottom: 1px solid var(--pc-separator); background: var(--pc-surface);
 }
 .topbar .brand { font-size: 14px; font-weight: var(--pc-weight-semibold); display: flex; align-items: center; gap: 9px; white-space: nowrap; }
-.topbar .brand svg { width: 22px; height: 22px; flex: none; }
+.topbar .brand svg, .topbar .brand .brand-icon { width: 22px; height: 22px; flex: none; }
 .topbar .status { font-size: var(--pc-text-sm); color: var(--pc-text-secondary); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .topbar .status .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--pc-text-tertiary); display: inline-block; }
 .topbar .status .dot.ok { background: var(--pc-keep); }

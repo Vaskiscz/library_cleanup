@@ -151,7 +151,7 @@ function chrome(inner) {
   return `
     <div class="chrome">
       <div class="topbar">
-        <div class="brand" style="align-items:baseline"><svg viewBox="0 0 1024 1024" style="align-self:center"><use href="#appicon"/></svg> Library Cleanup${ver}</div>
+        <div class="brand" style="align-items:baseline"><img class="brand-icon" src="/static/appicon.png" alt="" style="align-self:center"> Library Cleanup${ver}</div>
         <div class="status"><span class="dot ${dot}"></span>${text}</div>
       </div>
       ${inner}
@@ -188,7 +188,7 @@ function renderHome() {
         </div>` : "";
     body = `
       <div class="scroll"><div class="home"><div class="hero">
-        <svg class="appicon" viewBox="0 0 1024 1024"><use href="#appicon"/></svg>
+        <img class="appicon" src="/static/appicon.png" alt="">
         <h1>Your photo library, minus the junk drawer</h1>
         <p class="sub">Years of near-identical bursts and one-and-done screenshots are quietly
           eating your storage. One scan finds the keepers, flags the rest, and hands back the gigabytes.</p>

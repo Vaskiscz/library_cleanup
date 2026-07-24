@@ -52,7 +52,7 @@ x0, x1 = 245, 385
 d.line([(x0, y), (x1 - 16, y)], fill=BRAND, width=6)
 d.polygon([(x1 - 18, y - 13), (x1 + 4, y), (x1 - 18, y + 13)], fill=BRAND)
 
-center_text(330, "Then grant Full Disk Access + Photos when the app asks — see USAGE.md",
+center_text(330, "Then grant Full Disk Access + Photos when the app asks.",
             font(12), SUB)
 
 out = os.path.join(os.path.dirname(__file__), "..", "assets", "dmg-background.png")

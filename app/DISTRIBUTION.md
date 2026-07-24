@@ -17,9 +17,9 @@ mandatory, the app can't read the library without it).
 
 1. **Open the `.dmg`** and drag **Library Cleanup** to **Applications**, then
    open it normally. No security bypass is needed: the app is notarized.
-2. **Grant Full Disk Access**: System Settings ▸ Privacy & Security ▸ **Full
-   Disk Access** ▸ add **Library Cleanup**. This is required so it can read the
-   Photos library on-device. (FDA is never auto-prompted; it must be added here.)
+2. **Grant Full Disk Access** when the app asks for it. This is required so it
+   can read the Photos library on-device. If you ever need to change it, it lives
+   in System Settings ▸ Privacy & Security ▸ **Full Disk Access**.
 3. **Use it.** The first time you confirm a removal, macOS asks for **Photos**
    access; click **Allow**. Removed items go to **Recently Deleted** (30 days).
 
