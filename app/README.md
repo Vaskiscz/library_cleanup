@@ -21,11 +21,11 @@ Toga WebView app  ──>  local FastAPI service (localhost only)  ──>  phot
   record loading, candidate grouping, JSON serialisation, thumbnails. No
   curation logic lives here.
 - **`server.py`** — FastAPI service bound to `127.0.0.1`. Endpoints:
-  `GET /api/health`, `POST /api/scan`, `GET /api/candidates?layer=`,
-  `GET /api/thumb/{uuid}`, `POST /api/decisions`, `POST /api/finalize`,
-  `POST /api/learn`.
+  `GET /api/health`, `POST /api/analyze`, `GET /api/candidates?layer=`,
+  `GET /api/thumb/{uuid}`, `POST /api/decisions`, `POST /api/finalize`.
 - **`learning.py`** — turns the app's explicit keep/discard decisions into an
   "explicit-labels" feedback file the existing learning pipeline already reads.
+  Retraining runs in the background after finalize (no dedicated endpoint).
 
 > Status: **feature-complete.** Home → analyze → review grid (dedup / videos /
 > screenshots / expired) → finalize → **delete via PhotoKit** (macOS shows its

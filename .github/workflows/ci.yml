@@ -14,7 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      # --locked: fail if uv.lock is out of sync with pyproject instead of
+      # silently re-resolving on the runner (which would defeat the pin-drift test).
       - name: Lint (ruff)
-        run: uv run ruff check
+        run: uv run --locked ruff check
       - name: Tests
-        run: uv run pytest
+        run: uv run --locked pytest

@@ -29,13 +29,20 @@ if show_only:
     sys.exit(0)
 new = f"{major}.{minor + 1}.0" if minor_release else f"{major}.{minor}.{patch + 1}"
 
-INIT.write_text(re.sub(r'(__version__\s*=\s*")\d+\.\d+\.\d+(")', rf"\g<1>{new}\g<2>", text))
+# Run BOTH substitutions before writing ANYTHING: if either regex fails to
+# match, no file is touched, so the two versions can never fall out of lockstep.
+new_init, n_init = re.subn(r'(__version__\s*=\s*")\d+\.\d+\.\d+(")',
+                           rf"\g<1>{new}\g<2>", text, count=1)
+if n_init != 1:
+    sys.exit("could not find __version__ in __init__.py")
 
 pt = PYPROJECT.read_text()
-pt, n = re.subn(r'(\[tool\.briefcase\][^\[]*?\bversion\s*=\s*")\d+\.\d+\.\d+(")',
-                rf"\g<1>{new}\g<2>", pt, count=1, flags=re.S)
-if n != 1:
+new_pt, n_pt = re.subn(r'(\[tool\.briefcase\][^\[]*?\bversion\s*=\s*")\d+\.\d+\.\d+(")',
+                       rf"\g<1>{new}\g<2>", pt, count=1, flags=re.S)
+if n_pt != 1:
     sys.exit("could not find [tool.briefcase] version in pyproject.toml")
-PYPROJECT.write_text(pt)
+
+INIT.write_text(new_init)
+PYPROJECT.write_text(new_pt)
 
 print(new)

@@ -139,8 +139,8 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
         # Seed with the best-quality frame that ACTUALLY has an embedding — if the
         # top-ranked frame's Vision embedding failed, seeding with it would leave
         # the diversity loop's min() over an empty set and crash the whole scan
-        # (audit #5). Fall back to ranked[0] so a cluster with zero embeddings
-        # still keeps one.
+        # (audit #5). Fall back to ranked[0] for a cluster with zero embeddings
+        # (every frame is then promoted below — no evidence, no discards).
         seed = next((r for r in ranked if embeddings.get(r.uuid) is not None), ranked[0])
         keepers = [seed]
         while len(keepers) < n_keep:
@@ -156,6 +156,14 @@ def select_keepers(group: list[Record], cfg: Config, embeddings=None) -> Duplica
             if best_c is None or best_d < div_min:
                 break
             keepers.append(best_c)
+
+        # Keep-when-in-doubt: a frame with NO embedding has no visual-similarity
+        # evidence against any kept frame — time proximity alone must never
+        # discard it. Promote all embedding-less frames to keepers; only frames
+        # actually judged similar to a keeper may be discarded.
+        kept_ids = {r.uuid for r in keepers}
+        keepers = keepers + [r for r in ranked
+                             if r.uuid not in kept_ids and embeddings.get(r.uuid) is None]
 
     kept_ids = {r.uuid for r in keepers}
     discards = [r for r in ranked if r.uuid not in kept_ids]

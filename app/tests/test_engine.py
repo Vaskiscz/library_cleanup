@@ -352,10 +352,15 @@ def test_manual_feed_includes_kept_items_excludes_hidden(monkeypatch):
     a = mk("a")                              # normal
     b = mk("b", keywords=[KW_REVIEWED])      # already kept (reviewed:keep)
     h = mk("h", is_hidden=True)              # hidden
-    monkeypatch.setattr(scan, "scan_library",
-                        lambda *_, movies_only=False, **k: [] if movies_only else [a, b, h])
+
+    # Mimic scan_library's contract: it excludes Hidden by default, and the
+    # engine relies on that (it has no is_hidden filter of its own anymore).
+    def fake_scan(*_, movies_only=False, exclude_hidden=True, **k):
+        recs = [] if movies_only else [a, b, h]
+        return [r for r in recs if not (exclude_hidden and r.is_hidden)]
+    monkeypatch.setattr(scan, "scan_library", fake_scan)
     eng = Engine()
-    # curated scan: drops the kept + hidden ones
+    # curated scan: drops the kept one; hidden never arrives from scan_library
     assert {r.uuid for r in eng.load_records()} == {"a"}
     # manual feed: shows the kept one too, only Hidden is off-limits
     feed = eng.all_items()[0]["photos"]

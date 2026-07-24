@@ -135,7 +135,9 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
     app.state.job = {"status": "idle"}   # analyze progress (single job at a time)
     app.state.update_job = {"status": "idle"}   # self-update download/install progress
     # Serializes the check-then-set on both jobs so two scans (or a scan racing an
-    # update) can't both start and corrupt the shared engine / .npz cache (audit #10/#15).
+    # update) can't both start: concurrent scans would mutate the shared engine
+    # state mid-pass, and the updater ends in os._exit, which would kill an
+    # in-flight scan and throw the whole round away (audit #10/#15).
     app.state.job_lock = threading.Lock()
 
     _UPDATE_BUSY = ("checking", "downloading", "installing", "relaunching")
@@ -208,7 +210,10 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
 
     @app.get("/api/progress")
     def progress():
-        return app.state.job
+        # Shallow copy: the scan thread mutates the job dict (keys appear on
+        # status transitions) without holding job_lock, and serializing the live
+        # dict can raise "dictionary changed size during iteration".
+        return dict(app.state.job)
 
     @app.get("/api/candidates")
     def candidates(layer: str = "dedup", since: Optional[str] = None,
@@ -278,6 +283,7 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         st = _store()
         keep_ids, discard_ids = [], []
         acted: dict[str, list[str]] = {}
+        stale: dict[str, list[str]] = {}
         for layer in layers:
             # Scope to THIS round: only act on decisions whose uuid is in the
             # current candidates for the layer. Without this, finalize re-emits
@@ -287,20 +293,36 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
             payload = _engine().cached_candidates(layer)
             present = ({p["uuid"] for g in payload for p in g["photos"]}
                        if payload is not None else None)
-            layer_acted = []
+            layer_acted, layer_stale = [], []
             for d in st.decisions(layer):
                 if present is not None and d.uuid not in present:
-                    continue                       # stale decision from a prior round
+                    # Dead weight from a prior round: neither kept nor deleted,
+                    # just cleared below so it can't double-count in every
+                    # future round's feedback log.
+                    layer_stale.append(d.uuid)
+                    continue
                 (keep_ids if d.verdict == KEEP else discard_ids).append(d.uuid)
                 layer_acted.append(d.uuid)
             acted[layer] = layer_acted
+            stale[layer] = layer_stale
+
+        # Reconcile across layers: KEEP WINS. The same uuid can be kept in one
+        # layer (e.g. a dedup keeper) and defaulted-remove in another (e.g.
+        # screenshots); without this it lands in BOTH lists and a photo the user
+        # explicitly kept gets deleted.
+        keep_set = set(keep_ids)
+        keep_ids = list(dict.fromkeys(keep_ids))
+        discard_ids = [u for u in dict.fromkeys(discard_ids) if u not in keep_set]
 
         feedback_log = None
         if "dedup" in layers:
             from .learning import write_dedup_feedback
-            feedback_log = write_dedup_feedback(st, dbpath=_engine().dbpath)
+            feedback_log = write_dedup_feedback(st, acted.get("dedup", ()),
+                                                dbpath=_engine().dbpath)
         # Flat layers learn from explicit verdicts too: which flagged kinds the
-        # user keeps (false positives) drives per-kind suppression.
+        # user keeps (false positives) drives per-kind suppression. Only the
+        # acted-on decisions are logged — they're the ones cleared below, so a
+        # stale row can't be re-logged (and re-counted) every round.
         wrote_flat = False
         for flat in ("screenshots", "expired"):
             if flat in layers:
@@ -308,7 +330,8 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                 payload = _engine().cached_candidates(flat) or []
                 kind_map = {p["uuid"]: p.get("kind", "generic")
                             for g in payload for p in g["photos"]}
-                wrote_flat = bool(write_flat_feedback(st, flat, kind_map)) or wrote_flat
+                wrote_flat = bool(write_flat_feedback(st, flat, kind_map,
+                                                      acted.get(flat, ()))) or wrote_flat
 
         st.mark_reviewed(keep_ids)
         # This round is done: drop the acted-on decision rows so they can never be
@@ -316,6 +339,10 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         # `reviewed` (permanently excluded); discards, if still present next scan,
         # are re-detected fresh rather than silently re-deleted.
         for layer, uuids in acted.items():
+            st.clear_decisions(layer, uuids)
+        # Stale rows (uuids no longer in the layer's candidates) are cleared too,
+        # WITHOUT acting on them — otherwise they linger forever.
+        for layer, uuids in stale.items():
             st.clear_decisions(layer, uuids)
         # New keep/discard labels just landed — retrain the keeper model in the
         # background so the next round's suggestions reflect this review.
@@ -364,11 +391,6 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         subprocess.run(["open", KOFI_URL], check=False)
         return {"opened": True, "url": KOFI_URL}
 
-    @app.post("/api/learn")
-    def learn():
-        from .learning import run_learning
-        return run_learning(_engine().dbpath)
-
     # ---- self-update -------------------------------------------------------
     @app.get("/api/update/check")
     def update_check():
@@ -385,8 +407,10 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
         from . import updater
         job = app.state.update_job
         # Atomically reserve the update slot and refuse if a scan is running — the
-        # updater ends in os._exit, which would truncate an in-flight .npz write
-        # (audit #15). check()/download run OUTSIDE the lock (they do network I/O).
+        # updater ends in os._exit, which would kill an in-flight scan and discard
+        # the whole pass (the embedding cache is SQLite now, so no file corruption,
+        # but the round's work would be lost mid-review) (audit #15).
+        # check()/download run OUTSIDE the lock (they do network I/O).
         with app.state.job_lock:
             if job.get("status") in _UPDATE_BUSY:
                 return {"started": False, "running": True}
@@ -410,6 +434,7 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
                         "done": done, "total": total})
 
         def run():
+            dmg = None
             try:
                 dmg = updater.download_dmg(info["url"], progress=prog)
                 job.update({"status": "installing", "frac": 1.0, "message": "Installing…"})
@@ -418,6 +443,13 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
             except Exception as e:  # noqa: BLE001
                 from .diagnostics import log_failure
                 log_failure("update", e)
+                # A failed install must not leak the downloaded DMG in TMPDIR
+                # (on success the relaunch helper removes it).
+                if dmg and os.path.exists(dmg):
+                    try:
+                        os.unlink(dmg)
+                    except OSError:
+                        pass
                 job.update({"status": "error", "error": str(e)})
 
         threading.Thread(target=run, daemon=True, name="self-update").start()
@@ -425,7 +457,9 @@ def create_app(store: Optional[Store] = None, engine: Optional[Engine] = None,
 
     @app.get("/api/update/status")
     def update_status():
-        return app.state.update_job
+        # Shallow copy for the same reason as /api/progress: the update thread
+        # mutates this dict while request threads serialize it.
+        return dict(app.state.update_job)
 
     @app.post("/api/update/open-page")
     def update_open_page():

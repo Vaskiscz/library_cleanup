@@ -314,7 +314,7 @@ DEFAULT_EXPIRED_REPORT = os.path.abspath("./expired-report.html")
 @click.option("--since", default=None, help="Only photos on/after YYYY-MM-DD.")
 @click.option("--until", default=None, help="Only photos on/before YYYY-MM-DD.")
 @click.option("--min-age-years", type=float, default=None,
-              help="Override: only flag photos older than this (default 2).")
+              help="Override: only flag photos older than this (default 1).")
 @click.option("--report", "report_path", default=DEFAULT_EXPIRED_REPORT, show_default=True)
 @click.option("--apply", "do_apply", is_flag=True,
               help="Tag flagged photos cleanup:expired (default: dry run + report).")

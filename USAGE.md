@@ -17,10 +17,15 @@ on-device).
 
 **Build & install**
 
+Both `setup-signing.sh` and `build-signed-dmg.sh` require `LC_KEYCHAIN_PW`: the
+password of the dedicated signing keychain. There is no default; the value
+lives in your password manager.
+
 ```sh
+export LC_KEYCHAIN_PW='<from your password manager>'
 bash app/scripts/setup-signing.sh      # once: create the self-signed identity
 bash app/scripts/build-signed-dmg.sh   # bumps the patch version, signs, builds the DMG
-open "app/dist/Library Cleanup-<version>.dmg"   # drag to Applications
+open app/dist/Library-Cleanup.dmg      # stable name (no version); drag to Applications
 ```
 
 **Permissions (one-time)** — the app asks for **Photos** access at first launch
@@ -66,6 +71,24 @@ install** — it downloads the release DMG, swaps the app in place, and relaunch
 itself. Because the app keeps a stable self-signed identity, your Full Disk
 Access / Photos grants survive the update. From source (dev) the prompt instead
 opens the release page, since there's no bundle to replace.
+
+**Cutting a public release**
+
+1. Build with a minor bump: `bash app/scripts/build-signed-dmg.sh --minor`
+   (needs `LC_KEYCHAIN_PW`; use `--no-bump` to rebuild the same version after
+   a failed QA pass).
+2. Commit the bumped version files (`app/src/photocleanup/__init__.py`,
+   `app/pyproject.toml`) on `main`.
+3. Verify the DMG you are about to upload matches the intended tag:
+   `python3 app/scripts/bump-version.py --show` prints the current version
+   (or mount the DMG with `hdiutil attach app/dist/Library-Cleanup.dmg`, read
+   `CFBundleShortVersionString` from the app's `Info.plist`, then
+   `hdiutil detach`).
+4. Create the GitHub release with tag `v<version>` on `main`, uploading
+   `app/dist/Library-Cleanup.dmg` as the asset `Library-Cleanup.dmg`.
+5. A stale `dist/` DMG or a mismatched tag breaks auto-update: the updater
+   compares the release tag against the installed version, so the uploaded
+   DMG must actually contain the version the tag claims.
 
 ---
 

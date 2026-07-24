@@ -12,9 +12,15 @@ import re
 import tomllib
 
 import photocleanup
+from photocleanup import updater
 
 APP_DIR = os.path.join(os.path.dirname(__file__), "..")
 REPO_ROOT = os.path.join(APP_DIR, "..")
+
+
+def _script_text(name: str) -> str:
+    with open(os.path.join(APP_DIR, "scripts", name)) as f:
+        return f.read()
 
 
 def _briefcase_config() -> dict:
@@ -43,3 +49,35 @@ def test_briefcase_pins_match_uv_lock():
             f"{locked.get(name)} — the shipped app would differ from what the "
             f"tests exercised; re-pin from the lock"
         )
+
+
+def test_build_script_writes_the_dmg_the_updater_downloads():
+    # The DMG file name is declared twice: DMG=... in build-signed-dmg.sh and
+    # ASSET_NAME in photocleanup/updater.py. If they drift, auto-update looks
+    # for a release asset the build never produced.
+    script = _script_text("build-signed-dmg.sh")
+    expected = "dist/" + updater.ASSET_NAME
+    assert "dist/Library-Cleanup.dmg" in script, (
+        "build-signed-dmg.sh no longer writes dist/Library-Cleanup.dmg — the "
+        "DMG name is deliberately stable; if it must change, change "
+        "updater.ASSET_NAME in lockstep"
+    )
+    assert expected == "dist/Library-Cleanup.dmg", (
+        f"updater.ASSET_NAME is {updater.ASSET_NAME!r} but build-signed-dmg.sh "
+        f"produces dist/Library-Cleanup.dmg — auto-update would never find the "
+        f"release asset"
+    )
+
+
+def test_signing_identity_cn_matches_between_scripts():
+    # setup-signing.sh creates the cert (CERT_CN) and build-signed-dmg.sh signs
+    # with it (IDENTITY). If the names drift, every build fails preflight — or
+    # worse, signs with a different identity and users lose TCC grants.
+    build = re.search(r'^IDENTITY="([^"]+)"', _script_text("build-signed-dmg.sh"), re.M)
+    setup = re.search(r'^CERT_CN="([^"]+)"', _script_text("setup-signing.sh"), re.M)
+    assert build, "IDENTITY=\"...\" not found in build-signed-dmg.sh"
+    assert setup, "CERT_CN=\"...\" not found in setup-signing.sh"
+    assert build.group(1) == setup.group(1), (
+        f"signing identity drift: build-signed-dmg.sh signs with "
+        f"{build.group(1)!r} but setup-signing.sh creates {setup.group(1)!r}"
+    )

@@ -172,20 +172,30 @@ def verify_bundle(new_app: str, current_app: str) -> None:
                    check=True, capture_output=True, text=True)
 
 
+def _cleanup_mount(mount: str) -> None:
+    """Failure-path cleanup: detach, then remove the mkdtemp mount point —
+    hdiutil detach unmounts but never rmdirs the directory we created."""
+    subprocess.run(["/usr/bin/hdiutil", "detach", mount, "-force", "-quiet"], check=False)
+    try:
+        os.rmdir(mount)
+    except OSError:
+        pass
+
+
 def _mount_and_find_app(dmg_path: str) -> tuple[str, str]:
     """Attach the DMG read-only and return (mount_point, path-to-.app-inside).
-    Detaches and raises if no .app is found."""
+    Detaches and removes the mount dir on any failure (attach included)."""
     mount = tempfile.mkdtemp(prefix="library-cleanup-mnt-")
-    subprocess.run(["/usr/bin/hdiutil", "attach", "-nobrowse", "-noautoopen",
-                    "-quiet", "-mountpoint", mount, dmg_path],
-                   check=True, capture_output=True, text=True)
     try:
+        subprocess.run(["/usr/bin/hdiutil", "attach", "-nobrowse", "-noautoopen",
+                        "-quiet", "-mountpoint", mount, dmg_path],
+                       check=True, capture_output=True, text=True)
         apps = [e for e in os.listdir(mount) if e.endswith(".app")]
         if not apps:
             raise RuntimeError("no .app bundle inside the downloaded DMG")
         return mount, os.path.join(mount, apps[0])
     except BaseException:
-        subprocess.run(["/usr/bin/hdiutil", "detach", mount, "-force", "-quiet"], check=False)
+        _cleanup_mount(mount)
         raise
 
 
@@ -231,7 +241,7 @@ def apply_update(dmg_path: str, exit_delay: float = 1.5) -> str:
     try:
         verify_bundle(src_app, app_path)
     except BaseException:
-        subprocess.run(["/usr/bin/hdiutil", "detach", mount, "-force", "-quiet"], check=False)
+        _cleanup_mount(mount)     # on success the relaunch helper detaches + rmdirs
         raise
 
     fd, script = tempfile.mkstemp(prefix="library-cleanup-relaunch-", suffix=".sh")

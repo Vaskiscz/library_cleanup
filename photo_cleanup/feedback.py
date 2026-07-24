@@ -15,11 +15,47 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
 
 log = logging.getLogger("photo_cleanup")
+
+
+# ---- crash-safe JSON I/O ---------------------------------------------------
+
+def _atomic_json_dump(obj, path: str) -> None:
+    """Write to a temp file then os.replace, so a crash mid-write never leaves
+    a truncated file behind (which would poison every later load)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(obj, f)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
+
+
+def _load_json_or_quarantine(path: str, default):
+    """Unreadable JSON -> set the bad file aside as .corrupt and return the
+    default (same stance as the embedding cache), instead of crashing every
+    scan until someone hand-deletes it."""
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:   # JSONDecodeError is a ValueError
+        log.warning("unreadable JSON, quarantining %s -> .corrupt: %s", path, e)
+        try:
+            os.replace(path, path + ".corrupt")
+        except OSError:
+            pass
+        return default
 
 # Apple ScoreInfo sub-scores (the learnable "small details") + measured sharpness.
 FEATURE_KEYS = [
@@ -100,7 +136,7 @@ def build_feature_store(uuids, dbpath: Optional[str] = None, sharpness=None,
     """Read Apple scores + (cached) face-capture-quality for the given uuids."""
     import osxphotos
     sharpness = sharpness or {}
-    face_cache = json.load(open(FACE_CACHE)) if os.path.exists(FACE_CACHE) else {}
+    face_cache = _load_json_or_quarantine(FACE_CACHE, {})
     want = set(uuids)
     db = osxphotos.PhotosDB(dbpath) if dbpath else osxphotos.PhotosDB()
     targets = [p for p in db.photos() if p.uuid in want]
@@ -117,8 +153,7 @@ def build_feature_store(uuids, dbpath: Optional[str] = None, sharpness=None,
             log.warning("feature store: skipping %s: %s", p.uuid, e)
         if progress:
             progress(i, len(targets))
-    os.makedirs(os.path.dirname(FACE_CACHE), exist_ok=True)
-    json.dump(face_cache, open(FACE_CACHE, "w"))
+    _atomic_json_dump(face_cache, FACE_CACHE)
     return store
 
 
@@ -152,12 +187,11 @@ def _face_set(cache: dict, uuid: str, path: str) -> None:
 
 def load_face_cache() -> dict:
     """The on-disk face-quality cache (uuid -> [quality, source_mtime])."""
-    return json.load(open(FACE_CACHE)) if os.path.exists(FACE_CACHE) else {}
+    return _load_json_or_quarantine(FACE_CACHE, {})
 
 
 def save_face_cache(cache: dict) -> None:
-    os.makedirs(os.path.dirname(FACE_CACHE), exist_ok=True)
-    json.dump(cache, open(FACE_CACHE, "w"))
+    _atomic_json_dump(cache, FACE_CACHE)
 
 
 def face_quality_fresh(cache: dict, uuid: str, path: str) -> bool:
@@ -180,7 +214,7 @@ def inject_face_quality(records, progress=None) -> None:
     uuid+mtime, so edited photos are recomputed). Called before dedup so the
     learned model can use it for suggestions."""
     from .quality import _best_image_path
-    face_cache = json.load(open(FACE_CACHE)) if os.path.exists(FACE_CACHE) else {}
+    face_cache = _load_json_or_quarantine(FACE_CACHE, {})
     todo = [(r, _best_image_path(r)) for r in records]
     todo = [(r, p) for r, p in todo if p and not _face_fresh(face_cache, r.uuid, p)]
     for i, (r, p) in enumerate(todo, 1):
@@ -191,21 +225,15 @@ def inject_face_quality(records, progress=None) -> None:
         if isinstance(r.features, dict):
             r.features["face_capture_quality"] = _face_quality_of(face_cache.get(r.uuid))
     if todo:
-        os.makedirs(os.path.dirname(FACE_CACHE), exist_ok=True)
-        json.dump(face_cache, open(FACE_CACHE, "w"))
+        _atomic_json_dump(face_cache, FACE_CACHE)
 
 
 def load_feature_store() -> dict:
-    if os.path.exists(FEATURE_STORE):
-        with open(FEATURE_STORE) as f:
-            return json.load(f)
-    return {}
+    return _load_json_or_quarantine(FEATURE_STORE, {})
 
 
 def save_feature_store(store: dict) -> None:
-    os.makedirs(os.path.dirname(FEATURE_STORE), exist_ok=True)
-    with open(FEATURE_STORE, "w") as f:
-        json.dump(store, f)
+    _atomic_json_dump(store, FEATURE_STORE)
 
 
 # ---- model ----------------------------------------------------------------
@@ -231,21 +259,20 @@ class KeeperModel:
     def score(self, features: dict) -> float:
         return float(np.dot(self.weights, vec(features)))
 
-    def save(self, path: str = MODEL_PATH) -> None:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
-            json.dump({"keys": FEATURE_KEYS, "weights": self.weights.tolist(),
-                       "trained_pairs": self.trained_pairs}, f)
+    def save(self, path: Optional[str] = None) -> None:
+        # path defaults at call time so tests can monkeypatch MODEL_PATH
+        _atomic_json_dump({"keys": FEATURE_KEYS, "weights": self.weights.tolist(),
+                           "trained_pairs": self.trained_pairs}, path or MODEL_PATH)
 
     @classmethod
-    def load(cls, path: str = MODEL_PATH) -> Optional["KeeperModel"]:
-        if not os.path.exists(path):
-            return None
-        with open(path) as f:
-            d = json.load(f)
-        if d.get("keys") != FEATURE_KEYS:   # schema changed -> ignore stale model
-            return None
-        return cls(np.array(d["weights"], dtype="float64"), d.get("trained_pairs", 0))
+    def load(cls, path: Optional[str] = None) -> Optional["KeeperModel"]:
+        d = _load_json_or_quarantine(path or MODEL_PATH, None)
+        if not isinstance(d, dict) or d.get("keys") != FEATURE_KEYS:
+            return None   # corrupt/missing/stale-schema -> heuristic-only path
+        try:
+            return cls(np.array(d["weights"], dtype="float64"), d.get("trained_pairs", 0))
+        except (KeyError, TypeError, ValueError):
+            return None   # valid JSON, wrong shape -> heuristic-only path
 
 
 # ---- training (pairwise logistic preference) ------------------------------
@@ -308,17 +335,29 @@ EXPIRED_CORRECTIONS = os.path.expanduser("~/.cache/photo-cleanup/expired_correct
 SCREENSHOT_CORRECTIONS = os.path.expanduser("~/.cache/photo-cleanup/screenshot_corrections.json")
 
 
+def _log_path(prefix: str, since, until) -> str:
+    """Timestamped log filename so iterations over the same range ACCUMULATE
+    (the old fixed name clobbered earlier training data on every re-apply).
+    Discovery is prefix/glob-based, so legacy un-stamped files still count."""
+    base = f"{prefix}_{since or 'x'}_{until or 'x'}_{datetime.now():%Y%m%d-%H%M%S}"
+    path = os.path.join(FEEDBACK_DIR, base + ".json")
+    n = 1
+    while os.path.exists(path):   # same-second re-run must not clobber either
+        path = os.path.join(FEEDBACK_DIR, f"{base}-{n}.json")
+        n += 1
+    return path
+
+
 def _log_flat(prefix: str, items: list[dict], since, until, kept=None) -> str:
     """Persist one iteration of a flat layer (expired/screenshots): each flagged
     photo's uuid + the kind that triggered it. `kept` (explicit uuids the user
     chose to keep — the app knows them) beats presence-inference at learn time."""
     os.makedirs(FEEDBACK_DIR, exist_ok=True)
-    path = os.path.join(FEEDBACK_DIR, f"{prefix}_{since or 'x'}_{until or 'x'}.json")
+    path = _log_path(prefix, since, until)
     payload = {prefix: items}
     if kept is not None:
         payload["kept"] = sorted(kept)
-    with open(path, "w") as f:
-        json.dump(payload, f)
+    _atomic_json_dump(payload, path)
     return path
 
 
@@ -361,9 +400,8 @@ def _learn_flat(prefix: str, corrections_path: str, present_uuids: set) -> dict:
     rates = {k: kept[k] / total[k] for k in total}
     # Suppress a type only with enough evidence and a clear majority kept.
     suppressed = sorted(k for k in total if total[k] >= 5 and rates[k] >= 0.6)
-    os.makedirs(os.path.dirname(corrections_path), exist_ok=True)
-    json.dump({"keep_rate": rates, "totals": dict(total), "suppressed": suppressed},
-              open(corrections_path, "w"))
+    _atomic_json_dump({"keep_rate": rates, "totals": dict(total), "suppressed": suppressed},
+                      corrections_path)
     return {"types": dict(total), "keep_rate": rates, "suppressed": suppressed}
 
 
@@ -411,9 +449,8 @@ def log_apply(groups, since, until) -> str:
         bursts.append({"members": members,
                        "suggested": [r.uuid for r in g.keepers]})
     os.makedirs(FEEDBACK_DIR, exist_ok=True)
-    path = os.path.join(FEEDBACK_DIR, f"applied_{since or 'x'}_{until or 'x'}.json")
-    with open(path, "w") as f:
-        json.dump({"bursts": bursts}, f)
+    path = _log_path("applied", since, until)
+    _atomic_json_dump({"bursts": bursts}, path)
     return path
 
 

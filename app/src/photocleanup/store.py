@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -72,18 +73,28 @@ class Store:
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
+        # One write transaction at a time: SQLite serializes statements on the
+        # shared connection, but NOT interleaved multi-statement transactions
+        # from different request threads.
+        self._tx_lock = threading.Lock()
 
     def close(self) -> None:
         self._conn.close()
 
     @contextmanager
     def _tx(self):
-        cur = self._conn.cursor()
-        try:
-            yield cur
-            self._conn.commit()
-        finally:
-            cur.close()
+        with self._tx_lock:
+            cur = self._conn.cursor()
+            try:
+                yield cur
+                self._conn.commit()
+            except BaseException:
+                # Without this, a failed executemany leaves half a batch in the
+                # open transaction, silently committed by the next _tx.
+                self._conn.rollback()
+                raise
+            finally:
+                cur.close()
 
     # ---- decisions ---------------------------------------------------------
     def record_decisions(self, layer: str, items: Iterable[dict]) -> int:

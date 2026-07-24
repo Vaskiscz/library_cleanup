@@ -383,6 +383,73 @@ def test_update_refused_while_scanning(client):
     assert r == {"started": False, "scanning": True}   # returns before any network check
 
 
+# ---- finalize cross-layer reconciliation (keep wins) ------------------------
+def test_finalize_keep_wins_across_layers(monkeypatch, tmp_path):
+    """Regression: a uuid kept in one layer (e.g. dedup keeper) and
+    defaulted-remove in another (e.g. screenshots) used to land in BOTH
+    keep_ids and discard_ids — reviewed AND deleted. Keep must win: not in
+    to_delete, still marked reviewed."""
+    from photo_cleanup import feedback
+    import photocleanup.learning as learning
+    import photocleanup.server as server
+    monkeypatch.setattr(feedback, "FEEDBACK_DIR", str(tmp_path / "fb"))
+    monkeypatch.setattr(learning, "write_dedup_feedback", lambda *a, **k: None)
+    monkeypatch.setattr(server, "_start_learning", lambda dbpath: True)
+
+    eng = make_stub_engine()
+    # Seed cached candidates so finalize's `present` scoping accepts x in BOTH layers.
+    eng._candidates = {
+        "dedup": [{"photos": [{"uuid": "x"}, {"uuid": "y"}]}],
+        "screenshots": [{"photos": [{"uuid": "x", "kind": "generic"}]}],
+    }
+    app = create_app(store=Store(":memory:"), engine=eng)
+    with TestClient(app, base_url="http://127.0.0.1") as c:
+        c.post("/api/decisions", json={"layer": "dedup", "decisions": [
+            {"uuid": "x", "verdict": "keep"}, {"uuid": "y", "verdict": "discard"}]})
+        c.post("/api/decisions", json={"layer": "screenshots", "decisions": [
+            {"uuid": "x", "verdict": "discard"}]})      # defaulted-remove elsewhere
+        r = c.post("/api/finalize", json={"layers": ["dedup", "screenshots"]}).json()
+        assert "x" not in r["to_delete"]               # keep wins over the discard
+        assert r["to_delete"] == ["y"]
+        assert r["reviewed"] == 1
+        # ...and x IS marked reviewed (permanently excluded from future rounds)
+        assert c.get("/api/health").json()["counts"]["reviewed"] == 1
+
+
+def test_finalize_clears_stale_decisions_without_acting(monkeypatch):
+    """Rows from a prior round (uuid not in the layer's current candidates) are
+    dropped at finalize — not deleted, not marked reviewed, not fed to learning
+    — so they can't double-count in every future round's feedback log."""
+    import photocleanup.learning as learning
+    import photocleanup.server as server
+    monkeypatch.setattr(server, "_start_learning", lambda dbpath: True)
+    seen = {}
+    monkeypatch.setattr(learning, "write_dedup_feedback",
+                        lambda store, acted, dbpath=None: seen.setdefault("acted", sorted(acted)))
+
+    eng = make_stub_engine()
+    eng._candidates = {"dedup": [{"photos": [{"uuid": "a"}, {"uuid": "b"}]}]}
+    store = Store(":memory:")
+    app = create_app(store=store, engine=eng)
+    with TestClient(app, base_url="http://127.0.0.1") as c:
+        c.post("/api/decisions", json={"layer": "dedup", "decisions": [
+            {"uuid": "a", "verdict": "keep"},
+            {"uuid": "b", "verdict": "discard"},
+            {"uuid": "z", "verdict": "discard"},   # stale: from a prior round
+        ]})
+        r = c.post("/api/finalize", json={"layers": ["dedup"]}).json()
+        assert r["to_delete"] == ["b"]                 # z is not re-deleted
+        assert seen["acted"] == ["a", "b"]             # z never reaches learning
+        assert store.decisions("dedup") == []          # acted AND stale rows cleared
+        assert store.reviewed_uuids() == {"a"}         # z not marked reviewed
+
+
+def test_learn_endpoint_is_gone(client):
+    """/api/learn was dead code that ran a synchronous retrain on a request
+    thread, bypassing _learning_lock. Retraining only happens via finalize."""
+    assert client.post("/api/learn").status_code == 404
+
+
 def test_finalize_writes_flat_feedback(client, monkeypatch, tmp_path):
     """Deciding on a flat layer (screenshots/expired) at finalize writes an
     explicit-labels feedback file and kicks off learning."""

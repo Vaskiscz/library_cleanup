@@ -60,6 +60,47 @@ def test_counts(store):
     assert c["reviewed"] == 1
 
 
+def test_tx_rolls_back_failed_batch(store):
+    # uuid None violates NOT NULL midway through the executemany; the whole
+    # batch must roll back — no half-committed rows left in the open
+    # transaction for the next _tx to silently commit.
+    import sqlite3
+    with pytest.raises(sqlite3.IntegrityError):
+        store.record_decisions("dedup", [
+            {"uuid": "good", "verdict": KEEP},
+            {"uuid": None, "verdict": KEEP},
+        ])
+    assert store.decisions("dedup") == []
+    # the connection is still usable and the next write commits cleanly
+    store.record_decisions("dedup", [{"uuid": "a", "verdict": KEEP}])
+    assert store.decided_uuids("dedup") == {"a"}
+
+
+def test_tx_is_serialized_across_threads(store):
+    # One shared check_same_thread=False connection serves all request threads;
+    # multi-statement transactions must not interleave.
+    import threading
+    errs = []
+
+    def work(i):
+        try:
+            for j in range(20):
+                u = f"u{i}-{j}"
+                store.record_decisions("dedup", [{"uuid": u, "verdict": KEEP}])
+                store.mark_reviewed([u])
+        except Exception as e:  # noqa: BLE001 — surface any thread failure
+            errs.append(e)
+
+    threads = [threading.Thread(target=work, args=(i,)) for i in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errs
+    assert len(store.reviewed_uuids()) == 160
+    assert len(store.decided_uuids("dedup")) == 160
+
+
 def test_persists_across_reopen(tmp_path):
     p = str(tmp_path / "state.db")
     s1 = Store(p)

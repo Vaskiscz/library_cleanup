@@ -46,6 +46,27 @@ def test_no_embeddings_at_all_still_keeps_one():
     assert dg.size == 4 and len(dg.keepers) >= 1
 
 
+def test_no_embeddings_cluster_discards_nothing():
+    # keep-when-in-doubt: with zero visual-similarity evidence, time proximity
+    # alone must never flag a discard — the whole cluster is kept
+    photos = [mk(f"z{i}") for i in range(3)]
+    dg = select_keepers(photos, CFG, embeddings=FakeEmbeddings({}))
+    assert len(dg.keepers) == 3 and dg.discards == []
+
+
+def test_embeddingless_frame_never_discarded():
+    # top-ranked m0 has NO vector -> it is kept regardless; similarity is judged
+    # only among the embedded frames (m1..m3 identical -> one survives)
+    photos = [mk(f"m{i}") for i in range(4)]
+    emb = FakeEmbeddings({"m1": [1.0, 0.0, 0.0], "m2": [1.0, 0.0, 0.0],
+                          "m3": [1.0, 0.0, 0.0]})
+    dg = select_keepers(photos, CFG, embeddings=emb)
+    keeper_ids = {r.uuid for r in dg.keepers}
+    assert "m0" in keeper_ids                       # no evidence -> kept
+    assert {r.uuid for r in dg.discards} <= {"m1", "m2", "m3"}
+    assert len(dg.discards) == 2                    # dupes among embedded only
+
+
 def test_uniform_burst_collapses_to_one():
     # 5 near-identical (all same vector) -> keep 1, discard 4
     photos = [mk(f"p{i}") for i in range(5)]

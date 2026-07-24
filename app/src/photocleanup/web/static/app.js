@@ -35,11 +35,11 @@ const icon = (id, cls = "") => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 
 const CATS = [
   { id: "dedup", name: "Duplicate photoshoots", grouped: true, setword: "bursts", noun: "photos",
-    desc: "Fifty frames of the same view — the sharpest one is pre-picked." },
+    desc: "Fifty frames of the same view. The sharpest is pre-picked." },
   { id: "screenshots", name: "Screenshots", grouped: false, noun: "screenshots",
     desc: "Snapped once and never opened again." },
   { id: "videos", name: "Duplicate videos", grouped: true, setword: "sets", noun: "videos",
-    desc: "Ten takes of one moment — the steady one stays." },
+    desc: "Ten takes of one moment. The steady one stays." },
   { id: "expired", name: "Expired utility photos", grouped: false, noun: "photos",
     desc: "That parking-spot photo from a garage you left in 2022." },
 ];
@@ -59,7 +59,9 @@ const state = {
   lib: null,                // {photos, videos}
   cardSize: 116,            // review preview size (px), slider + cmd+wheel
   summary: null,            // {layer: {groups, items, removable, reclaimable_bytes}}
+  summaryScoped: false,     // summary came from a date-scoped scan (resume) — not the whole library
   selected: new Set(),
+  autoDeselected: new Set(), // categories the time filter emptied (auto-restored when back in range)
   candidates: {},           // layer -> groups
   decisions: {},            // layer -> {uuid: 'keep'|'remove'}
   collapsed: new Set(),
@@ -83,6 +85,11 @@ const state = {
 };
 
 // (analysis runs as a background job; the UI polls /api/progress)
+
+// Generation tokens (not serializable state): bumped whenever a new scan / review
+// takes ownership, so in-flight responses from the previous one can be dropped.
+let scanGen = 0;
+let reviewGen = 0;
 
 /* ---- review persistence (survives quit/crash/reload) ----------------------- */
 // Decisions are mirrored to localStorage on every change; the home screen offers
@@ -166,15 +173,18 @@ function renderHome() {
       ? `Library Cleanup needs permission to manage your <b>Photos</b> so it can remove the
          items you pick. Open System Settings ▸ Privacy &amp; Security ▸ <b>Photos</b>, enable
          <b>Library Cleanup</b>, then click Analyze again.`
-      : `Library Cleanup needs <b>Full Disk Access</b>. Open System Settings ▸ Privacy &amp;
-         Security ▸ <b>Full Disk Access</b>, enable <b>Library Cleanup</b>, then click Analyze again.`;
+      : `Library Cleanup needs <b>Full Disk Access</b> to read your Photos library right on
+         this Mac. Open System Settings ▸ Privacy &amp; Security ▸ <b>Full Disk Access</b>,
+         enable <b>Library Cleanup</b>, then click Analyze again.`;
     const err = state.libStatus === "error" ? `
         <div class="errbox">
           <div class="errttl">${errTtl}</div>
           <div class="errmsg">${errMsg}</div>
           <div class="errrow">
-            <button class="btn-secondary sm" id="openlog">Open log to send the developer</button>
+            <button class="btn-secondary sm" id="openlog">Open Log</button>
           </div>
+          <div class="errmsg" style="margin-top:8px">If it keeps failing, send the log to
+            vaclavtrnkaproductsupport@gmail.com and I'll take a look.</div>
         </div>` : "";
     body = `
       <div class="scroll"><div class="home"><div class="hero">
@@ -187,14 +197,14 @@ function renderHome() {
         <div class="checks">
           <div class="check-card"><span class="ic">${icon("i-stack")}</span><span class="ct">Burst clones</span><span class="cd">Fifty shots of one sunset. The sharpest survives.</span></div>
           <div class="check-card"><span class="ic">${icon("i-video")}</span><span class="ct">Repeat takes</span><span class="cd">Ten tries at the same clip. The steady one wins.</span></div>
-          <div class="check-card"><span class="ic">${icon("i-shot")}</span><span class="ct">Screenshot pile</span><span class="cd">Snapped once, never opened again. Buh-bye.</span></div>
+          <div class="check-card"><span class="ic">${icon("i-shot")}</span><span class="ct">Screenshot pile</span><span class="cd">Snapped once, never opened again. Off they go.</span></div>
         </div>
         ${state.flash ? `
         <div class="errbox">
           <div class="errttl">${escapeHtml(state.flash.title)}</div>
           <div class="errmsg">${escapeHtml(state.flash.msg || "")}</div>
           <div class="errrow">
-            ${flashRetry ? `<button class="btn btn-primary sm" id="flashRetry">Try again</button>` : ""}
+            ${flashRetry ? `<button class="btn btn-primary sm" id="flashRetry">Try Again</button>` : ""}
             <button class="btn-secondary sm" id="flashDismiss">Dismiss</button>
           </div>
         </div>` : ""}
@@ -202,13 +212,13 @@ function renderHome() {
           const sv = loadReviewState();
           return sv ? `
         <div class="resume-box">
-          <div class="resume-txt"><b>Unfinished review</b> — ${fmtN(sv.items)} decision${sv.items === 1 ? "" : "s"} saved${sv.manual ? " (manual review)" : ""}.</div>
-          <button class="btn btn-primary sm" id="resumeReview">Resume review</button>
+          <div class="resume-txt"><b>Unfinished review</b> · ${fmtN(sv.items)} decision${sv.items === 1 ? "" : "s"} saved${sv.manual ? " (manual review)" : ""}.</div>
+          <button class="btn btn-primary sm" id="resumeReview">Resume Review</button>
           <button class="btn-secondary sm" id="discardReview">Discard</button>
         </div>` : "";
         })()}
         <button class="btn btn-primary" id="analyze">Analyze Library</button>
-        <div class="past">Takes a minute. No commitment — nothing's deleted until you say so.</div>
+        <div class="past">Takes a minute, and nothing is deleted until you say so.</div>
       </div></div></div>
       <div class="foot-note">
         <span class="fn-msg">${icon("i-lock")} Runs entirely on your Mac. Your photos never go anywhere.</span>
@@ -257,8 +267,8 @@ function updateModalHtml() {
       <h3>Update failed</h3>
       <p class="head-n">${escapeHtml(state.updateErr || "Something went wrong.")} You can try again or download it manually.</p>
       <div class="actions" style="justify-content:center">
-        <button class="btn-secondary" id="u-page">Open release page</button>
-        <button class="btn btn-primary" id="u-retry">Try again</button>
+        <button class="btn-secondary" id="u-page">Open Release Page</button>
+        <button class="btn btn-primary" id="u-retry">Try Again</button>
       </div></div></div>`;
   }
   // prompt
@@ -266,10 +276,10 @@ function updateModalHtml() {
     <h3>Update available</h3>
     <p class="head-n">A newer version of Library Cleanup is ready.
       <b>v${escapeHtml(u.current || "")}</b> → <b>v${escapeHtml(u.latest || "")}</b>${u.size ? ` · ${fmtSave(u.size)}` : ""}</p>
-    <div class="row" style="font-size:12px;color:var(--pc-text-tertiary);margin:6px 0 16px">Downloads, installs, and relaunches automatically. Only the update is fetched — your photos never leave this Mac.</div>
+    <div class="row" style="font-size:12px;color:var(--pc-text-tertiary);margin:6px 0 16px">Downloads, installs, and relaunches automatically. Only the update is fetched. Your photos never leave this Mac.</div>
     <div class="actions">
       <button class="btn-secondary" id="u-later">Later</button>
-      <button class="btn btn-primary" id="u-go">Download &amp; install</button>
+      <button class="btn btn-primary" id="u-go">Download &amp; Install</button>
     </div></div></div>`;
 }
 
@@ -368,9 +378,10 @@ function timeFilterHtml() {
 function catRightHtml(c, s, f) {
   const identified = s && s.items > 0;
   const has = identified && f.items > 0;
-  if (!has) return `<span class="none">${identified ? "None in range" : "None identified"}</span>`;
-  const sub = c.grouped ? `across ${fmtN(f.groups)} ${c.setword}` : "flagged to remove";
-  return `<div class="count"><span data-count>${fmtN(f.items)}</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">${c.noun}</span></div>
+  if (!has) return `<span class="none">${identified ? "None in this period" : "None found"}</span>`;
+  const sub = c.grouped ? `across ${fmtN(f.groups)} ${f.groups === 1 ? c.setword.slice(0, -1) : c.setword}` : "flagged to remove";
+  const noun = f.items === 1 ? c.noun.slice(0, -1) : c.noun;   // "1 photo", not "1 photos"
+  return `<div class="count"><span data-count>${fmtN(f.items)}</span> <span style="font-weight:400;color:var(--pc-text-tertiary)">${noun}</span></div>
        <div class="save" data-save>Save up to ${fmtSave(f.bytes)}</div>
        <div class="desc"><span data-groups>${sub}</span></div>`;
 }
@@ -395,8 +406,8 @@ function resultsBar() {
       <button class="btn-secondary" id="rescan">Re-scan</button>
       <div style="flex:1"></div>
       <div style="color:var(--pc-text-tertiary)" id="barInfo">${n} categor${n === 1 ? "y" : "ies"} · save up to ${fmtSave(tot.bytes)}</div>
-      <button class="btn-secondary" id="manual" title="Browse every photo &amp; video in this date range; nothing is pre-selected for removal">Review manually</button>
-      <button class="btn btn-primary" id="review" ${n ? "" : "disabled"}>Review ${n} categor${n === 1 ? "y" : "ies"}</button>
+      <button class="btn-secondary" id="manual" title="Browse every photo &amp; video in this time period. Nothing is pre-selected for removal">Review Manually</button>
+      <button class="btn btn-primary" id="review" ${n ? "" : "disabled"}>Review ${n} Categor${n === 1 ? "y" : "ies"}</button>
     </div>`;
 }
 
@@ -455,7 +466,7 @@ function buildHistogram() {
   axis.forEach((m, i) => {
     const bar = document.createElement("div"); bar.className = "tf-bar";
     bar.style.height = (8 + vals[i] / max * 92) + "%";
-    bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])} — click to focus this month, then drag a handle to widen`;
+    bar.title = `${monthLabel(m)} · up to ${fmtSave(vals[i])} · click to focus this month, then drag a handle to widen`;
     bar.onclick = () => {            // select exactly this one month; both thumbs land here
       state.range = { lo: i, hi: i };
       const rStart = $("#rStart"), rEnd = $("#rEnd");
@@ -513,15 +524,22 @@ function updateFilter() {
     const rt = $(".right", row); if (rt) rt.innerHTML = catRightHtml(c, s, f);   // same helper as first render
     const identified = s && s.items > 0;
     row.style.opacity = (identified && f.items === 0) ? ".55" : "";
-    if (!f.items) { state.selected.delete(id); row.classList.remove("on"); }
-    else if (state.selected.has(id)) { row.classList.add("on"); selN++; selBytes += f.bytes; }
+    if (!f.items) {
+      // The filter emptied it, the user didn't — remember, so widening restores it.
+      if (state.selected.has(id)) { state.selected.delete(id); state.autoDeselected.add(id); }
+      row.classList.remove("on");
+    } else {
+      if (state.autoDeselected.has(id)) { state.autoDeselected.delete(id); state.selected.add(id); }
+      if (state.selected.has(id)) { row.classList.add("on"); selN++; selBytes += f.bytes; }
+      else row.classList.remove("on");
+    }
   });
   const tg = $("#totGb"); if (tg) tg.textContent = fmtSave(selBytes);
   applyResultsBar(selN, selBytes);
 }
 function applyResultsBar(n, bytes) {
   const info = $("#barInfo"); if (info) info.textContent = `${n} categor${n === 1 ? "y" : "ies"} · save up to ${fmtSave(bytes)}`;
-  const rv = $("#review"); if (rv) { rv.disabled = !n; rv.textContent = `Review ${n} categor${n === 1 ? "y" : "ies"}`; }
+  const rv = $("#review"); if (rv) { rv.disabled = !n; rv.textContent = `Review ${n} Categor${n === 1 ? "y" : "ies"}`; }
 }
 function updateResultsBar() {
   const tot = filteredTotals();
@@ -552,6 +570,7 @@ function bindHome() {
     btn.onclick = () => {
       const id = btn.dataset.cat;
       if (filteredCat(id).items === 0) return;          // nothing here in this range
+      state.autoDeselected.delete(id);                  // explicit click always wins over auto-restore
       state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
       btn.classList.toggle("on", state.selected.has(id));
       updateResultsBar();
@@ -589,6 +608,10 @@ async function startAnalyze(range, { force = false } = {}) {
   // picker on an irrelevant window (e.g. the first two months). Scoped scans
   // (resume) keep their range — they go straight into review, not the picker.
   if (!range || (!range.since && !range.until)) state.range = null;
+  // A scoped summary (resume) covers only that period — Back must not present it
+  // as the whole library's results. Cleared automatically by any full scan.
+  state.summaryScoped = !!(range && (range.since || range.until));
+  const gen = ++scanGen;          // orphan any previous poll loop (cancel-then-reanalyze)
   state.phase = "scanning";
   state.cancelled = false;
   state.flash = null; flashRetry = null;
@@ -599,28 +622,42 @@ async function startAnalyze(range, { force = false } = {}) {
     res = await api.post("/api/analyze", { layers: CATS.map((c) => c.id),
       since: range?.since ?? null, until: range?.until ?? null, force });
   } catch (e) {
-    showFlash("Couldn't start the scan", e.message, () => startAnalyze(range, { force }));
+    // A failed resume must not hijack the next normal scan; only an explicit
+    // retry of THIS scan restores it.
+    const pr = state.pendingResume; state.pendingResume = null;
+    showFlash("Couldn't start the scan", e.message,
+      () => { state.pendingResume = pr; startAnalyze(range, { force }); });
     return;
   }
-  if (res && res.started === false) {   // a previous scan is still winding down
+  if (res && res.started === false) {
+    const pr = state.pendingResume; state.pendingResume = null;   // same: no stale resume
+    if (res.updating) {   // self-update is installing; the server refuses scans until relaunch
+      showFlash("Update in progress",
+        "The app is installing an update. It will relaunch in a moment.");
+      return;
+    }
+    // a previous scan is still winding down
     showFlash("A scan is already running",
-      "Give it a moment to stop, then try again.", () => startAnalyze(range, { force }));
+      "Give it a moment to stop, then try again.",
+      () => { state.pendingResume = pr; startAnalyze(range, { force }); });
     return;
   }
-  pollProgress();
+  pollProgress(gen);
 }
 
-async function pollProgress() {
-  if (state.cancelled || state.phase !== "scanning") return;
+async function pollProgress(gen) {
+  if (gen !== scanGen || state.cancelled || state.phase !== "scanning") return;
   let p;
   try { p = await api.get("/api/progress"); }
-  catch { return void setTimeout(pollProgress, 600); }
+  catch { return void setTimeout(() => pollProgress(gen), 600); }
+  if (gen !== scanGen) return;   // a newer scan owns the UI — this response is stale
   updateScanning(p);
   if (p.status === "done") {
     resetScanBar();
     state.libStatus = "connected";   // the library was read successfully
     state.summary = p.summary;
     state.selected = new Set(CATS.filter((c) => p.summary[c.id]?.items > 0).map((c) => c.id));
+    state.autoDeselected = new Set();  // fresh scan, fresh selection — nothing to restore
     api.get("/api/library-stats").then((s) => { state.lib = s; render(); }).catch(() => {});
     state.phase = "results";
     const saved = state.pendingResume;                 // resuming a curated review?
@@ -633,12 +670,14 @@ async function pollProgress() {
     render();
   } else if (p.status === "error") {
     resetScanBar();
+    state.pendingResume = null;   // a failed resume scan must not hijack the next scan
     state.libStatus = "error";
     state.errorMsg = p.error || "Something went wrong.";
     state.errorLog = p.log || "";
     state.phase = "idle"; render();
   } else if (p.status === "cancelled") {
     resetScanBar();
+    state.pendingResume = null;   // same for a cancelled resume scan
     state.phase = "idle"; render();     // scan stopped server-side; back to start
   } else {
     // Library is connected the moment scanning gets past access/connect (real
@@ -647,7 +686,7 @@ async function pollProgress() {
       state.libStatus = "connected";
       syncChromeStatus();
     }
-    setTimeout(pollProgress, 400);
+    setTimeout(() => pollProgress(gen), 400);
   }
 }
 
@@ -723,6 +762,7 @@ async function resumeSavedReview() {
 // from the scroll sentinel (fetchMoreAllItems). `dates`/`savedDecisions` are only
 // passed when resuming a saved review.
 async function enterManualReview(dates, savedDecisions) {
+  reviewGen++;                    // invalidate any in-flight page fetch from a prior review
   state.view = "review"; state.manual = true;
   state.candidates = {}; state.decisions = {};
   state.allTotal = 0; state.allLoading = false; state.allDefault = "keep";
@@ -757,6 +797,7 @@ async function enterManualReview(dates, savedDecisions) {
 }
 
 async function enterReview(savedDecisions, dates) {
+  reviewGen++;                    // invalidate any in-flight page fetch from a prior review
   state.view = "review"; state.manual = false;
   state.reviewDates = dates || rangeDates();     // what saveReviewState records
   state.candidates = {};
@@ -1021,6 +1062,7 @@ async function fetchMoreAllItems() {
   const g = state.candidates.all && state.candidates.all[0];
   if (!g || g.photos.length >= (state.allTotal || 0)) return;
   state.allLoading = true;
+  const gen = reviewGen;          // the review may be re-entered while this page is in flight
   const { since, until } = state.reviewDates || {};
   const qs = new URLSearchParams();
   if (since) qs.set("since", since);
@@ -1029,6 +1071,7 @@ async function fetchMoreAllItems() {
   qs.set("limit", String(ALL_PAGE));
   try {
     const res = await api.get(`/api/all-items?${qs.toString()}`);
+    if (gen !== reviewGen) return;   // stale page from the old review — drop it untouched
     state.allTotal = res.total ?? state.allTotal;
     const more = (res.groups[0] && res.groups[0].photos) || [];
     if (!more.length) state.allTotal = g.photos.length;   // server ran dry — stop asking
@@ -1041,8 +1084,10 @@ async function fetchMoreAllItems() {
     topUpReview();                     // resume rendering right away if near the edge
     pokeSentinel();
   } catch {
+    if (gen !== reviewGen) return;     // old review's fetch — its retry must not fire either
     state.allLoading = false;
-    setTimeout(pokeSentinel, 2000);    // transient failure — retry via the sentinel
+    // transient failure — retry via the sentinel (unless a new review took over)
+    setTimeout(() => { if (gen === reviewGen) pokeSentinel(); }, 2000);
   }
 }
 
@@ -1072,19 +1117,17 @@ function renderReview() {
   buildReviewIndex();                    // authoritative recount on (re)load
   const c = counts();
   const shownItems = state.manual ? Math.max(c.items, state.allTotal || 0) : c.items;
-  const pct = c.items ? Math.round(((c.keep + c.rem) / c.items) * 100) : 0;
   const body = `
     <div class="bar top">
       <span id="itemsLbl">${fmtN(shownItems)} items in ${layers.length} categor${layers.length === 1 ? "y" : "ies"}</span>
-      <span class="mini-prog"><span style="width:${pct}%"></span></span>
       <span><span class="keep-n">Keeping ${fmtN(c.keep)}</span> · <span class="rem-n">Removing ${fmtN(c.rem)}</span></span>
       <span class="sizer" title="Preview size (⌘ + scroll)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
         <input type="range" min="84" max="240" step="2" value="${state.cardSize}" id="cardsize">
       </span>
       <span class="bulk">
-        <button class="btn-secondary sm" id="keepAll" title="Keep every suggestion in the review">Keep all</button>
-        <button class="btn-secondary sm" id="removeAll" title="Remove every suggestion in the review">Remove all</button>
+        <button class="btn-secondary sm" id="keepAll" title="Keep every suggestion in the review">Keep All</button>
+        <button class="btn-secondary sm" id="removeAll" title="Remove every suggestion in the review">Remove All</button>
       </span>
     </div>
     <div class="rv-main ${state.pvCollapsed ? "collapsed" : ""}" id="rvMain">
@@ -1144,8 +1187,8 @@ function groupHtml(layer, g) {
       <span class="gtitle">${escapeHtml(g.title)}</span>
       <span class="gmeta">· ${g.size} ${noun} · keep ${keep} · remove ${rem}</span>
       <span class="spacer"></span>
-      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${gkey}">Keep all</button>
-      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${gkey}">Remove all</button>
+      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${gkey}">Keep All</button>
+      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${gkey}">Remove All</button>
       <button class="chev" data-collapse="${gkey}">${collapsed ? "▸" : "▾"}</button>
     </div>
     <div class="gbody">${g.photos.map((p) => cardHtml(layer, p)).join("")}</div>
@@ -1156,7 +1199,7 @@ function groupHtml(layer, g) {
 // items, the flat curated layers say "flagged".
 function sectionSummary(layer, nGroups, items, keep, rem) {
   const c = CAT[layer];
-  if (c.grouped) return `${fmtN(nGroups)} ${c.setword} · keeping ${keep} · removing ${rem}`;
+  if (c.grouped) return `${fmtN(nGroups)} ${nGroups === 1 ? c.setword.slice(0, -1) : c.setword} · keeping ${keep} · removing ${rem}`;
   if (layer === "all") {
     const total = state.allTotal || 0;   // paged feed: show progress while loading
     const n = total > items ? `${fmtN(items)} of ${fmtN(total)} loaded` : fmtN(items);
@@ -1169,13 +1212,13 @@ function sectionSummary(layer, nGroups, items, keep, rem) {
 function flatShellHtml(layer, g) {
   const manual = layer === "all";
   const title = manual ? "All photos &amp; videos" : "All flagged to remove";
-  const meta = manual ? "· chronological · tap ✕ to remove" : "· tap any to keep";
+  const meta = manual ? "· chronological · click ✕ to remove" : "· click any to keep";
   const gkey = escapeHtml(g.group_key);
   return `<div class="group"><div class="ghead">
       <span class="gtitle">${title}</span><span class="gmeta">${meta}</span>
       <span class="spacer"></span>
-      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${gkey}">Keep all</button>
-      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${gkey}">Remove all</button>
+      <button class="btn-secondary sm" data-all="keep" data-layer="${layer}" data-g="${gkey}">Keep All</button>
+      <button class="btn-secondary sm" data-all="remove" data-layer="${layer}" data-g="${gkey}">Remove All</button>
     </div><div class="gbody"></div></div>`;
 }
 
@@ -1220,11 +1263,14 @@ function escapeHtml(s) {
 
 function bindReview() {
   // (thumbnail aspect wiring happens per appended chunk — see wireThumbs)
-  // No summary happens after a cold-start resume — land on the intro, not an empty picker.
+  // No summary after a cold-start resume, and a date-scoped summary (resumed scoped
+  // review) would masquerade as the whole library — both land on the intro instead.
   $("#back").onclick = () => {
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; saveReviewState(); }  // flush pending save
     if (rvIO) { rvIO.disconnect(); rvIO = null; }
-    state.view = "home"; state.phase = state.summary ? "results" : "idle"; state.manual = false; render();
+    state.view = "home";
+    state.phase = (state.summary && !state.summaryScoped) ? "results" : "idle";
+    state.manual = false; render();
   };
   const fin = $("#finalize"); if (fin) fin.onclick = openFinalize;
   const cs = $("#cardsize"); if (cs) cs.oninput = (e) => setCardSize(+e.target.value);
@@ -1469,7 +1515,7 @@ function fillPreview() {
   const dur = p.is_video && p.duration ? `${Math.floor(p.duration / 60)}:${String(Math.round(p.duration % 60)).padStart(2, "0")}` : "";
   $("#pvMeta").textContent = [dims, dur, fmtSize(p.size_mb)].filter(Boolean).join(" · ");
   const pvT = $("#pvToggle");
-  pvT.textContent = keep ? "Mark for removal" : "Keep this one";
+  pvT.textContent = keep ? "Mark for Removal" : "Keep This One";
   pvT.className = "btn pv-toggle " + (keep ? "btn-danger" : "btn-primary");
   $("#pvEmpty").hidden = true; $("#pvContent").hidden = false;
 
@@ -1606,7 +1652,6 @@ function toggleSelected() {
 function updateBars() {
   // light-touch refresh of the counters without rebuilding the grid
   const c = counts();
-  const pct = c.items ? Math.round(((c.keep + c.rem) / c.items) * 100) : 0;
   const layers = reviewLayers();
   const shown = state.manual ? Math.max(c.items, state.allTotal || 0) : c.items;
   const lbl = $("#itemsLbl");
@@ -1614,7 +1659,6 @@ function updateBars() {
   app.querySelectorAll(".keep-n").forEach((e) => e.textContent = `Keeping ${fmtN(c.keep)}`);
   app.querySelectorAll(".rem-n").forEach((e) => e.textContent = `Removing ${fmtN(c.rem)}`);
   app.querySelectorAll(".frees-n").forEach((e) => e.textContent = fmtSave(c.bytes));
-  const mp = $(".mini-prog > span"); if (mp) mp.style.width = pct + "%";
   const fin = $("#finalize"); if (fin) fin.disabled = !c.rem;
   scheduleSaveReview();   // mirror decision changes so a quit/crash loses (almost) nothing
 }
@@ -1639,17 +1683,17 @@ function modalHtml() {
   if (state.finalize === "confirm") {
     return `<div class="backdrop"><div class="modal">
       <h3>Review &amp; Finalize</h3>
-      ${state.finalizeErr ? `<p class="head-n" style="color:var(--pc-warn)">Finalize failed: ${escapeHtml(state.finalizeErr)} — your decisions are intact, try again.</p>` : ""}
+      ${state.finalizeErr ? `<p class="head-n" style="color:var(--pc-warn)">Finalize failed: ${escapeHtml(state.finalizeErr)}. Your decisions are intact, so just try again.</p>` : ""}
       <p class="head-n">Keeping ${fmtN(c.keep)} · removing ${fmtN(c.rem)} items · frees ${fmtSave(c.bytes)}</p>
       <div class="rows">
         <div class="row">${tick()}<span>macOS will ask you to confirm before anything is removed.</span></div>
-        <div class="row">${tick()}<span>Removed items go to Recently Deleted — recoverable for 30 days.</span></div>
+        <div class="row">${tick()}<span>Removed items go to Recently Deleted, recoverable for 30 days.</span></div>
         <div class="row">${tick()}<span>${state.manual
           ? "Kept items are left untouched. Nothing leaves your Mac."
           : "Kept items are marked reviewed and won't be shown again. Nothing leaves your Mac."}</span></div>
       </div>
       <div class="actions">
-        <button class="btn-secondary" id="m-cancel">Go back</button>
+        <button class="btn-secondary" id="m-cancel">Go Back</button>
         <button class="btn btn-danger" id="m-go">Remove ${fmtN(c.rem)}</button>
       </div></div></div>`;
   }
@@ -1706,15 +1750,15 @@ async function doFinalize() {
 
 function doneHtml() {
   const d = state.done || {};
-  const doneCta = state.manual ? "Back to categories" : "Start a new review";
+  const doneCta = state.manual ? "Back to Categories" : "Start a New Review";
   if (d.status === "unauthorized") {
     return `<div class="backdrop"><div class="modal center">
       <div class="done-disc" style="background:var(--pc-warn)">${icon("i-lock")}</div>
       <h3>Photos access needed</h3>
       <p class="head-n">To remove items, allow Library Cleanup in System Settings ▸ Privacy &amp;
         Security ▸ <b>Photos</b>, then try again.</p>
-      <p class="head-n" style="font-size:12px">Your review is kept — nothing was changed.</p>
-      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-back">Back to review</button></div>
+      <p class="head-n" style="font-size:12px">Your review is kept. Nothing was changed.</p>
+      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-back">Back to Review</button></div>
     </div></div>`;
   }
   if (d.status === "access-limited") {
@@ -1722,16 +1766,15 @@ function doneHtml() {
       <div class="done-disc" style="background:var(--pc-warn)">${icon("i-lock")}</div>
       <h3>Full Photos access needed</h3>
       <p class="head-n">${d.deleted ? `Removed ${fmtN(d.deleted)}, but ${fmtN(d.unmatched)} item${d.unmatched === 1 ? "" : "s"} couldn't be reached` : "Library Cleanup can't reach the selected items"} because Photos access is set to <b>Selected Photos</b>. Switch it to <b>All Photos</b> in System Settings ▸ Privacy &amp; Security ▸ <b>Photos</b>, then try again.</p>
-      <p class="head-n" style="font-size:12px">Your review is kept — finish removing once full access is granted.</p>
-      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-back">Back to review</button></div>
+      <p class="head-n" style="font-size:12px">Your review is kept. Finish removing once full access is granted.</p>
+      <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-back">Back to Review</button></div>
     </div></div>`;
   }
   if (d.status && d.status !== "ok") {
     return `<div class="backdrop"><div class="modal center">
       <div class="done-disc" style="background:var(--pc-warn)">${icon("i-x")}</div>
       <h3>Nothing was removed</h3>
-      <p class="head-n">${d.status === "error" ? "Removal was cancelled." : "No matching items were found."}
-        Your keepers are marked reviewed.</p>
+      <p class="head-n">${d.status === "error" ? "Removal was canceled or didn't finish." : "No matching items were found."}${state.manual ? "" : " Your keepers are marked reviewed."}</p>
       <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="m-new">${doneCta}</button></div>
     </div></div>`;
   }

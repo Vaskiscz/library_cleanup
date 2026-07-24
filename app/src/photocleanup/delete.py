@@ -98,12 +98,19 @@ def delete_assets(uuids: Iterable[str], dry_run: bool = False) -> dict:
     """Delete the given library assets (or just resolve them if dry_run).
 
     Returns {status, requested, matched, deleted, [unmatched], [error]}.
-    status: 'ok' | 'unauthorized' | 'no-match' | 'error' | 'cancelled'.
+    status: 'ok' | 'unauthorized' | 'access-limited' | 'no-match' | 'error'.
+    The user cancelling macOS's own delete confirmation surfaces as 'error'
+    (PhotoKit reports it through the same performChanges error path).
     """
     uuids = list(dict.fromkeys(uuids))  # de-dupe, keep order
     P = _photos()
 
-    status = _ensure_authorized()
+    # Non-prompting check ONLY: this runs on a background request thread, where
+    # a Photos authorization prompt can't be presented and would be recorded as
+    # a permanent denial (see request_access_async). The launch-time main-thread
+    # request is the only prompting path; NotDetermined here just reports
+    # 'unauthorized' and the UI shows its grant-access guidance.
+    status = authorization_status()
     if status not in (P.PHAuthorizationStatusAuthorized, P.PHAuthorizationStatusLimited):
         return {"status": "unauthorized", "auth": int(status),
                 "requested": len(uuids), "matched": 0, "deleted": 0}

@@ -101,6 +101,7 @@ class Engine:
         self._thumb_used = 0
         self._thumb_budget = 192 * 1024 * 1024
         self._warming = False
+        self._warming_lock = threading.Lock()   # atomic check-and-set on _warming
         self._cancel = threading.Event()   # set by request_cancel(), checked mid-scan
 
     # ---- record loading ----------------------------------------------------
@@ -129,11 +130,17 @@ class Engine:
         scan_library so callers can share a single library parse."""
         from photo_cleanup.scan import _db_mtime, scan_library
         mt = _db_mtime(self.dbpath)
-        if (not force and self._records_memo is not None
-                and mt is not None and mt == self._records_mtime):
-            return self._records_memo
+        # Double-checked around the (30-90s) scan: memo check + set happen under
+        # the lock, the scan itself outside it so request threads never block on
+        # a scan. Two racers can still both scan on a cold memo; last writer
+        # wins, which is safe — both read the same library state.
+        with self._state_lock:
+            if (not force and self._records_memo is not None
+                    and mt is not None and mt == self._records_mtime):
+                return self._records_memo
         recs = scan_library(self.dbpath, progress=progress, db=db)
-        self._records_memo, self._records_mtime = recs, mt
+        with self._state_lock:
+            self._records_memo, self._records_mtime = recs, mt
         return recs
 
     def _all_videos(self, force: bool = False, progress=None, db=None):
@@ -142,11 +149,17 @@ class Engine:
         re-parse the whole PhotosDB."""
         from photo_cleanup.scan import _db_mtime, scan_library
         mt = _db_mtime(self.dbpath)
-        if (not force and self._videos_memo is not None
-                and mt is not None and mt == self._videos_mtime):
-            return self._videos_memo
+        # Same double-checked pattern as _all_records (see the comment there).
+        with self._state_lock:
+            if (not force and self._videos_memo is not None
+                    and mt is not None and mt == self._videos_mtime):
+                return self._videos_memo
         recs = scan_library(self.dbpath, movies_only=True, progress=progress, db=db)
-        self._videos_memo, self._videos_mtime = recs, mt
+        with self._state_lock:
+            self._videos_memo, self._videos_mtime = recs, mt
+            # Every fresh scan refreshes the count — forget() only decrements
+            # it, so a force re-scan would otherwise serve a stale total forever.
+            self._video_count = len(recs)
         return recs
 
     def forget(self, uuids) -> None:
@@ -196,18 +209,18 @@ class Engine:
     def load_records(self, since=None, until=None, excluded: Optional[set] = None,
                      force_rescan: bool = False, eligible_only: bool = True, progress=None,
                      db=None):
-        """Photos in scope. `eligible_only` (default) drops the Hidden album, items
-        the library already marks reviewed:keep, and any uuid in `excluded` — the set
-        the curated scan should suggest on. Set it False for the manual feed, which
-        shows everything in range except Hidden (incl. already-kept photos)."""
+        """Photos in scope. `eligible_only` (default) drops items the library
+        already marks reviewed:keep and any uuid in `excluded` — the set the
+        curated scan should suggest on. Set it False for the manual feed, which
+        shows everything in range (incl. already-kept photos). Hidden never
+        appears in either flow: scan.py owns Hidden exclusion (scan_library
+        drops the Hidden album by default)."""
         excluded = excluded or set()
         recs = _filter_by_date(self._all_records(force=force_rescan, progress=progress, db=db),
                                since, until)
         if eligible_only:
-            recs = [r for r in recs if not r.is_hidden
-                    and KW_REVIEWED not in (r.keywords or []) and r.uuid not in excluded]
-        else:
-            recs = [r for r in recs if not r.is_hidden]
+            recs = [r for r in recs
+                    if KW_REVIEWED not in (r.keywords or []) and r.uuid not in excluded]
         # Drop stale cache entries whose local original vanished (photo purged from
         # the library since the cache was written). iCloud-only records (path=None)
         # can't be pre-checked and are kept — PhotoKit can still delete them.
@@ -220,15 +233,19 @@ class Engine:
     def load_videos(self, since=None, until=None, excluded: Optional[set] = None,
                     eligible_only: bool = True, force_rescan: bool = False, progress=None,
                     db=None):
-        """Videos in scope (same eligibility rules as load_records)."""
+        """Videos in scope (same eligibility rules as load_records). Hidden is
+        excluded upstream: scan.py owns Hidden exclusion (scan_library default)."""
         excluded = excluded or set()
         recs = _filter_by_date(self._all_videos(force=force_rescan, progress=progress, db=db),
                                since, until)
+        # iCloud-only videos (no local file) are DELIBERATELY excluded in both
+        # flows — unlike photos, where iCloud-only records are kept because
+        # PhotoKit can still delete them. Video dedup and size analysis need the
+        # local file, so a path-less video has nothing to compare or reclaim.
+        recs = [r for r in recs if r.path and os.path.exists(r.path)]
         if eligible_only:
             recs = [r for r in recs if KW_REVIEWED not in (r.keywords or [])
-                    and r.uuid not in excluded and r.path and os.path.exists(r.path)]
-        else:
-            recs = [r for r in recs if not r.is_hidden and r.path and os.path.exists(r.path)]
+                    and r.uuid not in excluded]
         with self._state_lock:
             for r in recs:
                 self._index[r.uuid] = r
@@ -776,9 +793,14 @@ class Engine:
         so Review scrolls instantly (like Photos' pre-baked thumbnails). Runs in a
         background thread; one at a time so it never blocks request threads for
         long. Safe to call repeatedly — already-cached items are skipped."""
-        if self._warming:
-            return
-        self._warming = True
+        # Atomic check-and-set: without the lock, two warmers racing the plain
+        # flag could both run (or one could observe a torn state). A warm that
+        # arrives while another runs is still skipped — the next warm after it
+        # finishes covers any new candidates.
+        with self._warming_lock:
+            if self._warming:
+                return
+            self._warming = True
         try:
             seen = set()
             with self._state_lock:                       # snapshot; analyze may swap it
@@ -795,7 +817,8 @@ class Engine:
                                 continue
                         self.thumb_bytes(u, px=px)
         finally:
-            self._warming = False
+            with self._warming_lock:
+                self._warming = False
 
 
 def _size(p: str) -> int:

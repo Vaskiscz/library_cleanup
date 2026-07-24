@@ -55,7 +55,21 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
 security import "$TMP/key.pem"  -k "$KC" -A
 security import "$TMP/cert.pem" -k "$KC" -A
 security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPW" "$KC" >/dev/null 2>&1
-security list-keychains -d user -s login.keychain-db "$KC"
+# Add the signing keychain to the user search list WITHOUT clobbering it:
+# `security list-keychains -s` replaces the whole list, so read the current
+# entries first and append ours only if it isn't already there.
+EXISTING_KCS=()
+while IFS= read -r line; do
+  entry="$(printf '%s' "$line" | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//')"
+  [ -n "$entry" ] && EXISTING_KCS+=("$entry")
+done < <(security list-keychains -d user)
+ALREADY_LISTED=0
+for entry in ${EXISTING_KCS[@]+"${EXISTING_KCS[@]}"}; do
+  [ "$entry" = "$KC" ] && ALREADY_LISTED=1
+done
+if [ "$ALREADY_LISTED" -eq 0 ]; then
+  security list-keychains -d user -s ${EXISTING_KCS[@]+"${EXISTING_KCS[@]}"} "$KC"
+fi
 rm -rf "$TMP"
 
 echo "Created code-signing identity:"

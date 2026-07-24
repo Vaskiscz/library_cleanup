@@ -251,6 +251,64 @@ def test_apply_update_success_spawns_helper_after_verify(monkeypatch, tmp_path):
     os.unlink(argv[1])
 
 
+# ---- failure-path cleanup (no leaked DMG / mount dir) -----------------------
+def test_verify_failure_removes_mount_dir(monkeypatch, tmp_path):
+    """hdiutil detach never rmdirs the mkdtemp mount point; the verify-failure
+    path must remove it itself."""
+    app = tmp_path / "Library Cleanup.app"; app.mkdir()
+    mount = tmp_path / "mnt"; mount.mkdir()
+    monkeypatch.setattr(updater, "app_bundle_path", lambda: str(app))
+    monkeypatch.setattr(updater, "_mount_and_find_app",
+                        lambda dmg: (str(mount), str(mount / "X.app")))
+    monkeypatch.setattr(updater, "verify_bundle",
+                        lambda new, cur: (_ for _ in ()).throw(RuntimeError("bad signer")))
+    monkeypatch.setattr(updater.subprocess, "run", lambda *a, **k: None)
+    with pytest.raises(RuntimeError):
+        updater.apply_update("/tmp/x.dmg")
+    assert not mount.exists()
+
+
+def test_mount_failure_removes_mount_dir(monkeypatch):
+    """A failed hdiutil attach must not orphan the freshly created mount dir."""
+    made = []
+    real_mkdtemp = updater.tempfile.mkdtemp
+
+    def cap(*a, **k):
+        p = real_mkdtemp(*a, **k)
+        made.append(p)
+        return p
+    monkeypatch.setattr(updater.tempfile, "mkdtemp", cap)
+
+    def fake_run(cmd, **k):
+        if "attach" in cmd:
+            raise subprocess.CalledProcessError(1, cmd)
+    monkeypatch.setattr(updater.subprocess, "run", fake_run)
+    with pytest.raises(subprocess.CalledProcessError):
+        updater._mount_and_find_app("/tmp/x.dmg")
+    assert made and not os.path.exists(made[0])
+
+
+def test_failed_install_removes_downloaded_dmg(client, monkeypatch, tmp_path):
+    """A failed apply must not leak the downloaded DMG in TMPDIR (on success the
+    relaunch helper removes it)."""
+    import time
+    dmg = tmp_path / "dl.dmg"; dmg.write_bytes(b"x")
+    monkeypatch.setattr("photocleanup.updater.check", lambda: {
+        "available": True, "can_install": True,
+        "url": updater._ALLOWED_PREFIX + "v9/Library-Cleanup.dmg"})
+    monkeypatch.setattr("photocleanup.updater.download_dmg",
+                        lambda url, progress=None: str(dmg))
+    monkeypatch.setattr("photocleanup.updater.apply_update",
+                        lambda p: (_ for _ in ()).throw(RuntimeError("install died")))
+    assert client.post("/api/update/apply").json()["started"] is True
+    for _ in range(100):
+        if client.get("/api/update/status").json().get("status") == "error":
+            break
+        time.sleep(0.02)
+    assert client.get("/api/update/status").json()["status"] == "error"
+    assert not dmg.exists()
+
+
 def test_relaunch_helper_is_valid_bash():
     fd, p = tempfile.mkstemp(suffix=".sh")
     os.write(fd, updater._HELPER.encode())

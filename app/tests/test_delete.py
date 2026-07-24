@@ -128,6 +128,21 @@ def test_unauthorized_never_deletes(patch_photos):
     assert res["status"] == "unauthorized" and P._captured["deleted"] is None
 
 
+def test_not_determined_never_prompts_from_delete_path(patch_photos):
+    # delete_assets runs on a background request thread, where the Photos
+    # authorization dialog can't be presented — a request fired there is
+    # recorded as a permanent denial. The delete path must therefore do a
+    # non-prompting status check and report 'unauthorized' when undecided.
+    P = patch_photos(_make_photos(["a/L0/001"], status=NOT_DETERMINED))
+
+    def boom(_level, _handler):
+        raise AssertionError("delete path must never prompt")
+    P.PHPhotoLibrary.requestAuthorizationForAccessLevel_handler_ = boom
+
+    res = delete.delete_assets(["a"])
+    assert res["status"] == "unauthorized" and P._captured["deleted"] is None
+
+
 def test_dry_run_never_deletes(patch_photos):
     P = patch_photos(_make_photos([f"{u}/L0/001" for u in ("a", "b")]))
     res = delete.delete_assets(["a", "b"], dry_run=True)

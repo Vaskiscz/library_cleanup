@@ -23,6 +23,8 @@ fail() { echo "ERROR: $1" >&2; exit 1; }
 [ -f "$KC" ] || fail "signing keychain missing ($KC) — run app/scripts/setup-signing.sh first"
 security unlock-keychain -p "$KCPW" "$KC" \
   || fail "couldn't unlock the signing keychain (set LC_KEYCHAIN_PW if you changed the password)"
+# Never leave the signing keychain unlocked past this build, however we exit.
+trap 'security lock-keychain "$KC" 2>/dev/null || true' EXIT
 security set-keychain-settings -lt 3600 "$KC" 2>/dev/null || true   # re-assert auto-lock (audit #18)
 security find-identity -p codesigning "$KC" | grep -q "$IDENTITY" \
   || fail "identity '$IDENTITY' not found in $KC — run app/scripts/setup-signing.sh"
@@ -55,7 +57,11 @@ DMG="dist/Library-Cleanup.dmg"           # file name is STABLE across builds
 
 echo "[1/4] Building (briefcase, ad-hoc; output -> $BUILD_LOG) ..."
 rm -rf build
-if ! { uvx briefcase create macOS --no-input && uvx briefcase build macOS --no-input; } >"$BUILD_LOG" 2>&1; then
+# Build tools are pinned so a silent upstream release can't change the artifact;
+# bump these versions deliberately (and rebuild + retest) when upgrading.
+BRIEFCASE_PIN="briefcase==0.4.4"
+DMGBUILD_PIN="dmgbuild==1.6.7"
+if ! { uvx "$BRIEFCASE_PIN" create macOS --no-input && uvx "$BRIEFCASE_PIN" build macOS --no-input; } >"$BUILD_LOG" 2>&1; then
   echo "--- briefcase failed; last 30 lines of $BUILD_LOG ---" >&2
   tail -30 "$BUILD_LOG" >&2
   fail "briefcase build failed"
@@ -63,10 +69,12 @@ fi
 [ -d "$APP" ] || fail "build finished but $APP is missing"
 
 echo "[2/4] Re-signing with '$IDENTITY' (hardened runtime, app entitlements) ..."
+# NOTE: --deep is deprecated; the eventual fix is inside-out signing (sign nested
+# frameworks/binaries individually, then the outer bundle).
 codesign --force --deep --options runtime --timestamp=none \
   --entitlements "$ENT" -s "$IDENTITY" "$APP"
 codesign --verify --strict --verbose=1 "$APP"
-codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2
+codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2 || true   # cosmetic log; never fail the build
 
 # Signing-identity drift guard (audit #17): TCC (Full Disk Access / Photos) and
 # the in-app updater's identity pin are keyed to this designated requirement. If
@@ -76,12 +84,23 @@ codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2
 REQFILE="scripts/released-requirement.txt"
 NEWREQ="$(codesign -d -r- "$APP" 2>/dev/null | sed -n 's/^designated => //p')"
 if [ -n "$NEWREQ" ]; then
-  if [ -f "$REQFILE" ] && [ "$(cat "$REQFILE")" != "$NEWREQ" ]; then
-    echo "WARNING: signing designated requirement CHANGED since the last release —" >&2
-    echo "         users will have to re-grant Full Disk Access / Photos after updating," >&2
-    echo "         and auto-update from older builds will be rejected by the identity check." >&2
+  if [ ! -f "$REQFILE" ]; then
+    printf '%s\n' "$NEWREQ" > "$REQFILE"
+    echo "  no signing-requirement baseline found; recorded it -> $REQFILE"
+  elif [ "$(cat "$REQFILE")" != "$NEWREQ" ]; then
+    if [ "${LC_ALLOW_IDENTITY_CHANGE:-}" = "1" ]; then
+      printf '%s\n' "$NEWREQ" > "$REQFILE"
+      echo "  LC_ALLOW_IDENTITY_CHANGE=1: signing-requirement baseline updated -> $REQFILE"
+    else
+      echo "ERROR: signing designated requirement CHANGED since the last release —" >&2
+      echo "       users will have to re-grant Full Disk Access / Photos after updating," >&2
+      echo "       and auto-update from older builds will be rejected by the identity check." >&2
+      echo "       If this change is intentional, re-run with LC_ALLOW_IDENTITY_CHANGE=1" >&2
+      echo "       to accept the new identity and update $REQFILE." >&2
+      exit 1
+    fi
   fi
-  printf '%s\n' "$NEWREQ" > "$REQFILE"
+  # Unchanged: write nothing (identical content; avoid mtime churn).
 fi
 
 echo "[3/4] Building DMG (dmgbuild: background + drag-to-Applications layout) ..."
@@ -90,7 +109,7 @@ mkdir -p dist
 # the fresh Library-Cleanup.dmg remains.
 find dist -maxdepth 1 -name '*.dmg' -print -delete
 rm -f "$DMG"
-uvx dmgbuild -s scripts/dmg-settings.py -D app="$APP" -D bg="$PWD/assets/dmg-background.png" \
+uvx "$DMGBUILD_PIN" -s scripts/dmg-settings.py -D app="$APP" -D bg="$PWD/assets/dmg-background.png" \
   "$VOL" "$DMG" >/dev/null
 [ -s "$DMG" ] || fail "dmgbuild finished but $DMG is missing or empty"
 
