@@ -344,7 +344,7 @@
   .safe p{font-size:14px; color:var(--text-2); margin:0; line-height:1.45;}
 
   /* ---- install ---- */
-  .install-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:20px; counter-reset:i; margin-bottom:34px;}
+  .install-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; counter-reset:i; margin-bottom:34px;}
   .ins{background:var(--surface); border:1px solid var(--separator); border-radius:14px; padding:22px 20px; box-shadow:var(--shadow-1);}
   .ins .n{font-size:12px; font-weight:700; letter-spacing:.08em; color:var(--brand); font-variant-numeric:tabular-nums;}
   .ins h3{font-size:15.5px; font-weight:600; margin:10px 0 6px;}
@@ -483,6 +483,7 @@
       <p class="req">
         <b>Free</b><span class="sep">·</span>
         <a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit"><b>Open source</b></a><span class="sep">·</span>
+        <b>Notarized by Apple</b><span class="sep">·</span>
         <b>Apple Silicon</b><span class="sep">·</span>
         <b>macOS 13 Ventura or later</b><span class="sep">·</span>
         <span>~43&nbsp;MB</span>
@@ -789,10 +790,6 @@
         <p>To do its job, Library Cleanup needs to read your <strong>entire</strong> Photos library and delete photos through Apple's PhotoKit. That requires <strong>Full Disk Access</strong> and delete permissions the Mac App Store sandbox simply doesn't hand out.</p>
         <p>Rather than strip out what makes it useful to fit the sandbox, it's distributed directly.</p>
         <p>And because it asks for that much access, the full source is public, so you (or anyone) can <a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit">audit the code on GitHub</a> and see exactly what it does before trusting it with your library.</p>
-        <div class="note">
-          <h4><svg viewBox="0 0 24 24"><use href="#i-warn"/></svg> One honest heads-up</h4>
-          <p>This is a free passion project without a paid Apple Developer account, so the app is signed but <strong>not notarized</strong>. macOS will warn you the first time you open it. That's expected, and the <a href="#install">two-minute install steps</a> right below walk you through it.</p>
-        </div>
       </div>
     </div>
   </section>
@@ -802,27 +799,22 @@
     <div class="wrap">
       <div class="head">
         <p class="eyebrow">Installing</p>
-        <h2>Two honest minutes to set up.</h2>
-        <p>Because the app isn't notarized, macOS asks you to allow it once. Here's the whole process.</p>
+        <h2>Two permissions, then you're in.</h2>
+        <p>Notarized by Apple, so there's no security warning to work around. macOS confirms the first open, then two permissions let it see your library.</p>
       </div>
       <div class="install-grid">
         <div class="ins">
           <span class="n">1</span>
-          <h3>Open the .dmg</h3>
-          <p>Drag <strong>Library Cleanup</strong> into your Applications folder.</p>
+          <h3>Install and open</h3>
+          <p>Drag <strong>Library Cleanup</strong> into your Applications folder and open it. macOS asks once whether you're sure you downloaded it. Click <strong>Open</strong>.</p>
         </div>
         <div class="ins">
           <span class="n">2</span>
-          <h3>Allow it once</h3>
-          <p>System Settings ▸ Privacy &amp; Security ▸ <strong>Open Anyway</strong>, then open it again.</p>
+          <h3>Grant Full Disk Access</h3>
+          <p>System Settings ▸ Privacy &amp; Security ▸ <strong>Full Disk Access</strong> ▸ add Library Cleanup. Without it, the app can't read your Photos library.</p>
         </div>
         <div class="ins">
           <span class="n">3</span>
-          <h3>Grant Full Disk Access</h3>
-          <p>Privacy &amp; Security ▸ <strong>Full Disk Access</strong> ▸ add Library Cleanup. Required to read your library.</p>
-        </div>
-        <div class="ins">
-          <span class="n">4</span>
           <h3>Allow Photos</h3>
           <p>The first time you confirm a removal, macOS asks for Photos access. Click <strong>Allow</strong>.</p>
         </div>
@@ -875,8 +867,8 @@
           <p>Really free. No trial, no locked features, no subscription. I built it for my own library and decided to share it. If it saves you time, a tip is appreciated, but that's the entire business model.</p>
         </div>
         <div class="faq">
-          <h3>Why does macOS warn me on first open?</h3>
-          <p>The app is signed but not notarized, which requires a paid Apple Developer account this free project doesn't have. The warning is macOS being properly cautious about apps from outside the App Store. Allow it once and it won't ask again.</p>
+          <h3>Is it signed and notarized?</h3>
+          <p>Yes. It's signed with an Apple Developer ID and notarized by Apple, so macOS opens it without any security detour. You'll still see the standard &ldquo;downloaded from the internet&rdquo; confirmation the first time, the same one every app gets. Notarization means Apple scanned the app for malware; the public source is there so you can check what it actually does with your library.</p>
         </div>
         <div class="faq">
           <h3>Will it run on an Intel Mac?</h3>
@@ -946,7 +938,7 @@
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 v12 M7 11 l5 5 5 -5 M5 20 h14"/></svg>
         Download for macOS
       </a>
-      <p class="req"><b>Free</b><span class="sep">·</span><a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit"><b>Open source</b></a><span class="sep">·</span><b>Apple Silicon</b><span class="sep">·</span><b>macOS 13 Ventura or later</b><span class="sep">·</span><span>~43&nbsp;MB</span></p>
+      <p class="req"><b>Free</b><span class="sep">·</span><a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit"><b>Open source</b></a><span class="sep">·</span><b>Notarized by Apple</b><span class="sep">·</span><b>Apple Silicon</b><span class="sep">·</span><b>macOS 13 Ventura or later</b><span class="sep">·</span><span>~43&nbsp;MB</span></p>
     </div>
   </section>
 

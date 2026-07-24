@@ -29,9 +29,9 @@ Toga WebView app  ──>  local FastAPI service (localhost only)  ──>  phot
 
 > Status: **feature-complete.** Home → analyze → review grid (dedup / videos /
 > screenshots / expired) → finalize → **delete via PhotoKit** (macOS shows its
-> own confirmation; removed items go to Recently Deleted). Shipped as an
-> **unsigned DMG** (ad-hoc signed) — see [DISTRIBUTION.md](DISTRIBUTION.md) for
-> install + the notarization upgrade path.
+> own confirmation; removed items go to Recently Deleted). Shipped as a
+> **Developer ID-signed, notarized DMG** — see [DISTRIBUTION.md](DISTRIBUTION.md)
+> for install + build details.
 
 ## Build & run (bundled app)
 

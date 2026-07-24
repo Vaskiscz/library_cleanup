@@ -17,16 +17,19 @@ on-device).
 
 **Build & install**
 
-Both `setup-signing.sh` and `build-signed-dmg.sh` require `LC_KEYCHAIN_PW`: the
-password of the dedicated signing keychain. There is no default; the value
-lives in your password manager.
+The app is signed with the Developer ID Application certificate from the login
+keychain and notarized by Apple. One-time setup stores the notary credentials
+as a keychain profile (it asks for your Apple ID and an app-specific password
+interactively; nothing goes into the environment).
 
 ```sh
-export LC_KEYCHAIN_PW='<from your password manager>'
-bash app/scripts/setup-signing.sh      # once: create the self-signed identity
-bash app/scripts/build-signed-dmg.sh   # bumps the patch version, signs, builds the DMG
+bash app/scripts/setup-signing.sh      # once: verify the cert + store notary credentials
+bash app/scripts/build-signed-dmg.sh   # bumps the patch version, signs, notarizes, builds the DMG
 open app/dist/Library-Cleanup.dmg      # stable name (no version); drag to Applications
 ```
+
+Notarization adds 1-5 minutes; skip it for quick local iterations with
+`LC_SKIP_NOTARIZE=1` (never release such a DMG).
 
 **Permissions (one-time)** — the app asks for **Photos** access at first launch
 (needed to delete). It also needs **Full Disk Access** to read the library
@@ -68,15 +71,15 @@ stops being flagged after ~5 consistent keeps.
 about your library is sent). If there is, the home screen shows an **Update
 available** prompt: choose **Later** (asked again next launch) or **Download &
 install** — it downloads the release DMG, swaps the app in place, and relaunches
-itself. Because the app keeps a stable self-signed identity, your Full Disk
+itself. Because the app keeps a stable Developer ID identity, your Full Disk
 Access / Photos grants survive the update. From source (dev) the prompt instead
 opens the release page, since there's no bundle to replace.
 
 **Cutting a public release**
 
 1. Build with a minor bump: `bash app/scripts/build-signed-dmg.sh --minor`
-   (needs `LC_KEYCHAIN_PW`; use `--no-bump` to rebuild the same version after
-   a failed QA pass).
+   (signs, notarizes, and staples; use `--no-bump` to rebuild the same version
+   after a failed QA pass; never release with `LC_SKIP_NOTARIZE=1`).
 2. Commit the bumped version files (`app/src/photocleanup/__init__.py`,
    `app/pyproject.toml`) on `main`.
 3. Verify the DMG you are about to upload matches the intended tag:

@@ -69,15 +69,30 @@ def test_build_script_writes_the_dmg_the_updater_downloads():
     )
 
 
-def test_signing_identity_cn_matches_between_scripts():
-    # setup-signing.sh creates the cert (CERT_CN) and build-signed-dmg.sh signs
-    # with it (IDENTITY). If the names drift, every build fails preflight — or
-    # worse, signs with a different identity and users lose TCC grants.
+def test_signing_identity_matches_between_scripts():
+    # Both scripts declare the Developer ID identity (build signs with it,
+    # setup checks it's installed). If they drift, preflight fails — or worse,
+    # a build signs with a different identity and users lose TCC grants.
     build = re.search(r'^IDENTITY="([^"]+)"', _script_text("build-signed-dmg.sh"), re.M)
-    setup = re.search(r'^CERT_CN="([^"]+)"', _script_text("setup-signing.sh"), re.M)
+    setup = re.search(r'^IDENTITY="([^"]+)"', _script_text("setup-signing.sh"), re.M)
     assert build, "IDENTITY=\"...\" not found in build-signed-dmg.sh"
-    assert setup, "CERT_CN=\"...\" not found in setup-signing.sh"
+    assert setup, "IDENTITY=\"...\" not found in setup-signing.sh"
     assert build.group(1) == setup.group(1), (
         f"signing identity drift: build-signed-dmg.sh signs with "
-        f"{build.group(1)!r} but setup-signing.sh creates {setup.group(1)!r}"
+        f"{build.group(1)!r} but setup-signing.sh expects {setup.group(1)!r}"
+    )
+    assert build.group(1).startswith("Developer ID Application:"), (
+        "the release must be signed with a Developer ID Application identity "
+        "(notarization requires it); self-signed builds are not releasable"
+    )
+
+
+def test_notary_profile_matches_between_scripts():
+    # The build submits with --keychain-profile NOTARY_PROFILE; setup-signing.sh
+    # creates that profile. Drift means every release build fails at notarization.
+    build = re.search(r'^NOTARY_PROFILE="([^"]+)"', _script_text("build-signed-dmg.sh"), re.M)
+    setup = re.search(r'^NOTARY_PROFILE="([^"]+)"', _script_text("setup-signing.sh"), re.M)
+    assert build and setup and build.group(1) == setup.group(1), (
+        "notary keychain-profile name drifted between build-signed-dmg.sh "
+        "and setup-signing.sh"
     )

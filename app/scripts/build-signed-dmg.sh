@@ -1,18 +1,18 @@
 #!/bin/bash
-# Build Library Cleanup and sign it with the stable self-signed identity, then
-# package a DMG. The cert stays UNTRUSTED (never a system trust root) — that's
-# enough for macOS to keep Full Disk Access / Photos grants across rebuilds,
-# because TCC matches the signing identity, not its trust chain.
+# Build Library Cleanup, sign it with the Developer ID Application identity,
+# package a DMG, then notarize and staple it so Gatekeeper opens it cleanly.
 #
-# Prereq (once):  bash app/scripts/setup-signing.sh
+# Prereq (once):  bash app/scripts/setup-signing.sh   (stores notary credentials)
 # Run:            bash app/scripts/build-signed-dmg.sh
+#
+# Flags: --minor (public release bump) | --no-bump (rebuild current version)
+# Env:   LC_SKIP_NOTARIZE=1        skip notarization for quick local iterations
+#        LC_ALLOW_IDENTITY_CHANGE=1  accept a changed signing identity (see guard)
 set -euo pipefail
 cd "$(dirname "$0")/.."                      # -> app/
 
-IDENTITY="Library Cleanup Self-Signed"
-KC="$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
-# Mandatory — see setup-signing.sh: this key is the auto-update trust anchor.
-KCPW="${LC_KEYCHAIN_PW:?set LC_KEYCHAIN_PW to the signing-keychain password (see setup-signing.sh)}"
+IDENTITY="Developer ID Application: VÁCLAV TRNKA (993Q8KJAJS)"
+NOTARY_PROFILE="library-cleanup-notary"      # keychain profile from setup-signing.sh
 APP="build/photocleanup/macos/app/Library Cleanup.app"
 ENT="build/photocleanup/macos/app/Entitlements.plist"
 BUILD_LOG="$(mktemp -t library-cleanup-build)"
@@ -20,14 +20,9 @@ BUILD_LOG="$(mktemp -t library-cleanup-build)"
 fail() { echo "ERROR: $1" >&2; exit 1; }
 
 # Preflight: the signing identity must exist before we spend minutes building.
-[ -f "$KC" ] || fail "signing keychain missing ($KC) — run app/scripts/setup-signing.sh first"
-security unlock-keychain -p "$KCPW" "$KC" \
-  || fail "couldn't unlock the signing keychain (set LC_KEYCHAIN_PW if you changed the password)"
-# Never leave the signing keychain unlocked past this build, however we exit.
-trap 'security lock-keychain "$KC" 2>/dev/null || true' EXIT
-security set-keychain-settings -lt 3600 "$KC" 2>/dev/null || true   # re-assert auto-lock (audit #18)
-security find-identity -p codesigning "$KC" | grep -q "$IDENTITY" \
-  || fail "identity '$IDENTITY' not found in $KC — run app/scripts/setup-signing.sh"
+# Developer ID lives in the login keychain (no dedicated keychain to unlock).
+security find-identity -v -p codesigning | grep -q "Developer ID Application: VÁCLAV TRNKA" \
+  || fail "Developer ID Application identity not found in the keychain — install it from the Apple Developer portal (or Xcode ▸ Settings ▸ Accounts)"
 
 # Verify the vendored wheel(s) haven't been tampered with (audit #12): the build
 # installs a binary committed to the repo, so pin its SHA-256.
@@ -43,11 +38,11 @@ fi
 # `--no-bump` rebuilds at the CURRENT version without touching it — for rebuilding
 # a release that failed QA (the version is already committed; don't advance it).
 case "${1:-}" in
-  --minor|--release) echo "[0/4] Bumping MINOR version (public release) ..."
+  --minor|--release) echo "[0/5] Bumping MINOR version (public release) ..."
                      VERSION="$(python3 scripts/bump-version.py --minor)" ;;
-  --no-bump)         echo "[0/4] Rebuilding at the current version (no bump) ..."
+  --no-bump)         echo "[0/5] Rebuilding at the current version (no bump) ..."
                      VERSION="$(python3 scripts/bump-version.py --show)" ;;
-  "")                echo "[0/4] Bumping patch version ..."
+  "")                echo "[0/5] Bumping patch version ..."
                      VERSION="$(python3 scripts/bump-version.py)" ;;
   *)                 fail "unknown flag '$1' (use --minor for a public release, --no-bump to rebuild the current version, or no flag for a normal build)" ;;
 esac
@@ -55,7 +50,7 @@ echo "  -> v$VERSION"
 VOL="Library Cleanup $VERSION"           # volume label (Finder) stays versioned
 DMG="dist/Library-Cleanup.dmg"           # file name is STABLE across builds
 
-echo "[1/4] Building (briefcase, ad-hoc; output -> $BUILD_LOG) ..."
+echo "[1/5] Building (briefcase, ad-hoc; output -> $BUILD_LOG) ..."
 rm -rf build
 # Build tools are pinned so a silent upstream release can't change the artifact;
 # bump these versions deliberately (and rebuild + retest) when upgrading.
@@ -68,17 +63,20 @@ if ! { uvx "$BRIEFCASE_PIN" create macOS --no-input && uvx "$BRIEFCASE_PIN" buil
 fi
 [ -d "$APP" ] || fail "build finished but $APP is missing"
 
-echo "[2/4] Re-signing with '$IDENTITY' (hardened runtime, app entitlements) ..."
+echo "[2/5] Re-signing with '$IDENTITY' (hardened runtime, secure timestamp) ..."
+# Notarization rejects get-task-allow (a debug entitlement) — strip it if the
+# briefcase template ever adds one.
+/usr/libexec/PlistBuddy -c 'Delete :com.apple.security.get-task-allow' "$ENT" 2>/dev/null || true
 # NOTE: --deep is deprecated; the eventual fix is inside-out signing (sign nested
 # frameworks/binaries individually, then the outer bundle).
-codesign --force --deep --options runtime --timestamp=none \
+codesign --force --deep --options runtime --timestamp \
   --entitlements "$ENT" -s "$IDENTITY" "$APP"
 codesign --verify --strict --verbose=1 "$APP"
-codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -2 || true   # cosmetic log; never fail the build
+codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -3 || true   # cosmetic log; never fail the build
 
 # Signing-identity drift guard (audit #17): TCC (Full Disk Access / Photos) and
 # the in-app updater's identity pin are keyed to this designated requirement. If
-# it changes (e.g. the signing key was regenerated), every user must re-grant
+# it changes (e.g. a different certificate), every user must re-grant
 # permissions after updating and the auto-update identity check will reject the
 # build. Record it and shout if it changed since the last release.
 REQFILE="scripts/released-requirement.txt"
@@ -103,7 +101,7 @@ if [ -n "$NEWREQ" ]; then
   # Unchanged: write nothing (identical content; avoid mtime churn).
 fi
 
-echo "[3/4] Building DMG (dmgbuild: background + drag-to-Applications layout) ..."
+echo "[3/5] Building DMG (dmgbuild: background + drag-to-Applications layout) ..."
 mkdir -p dist
 # Stable file name: wipe every prior DMG (incl. legacy versioned ones) so only
 # the fresh Library-Cleanup.dmg remains.
@@ -112,5 +110,25 @@ rm -f "$DMG"
 uvx "$DMGBUILD_PIN" -s scripts/dmg-settings.py -D app="$APP" -D bg="$PWD/assets/dmg-background.png" \
   "$VOL" "$DMG" >/dev/null
 [ -s "$DMG" ] || fail "dmgbuild finished but $DMG is missing or empty"
+codesign --force --timestamp -s "$IDENTITY" "$DMG"
 
-echo "[4/4] Done -> $DMG"
+if [ "${LC_SKIP_NOTARIZE:-}" = "1" ]; then
+  echo "[4/5] SKIPPING notarization (LC_SKIP_NOTARIZE=1) — do NOT release this DMG."
+else
+  echo "[4/5] Notarizing (Apple; usually 1-5 min) ..."
+  if ! xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait --output-format json >"$BUILD_LOG.notary" 2>&1; then
+    cat "$BUILD_LOG.notary" >&2
+    echo "HINT: if the profile is missing, run: bash app/scripts/setup-signing.sh" >&2
+    echo "HINT: for a rejection, get details with: xcrun notarytool log <submission-id> --keychain-profile $NOTARY_PROFILE" >&2
+    fail "notarization failed"
+  fi
+  NOTARY_STATUS="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",""))' "$BUILD_LOG.notary")"
+  [ "$NOTARY_STATUS" = "Accepted" ] || { cat "$BUILD_LOG.notary" >&2; fail "notarization status: ${NOTARY_STATUS:-unknown} (see notarytool log)"; }
+  xcrun stapler staple "$DMG" >/dev/null
+  # Gatekeeper's own verdict on the stapled DMG — the check users' Macs will run.
+  spctl -a -t open --context context:primary-signature -v "$DMG" 2>&1 | grep -q "accepted" \
+    || fail "Gatekeeper assessment failed on the stapled DMG"
+  echo "  notarized, stapled, Gatekeeper-accepted"
+fi
+
+echo "[5/5] Done -> $DMG"

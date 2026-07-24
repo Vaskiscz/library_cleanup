@@ -29,7 +29,7 @@ Two jobs:
 
 The one exception is *your own* iCloud Photos sync, which this tool never enables or uses. Setting a Favorite or keyword during write-back may sync as a metadata change, exactly like hearting a photo by hand. Pause iCloud if you want to avoid even that.
 
-**First launch.** The app is code-signed with a stable identity but not yet Apple-notarized, so macOS shows an "unidentified developer" prompt the first time. Right-click the app and choose **Open** once; after that it launches normally. It runs under the hardened runtime and asks only for Photos access. Every deletion is confirmed by macOS itself and goes to Recently Deleted, so nothing is unrecoverable.
+**First launch.** The app is signed with an Apple Developer ID and notarized, so macOS opens it like any other app, no warnings to click through. It runs under the hardened runtime and asks only for Photos access. Every deletion is confirmed by macOS itself and goes to Recently Deleted, so nothing is unrecoverable.
 
 **Updates are verified before they install.** The built-in updater only downloads over HTTPS from this repository's Releases, then checks the downloaded app's code signature and pins the expected signing identity before it replaces anything. An update that has been tampered with, or signed by anyone else, is refused. See [SECURITY.md](SECURITY.md) for the full threat model and how to report a vulnerability privately.
 

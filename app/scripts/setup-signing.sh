@@ -1,76 +1,49 @@
 #!/bin/bash
-# Create a STABLE self-signed code-signing identity for Library Cleanup.
+# One-time signing setup for Library Cleanup (Developer ID + notarization).
 #
-# Why: an unsigned (ad-hoc) app gets a new code hash on every build, so macOS
-# Full Disk Access / Photos grants stop matching after a rebuild. Signing every
-# build with the same self-signed cert gives a stable identity, so those grants
-# persist across rebuilds. (It is NOT notarized — recipients still do the
-# one-time right-click->Open.)
+# The app is signed with the Apple Developer ID Application certificate from
+# the login keychain and notarized with notarytool. This script checks the
+# certificate is installed and stores the notary credentials as a keychain
+# profile, so builds never need credentials in the environment.
 #
 # Run once:  bash app/scripts/setup-signing.sh
-# Then:      cd app && uvx briefcase package macOS -i "Library Cleanup Self-Signed" --no-notarize
+# It will interactively ask for:
+#   - your Apple ID (developer account email)
+#   - an APP-SPECIFIC password (create at appleid.apple.com ▸ Sign-In and
+#     Security ▸ App-Specific Passwords — NOT your Apple ID password)
 #
-# Undo:      security delete-keychain "$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
+# History: before 0.8.0 the app was signed with a local self-signed cert in a
+# dedicated keychain (LC_KEYCHAIN_PW). That flow is retired; the old keychain
+# can be removed with:
+#   security delete-keychain "$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
 set -euo pipefail
 
-CERT_CN="Library Cleanup Self-Signed"
-KC="$HOME/Library/Keychains/library-cleanup-signing.keychain-db"
-# The signing key in this keychain is the trust anchor for auto-updates (the
-# updater pins its identity), so its password must never be a known default:
-# anything that can read the keychain file + guess the password can sign a
-# malicious update every user would install. Require a private value.
-KCPW="${LC_KEYCHAIN_PW:?set LC_KEYCHAIN_PW to a private signing-keychain password (the update trust anchor lives here)}"
+IDENTITY="Developer ID Application: VÁCLAV TRNKA (993Q8KJAJS)"
+TEAM_ID="993Q8KJAJS"
+NOTARY_PROFILE="library-cleanup-notary"
 
-if security find-identity -v -p codesigning 2>/dev/null | grep -q "$CERT_CN"; then
-  echo "Identity already present: $CERT_CN"
-  exit 0
+if ! security find-identity -v -p codesigning | grep -q "Developer ID Application: VÁCLAV TRNKA"; then
+  echo "ERROR: '$IDENTITY' is not in the keychain." >&2
+  echo "Install it via Xcode ▸ Settings ▸ Accounts ▸ Manage Certificates," >&2
+  echo "or download it from https://developer.apple.com/account/resources/certificates" >&2
+  exit 1
+fi
+echo "Signing identity present: $IDENTITY"
+
+# Store notary credentials as a keychain profile. Prefer the App Store Connect
+# API key already on this machine (shared with the Selects TestFlight flow) —
+# no app-specific password needed. Fall back to the interactive Apple ID flow.
+ASC_KEY="$HOME/.appstoreconnect/private_keys/AuthKey_4C2QG76G9T.p8"
+ASC_KEY_ID="4C2QG76G9T"
+ASC_ISSUER_ID="dd1a4dbf-926e-4e94-8cff-8485db2bda93"
+echo "Storing notary credentials as keychain profile '$NOTARY_PROFILE' ..."
+if [ -f "$ASC_KEY" ]; then
+  xcrun notarytool store-credentials "$NOTARY_PROFILE" \
+    --key "$ASC_KEY" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID"
+else
+  echo "(ASC API key not found at $ASC_KEY; falling back to Apple ID +"
+  echo " app-specific password — create one at appleid.apple.com)"
+  xcrun notarytool store-credentials "$NOTARY_PROFILE" --team-id "$TEAM_ID"
 fi
 
-# 1) Dedicated keychain with a password we know, so codesign never needs your
-#    login password and never prompts.
-security create-keychain -p "$KCPW" "$KC" 2>/dev/null || true
-security set-keychain-settings -lt 3600 "$KC"   # auto-lock after 1h idle / on sleep (audit #18)
-security unlock-keychain -p "$KCPW" "$KC"
-
-# 2) Self-signed certificate with the code-signing extended key usage.
-TMP="$(mktemp -d)"
-cat > "$TMP/cert.cnf" <<EOF
-[req]
-distinguished_name = dn
-x509_extensions = v3
-prompt = no
-[dn]
-CN = $CERT_CN
-[v3]
-basicConstraints = critical,CA:false
-keyUsage = critical,digitalSignature
-extendedKeyUsage = critical,codeSigning
-EOF
-openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-  -keyout "$TMP/key.pem" -out "$TMP/cert.pem" -config "$TMP/cert.cnf" 2>/dev/null
-
-# 3) Import the key + cert as separate PEMs (avoids the OpenSSL-3/macOS PKCS12
-#    MAC incompatibility), let codesign use the key without prompting, and add
-#    the keychain to the search list.
-security import "$TMP/key.pem"  -k "$KC" -A
-security import "$TMP/cert.pem" -k "$KC" -A
-security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPW" "$KC" >/dev/null 2>&1
-# Add the signing keychain to the user search list WITHOUT clobbering it:
-# `security list-keychains -s` replaces the whole list, so read the current
-# entries first and append ours only if it isn't already there.
-EXISTING_KCS=()
-while IFS= read -r line; do
-  entry="$(printf '%s' "$line" | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//')"
-  [ -n "$entry" ] && EXISTING_KCS+=("$entry")
-done < <(security list-keychains -d user)
-ALREADY_LISTED=0
-for entry in ${EXISTING_KCS[@]+"${EXISTING_KCS[@]}"}; do
-  [ "$entry" = "$KC" ] && ALREADY_LISTED=1
-done
-if [ "$ALREADY_LISTED" -eq 0 ]; then
-  security list-keychains -d user -s ${EXISTING_KCS[@]+"${EXISTING_KCS[@]}"} "$KC"
-fi
-rm -rf "$TMP"
-
-echo "Created code-signing identity:"
-security find-identity -v -p codesigning | grep "$CERT_CN"
+echo "Done. Build with: bash app/scripts/build-signed-dmg.sh"

@@ -28,9 +28,9 @@ no credentials.
   from indexed records, not the URL (no path traversal).
 - **Diagnostic log** — `~/Library/Logs/Library Cleanup/` only; the home path is
   scrubbed to `~` before logging so a shared log doesn't leak the username.
-- **Code signing** — the app is signed with a local self-signed cert that is
-  **untrusted** (never a system trust root); it provides a stable identity for
-  TCC, not chain trust.
+- **Code signing** — the app is signed with an Apple **Developer ID
+  Application** certificate and **notarized**; the stable identity anchors both
+  TCC grants and the updater's identity pin.
 
 ## Known residual risks (accepted, documented)
 
@@ -43,7 +43,5 @@ no credentials.
    the WebView via its load URL (`/?t=…`), required on `/api/*` (header for fetch,
    `?t=` for `<img>` thumbnails) — never served in the page so other processes
    can't scrape it.
-2. **Unsigned / not notarized distribution.** Recipients must bypass Gatekeeper
-   once (right-click → Open). Fix = Apple Developer ID + notarization.
-3. **Image-decoder CVEs.** Pillow/Vision decode image files; keep Pillow current.
+2. **Image-decoder CVEs.** Pillow/Vision decode image files; keep Pillow current.
    Low risk — they're the user's own photos.
