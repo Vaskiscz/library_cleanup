@@ -1,1 +1,1 @@
-identifier "cz.vaskiscz.photocleanup" and certificate leaf = H"faa0af3b5fd00d10f462f5a8e87ef62283326cc0"
+identifier "cz.vaskiscz.photocleanup" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "993Q8KJAJS"

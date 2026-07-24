@@ -63,15 +63,36 @@ if ! { uvx "$BRIEFCASE_PIN" create macOS --no-input && uvx "$BRIEFCASE_PIN" buil
 fi
 [ -d "$APP" ] || fail "build finished but $APP is missing"
 
-echo "[2/5] Re-signing with '$IDENTITY' (hardened runtime, secure timestamp) ..."
+echo "[2/5] Re-signing with '$IDENTITY' (inside-out, hardened runtime, secure timestamp) ..."
 # Notarization rejects get-task-allow (a debug entitlement) — strip it if the
 # briefcase template ever adds one.
 /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.get-task-allow' "$ENT" 2>/dev/null || true
-# NOTE: --deep is deprecated; the eventual fix is inside-out signing (sign nested
-# frameworks/binaries individually, then the outer bundle).
-codesign --force --deep --options runtime --timestamp \
+
+# INSIDE-OUT signing. Notarization requires EVERY nested Mach-O binary to carry
+# its own Developer ID signature with a secure timestamp; `codesign --deep` does
+# not reliably do that (and is deprecated), which Apple rejects with hundreds of
+# "not signed with a valid Developer ID certificate" errors. So: sign the nested
+# libraries first, then the framework bundle, then the outer app.
+#
+# python.o is an intermediate object file (LLVM bitcode) shipped for building C
+# extensions at runtime, which this app never does. Object files cannot carry a
+# signature, so notarization always rejects it: remove it.
+find "$APP" -name 'python.o' -delete
+NESTED="$(mktemp -t library-cleanup-nested)"
+find "$APP" -type f \( -name '*.dylib' -o -name '*.so' \) -print0 >"$NESTED"
+NESTED_N="$(tr -cd '\0' <"$NESTED" | wc -c | tr -d ' ')"
+echo "  signing $NESTED_N nested libraries ..."
+# One codesign call per binary (xargs -n1): a single failure then names the file.
+xargs -0 -n1 codesign --force --options runtime --timestamp -s "$IDENTITY" <"$NESTED" \
+  || fail "signing a nested library failed (see the path in the error above)"
+rm -f "$NESTED"
+# Then the containers, innermost first. The framework carries no entitlements;
+# only the app bundle does (its main executable is what the entitlements govern).
+FW="$APP/Contents/Frameworks/Python.framework"
+[ -d "$FW" ] && codesign --force --options runtime --timestamp -s "$IDENTITY" "$FW"
+codesign --force --options runtime --timestamp \
   --entitlements "$ENT" -s "$IDENTITY" "$APP"
-codesign --verify --strict --verbose=1 "$APP"
+codesign --verify --strict --deep --verbose=1 "$APP"
 codesign -dvv "$APP" 2>&1 | grep -E "Authority=|Signature=" | head -3 || true   # cosmetic log; never fail the build
 
 # Signing-identity drift guard (audit #17): TCC (Full Disk Access / Photos) and
