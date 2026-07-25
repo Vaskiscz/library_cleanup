@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Library Cleanup — Free up space in Apple Photos, safely on your Mac</title>
-<meta name="description" content="Find the duplicates, burst clones, and screenshot piles in Apple Photos and get gigabytes back — safely. Runs entirely on your Mac; nothing is ever uploaded. Free.">
+<meta name="theme-color" content="#f4f4f6">
+<meta property="og:locale" content="en_US">
+<title>Library Cleanup · Free up space in Apple Photos, safely on your Mac</title>
+<meta name="description" content="Find the duplicates, burst clones, and screenshot piles in Apple Photos and get gigabytes back, safely. Runs entirely on your Mac; nothing is ever uploaded. Free.">
 <meta property="og:title" content="Library Cleanup for macOS">
 <link rel="canonical" href="https://vaclavtrnka.cz/library-cleanup/">
 <meta property="og:description" content="Find and remove duplicates, burst clones, and screenshot clutter in Apple Photos, safely and entirely on your Mac.">
@@ -36,6 +38,28 @@
       y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
   })(window, document, "clarity", "script", "xh7wgelo83");
 </script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Library Cleanup",
+ "applicationCategory": "UtilitiesApplication",
+ "operatingSystem": "macOS 13 Ventura or later",
+ "url": "https://vaclavtrnka.cz/library-cleanup/",
+ "downloadUrl": "https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "EUR"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Václav Trnka",
+  "url": "https://vaclavtrnka.cz/"
+ },
+ "description": "A native Mac app that finds duplicates, burst clones and screenshot clutter in Apple Photos, then removes them safely. Runs entirely on your Mac."
+}
+</script>
 </head>
 <body>
 <style>
@@ -43,7 +67,7 @@
     --bg:#f4f4f6; --surface:#fff; --surface-2:#fbfbfd; --sunken:#ececef;
     --text:#1d1d1f; --text-2:#6e6e73; --text-3:#98989d;
     --border:#d9d9de; --separator:#e7e7eb;
-    --brand:#1f9e86; --brand-strong:#178a74;
+    --brand:#1f9e86; --brand-strong:#178a74; --brand-text:#147966;
     --brand-teal:#15a89a; --brand-green:#2f9e5f;
     --grad:linear-gradient(135deg,#15a89a,#2f9e5f);
     --keep:#2e7d32; --clear:#c62828; --warn:#b26a00;
@@ -73,11 +97,11 @@
     background:#1b1c1e; color:#f1f2f4;
     --surface:#292a2d; --surface-2:#222326; --border:#393a3d; --separator:#2f3033;
     --text:#f1f2f4; --text-2:#a3a5aa; --text-3:#707177;
-    --brand:#34b89e; --keep:#5bbd86; --warn:#d9a44a;
+    --brand:#34b89e; --brand-text:#34b89e; --keep:#5bbd86; --warn:#d9a44a;
   }
   .eyebrow{
     font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
-    color:var(--brand); margin:0 0 18px;
+    color:var(--brand-text); margin:0 0 18px;
   }
   .band-dark .eyebrow{color:#48c9ad;}
 
@@ -120,22 +144,22 @@
   .band-dark .btn-ghost{border-color:#4a4b4e;}
   .band-dark .btn-ghost:hover{background:#2a2b2e;}
   .req{
-    margin-top:18px; font-size:13.5px; color:var(--text-3);
+    margin-top:18px; font-size:13.5px; color:var(--text-2);
     display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
     animation:rise .7s var(--ease) .2s both;
   }
   .req b{color:var(--text-2); font-weight:600;}
   .req .sep{opacity:.5;}
   .req a{text-decoration:none;}
-  .req a b{color:var(--brand);}
+  .req a b{color:var(--brand-text);}
   .req a:hover b{text-decoration:underline;}
   .proof{
     font-size:15px; color:var(--text-2); margin:16px auto 0;
     animation:rise .7s var(--ease) .12s both;
   }
-  .proof b{color:var(--brand); font-weight:700;}
+  .proof b{color:var(--brand-text); font-weight:700;}
   .cta-note{
-    font-size:13.5px; color:var(--text-3); margin:16px auto 0; max-width:60ch;
+    font-size:13.5px; color:var(--text-2); margin:16px auto 0; max-width:60ch;
     animation:rise .7s var(--ease) .18s both;
   }
 
@@ -155,7 +179,7 @@
   .faq:last-child{border-bottom:none; padding-bottom:0;}
   .faq h3{font-size:17px; font-weight:600; margin:0 0 8px;}
   .faq p{font-size:15.5px; color:var(--text-2); line-height:1.6; margin:0;}
-  .faq a{color:var(--brand); font-weight:600; text-decoration:none;}
+  .site .faq a{color:var(--brand-text); font-weight:600; text-decoration:underline; text-underline-offset:2px;}
   .faq a:hover{text-decoration:underline;}
 
   /* ---- app window mock ---- */
@@ -199,7 +223,7 @@
   /* review body */
   .rv-body{padding:14px 16px 16px; text-align:left;}
   .rv-sec + .rv-sec{margin-top:16px;}
-  .rv-sec h4{font-size:14px; font-weight:600; margin:0;}
+  .rv-sec .rvh{font-size:14px; font-weight:600; margin:0;}
   .rv-sum{font-size:11.5px; color:var(--text-3); margin:3px 0 11px;}
   .rv-group + .rv-group{margin-top:12px;}
   .ghead{display:flex; align-items:center; gap:8px; margin:0 0 8px;}
@@ -233,13 +257,13 @@
   /* ================= SECTION HEADS ================= */
   .head{text-align:center; max-width:640px; margin:0 auto 56px;}
   .head h2{font-size:clamp(28px,4vw,42px); font-weight:700; line-height:1.08;}
-  .head p{color:var(--text-2); font-size:18px; margin:16px auto 0; max-width:52ch;}
+  .head p:not(.eyebrow){color:var(--text-2); font-size:18px; margin:16px auto 0; max-width:52ch;}
 
   /* ---- steps ---- */
   .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:22px; counter-reset:s;}
   .step{position:relative; padding-top:8px;}
   .step .n{
-    font-size:13px; font-weight:700; color:var(--brand); letter-spacing:.04em;
+    font-size:13px; font-weight:700; color:var(--brand-text); letter-spacing:.04em;
     font-variant-numeric:tabular-nums; display:block; margin-bottom:14px;
   }
   .step h3{font-size:18px; font-weight:600; margin-bottom:8px;}
@@ -254,7 +278,7 @@
   .walk-row{display:grid; grid-template-columns:1.08fr .92fr; gap:56px; align-items:center; max-width:var(--maxw); margin:0 auto;}
   .walk-row + .walk-row{margin-top:80px;}
   .walk-row.rev .walk-shot{order:2;}
-  .walk-copy .n{font-size:13px; font-weight:700; color:var(--brand); letter-spacing:.05em;
+  .walk-copy .n{font-size:13px; font-weight:700; color:var(--brand-text); letter-spacing:.05em;
     font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:11px; text-transform:uppercase;}
   .walk-copy .n::before{content:""; width:26px; height:2px; background:var(--grad); border-radius:2px;}
   .walk-copy h3{font-size:clamp(23px,2.7vw,31px); font-weight:700; line-height:1.12; margin:16px 0 13px;}
@@ -277,7 +301,7 @@
   .hm-tile{border:1px solid var(--separator); border-radius:12px; padding:13px 12px; text-align:left;
     display:flex; flex-direction:column; gap:7px; background:var(--surface); box-shadow:var(--shadow-1);}
   .hm-tile .ic{width:30px; height:30px; border-radius:9px; background:rgba(31,158,134,.09);
-    color:var(--brand); display:flex; align-items:center; justify-content:center;}
+    color:var(--brand-text); display:flex; align-items:center; justify-content:center;}
   .hm-tile .ic svg{width:16px; height:16px;}
   .hm-tile b{font-size:12.5px; font-weight:600;}
   .hm-tile .d{font-size:11px; color:var(--text-2); line-height:1.42;}
@@ -289,7 +313,7 @@
   /* scan-results compact */
   .sr-body{padding:24px 22px 6px;}
   .sr-reclaim{text-align:center; font-size:21px; font-weight:600; letter-spacing:-.02em; margin-bottom:4px;}
-  .sr-reclaim b{color:var(--brand);}
+  .sr-reclaim b{color:var(--brand-text);}
   .sr-sub{text-align:center; font-size:12.5px; color:var(--text-2); margin-bottom:18px;}
   .sr-filter{border:1px solid var(--separator); border-radius:12px; padding:13px 15px; margin-bottom:14px;}
   .sr-fh{display:flex; align-items:center; justify-content:space-between; font-size:12.5px; font-weight:600; margin-bottom:11px;}
@@ -305,10 +329,10 @@
     border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,.2); transform:translate(-50%,-50%);}
   .sr-cats{display:flex; flex-direction:column; gap:9px;}
   .sr-cat{display:flex; align-items:center; gap:13px; padding:12px 14px; border-radius:12px; border:1.5px solid var(--separator);}
-  .sr-cat.on{border-color:var(--brand); background:rgba(31,158,134,.07);}
+  .sr-cat.on{border-color:var(--brand-text); background:rgba(31,158,134,.07);}
   .sr-cat .ck{flex:none; width:21px; height:21px; border-radius:999px; border:2px solid var(--border);
     display:flex; align-items:center; justify-content:center;}
-  .sr-cat.on .ck{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .sr-cat.on .ck{background:var(--brand); border-color:var(--brand-text); color:#fff;}
   .sr-cat .ck svg{width:12px; height:12px;}
   .sr-cat .txt{flex:1;}
   .sr-cat .txt b{font-size:13.5px; font-weight:600; display:block;}
@@ -346,7 +370,7 @@
   }
   .priv-card .ic{
     width:40px; height:40px; border-radius:11px; background:rgba(52,184,158,.14);
-    color:var(--brand); display:flex; align-items:center; justify-content:center; margin-bottom:16px;
+    color:var(--brand-text); display:flex; align-items:center; justify-content:center; margin-bottom:16px;
   }
   .priv-card .ic svg{width:22px; height:22px;}
   .priv-card h3{font-size:17px; font-weight:600; margin-bottom:8px;}
@@ -360,7 +384,7 @@
   .split .body{font-size:16.5px; color:var(--text-2); line-height:1.6;}
   .split .body p{margin:0 0 16px;}
   .split .body strong{color:var(--text); font-weight:600;}
-  .split .body a{color:var(--brand); font-weight:600; text-decoration:none;}
+  .split .body a{color:var(--brand-text); font-weight:600; text-decoration:none;}
   .split .body a:hover{text-decoration:underline;}
   .note{
     background:var(--warn); background:rgba(178,106,0,.08);
@@ -386,7 +410,7 @@
   /* ---- install ---- */
   .install-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; counter-reset:i; margin-bottom:34px;}
   .ins{background:var(--surface); border:1px solid var(--separator); border-radius:14px; padding:22px 20px; box-shadow:var(--shadow-1);}
-  .ins .n{font-size:12px; font-weight:700; letter-spacing:.08em; color:var(--brand); font-variant-numeric:tabular-nums;}
+  .ins .n{font-size:12px; font-weight:700; letter-spacing:.08em; color:var(--brand-text); font-variant-numeric:tabular-nums;}
   .ins h3{font-size:15.5px; font-weight:600; margin:10px 0 6px;}
   .ins p{font-size:13.5px; color:var(--text-2); line-height:1.5; margin:0;}
   .ins code{font-family:var(--mono); font-size:.85em; background:var(--sunken); padding:1px 5px; border-radius:4px;}
@@ -510,7 +534,7 @@
     <div class="wrap">
       <svg class="hero-icon" viewBox="0 0 1024 1024" role="img" aria-label="Library Cleanup"><use href="#appicon"/></svg>
       <h1>Get gigabytes back from your photo library.</h1>
-      <p class="lede">Library Cleanup finds the burst clones, repeat video takes, and screenshot piles hiding in Apple Photos — you review and clear them in a few clicks. Everything runs on your Mac. Nothing is ever uploaded.</p>
+      <p class="lede">Library Cleanup finds the burst clones, repeat video takes, and screenshot piles hiding in Apple Photos. You review and clear them in a few clicks. Everything runs on your Mac. Nothing is ever uploaded.</p>
       <p class="proof">In my own library of 27,518 photos, it found <b>33.4&nbsp;GB</b> to clear.</p>
       <div class="cta-row">
         <a class="btn btn-primary" data-evt="download_macos" href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">
@@ -526,7 +550,7 @@
         <b>Notarized by Apple</b><span class="sep">·</span>
         <b>Apple Silicon</b><span class="sep">·</span>
         <b>macOS 13 Ventura or later</b><span class="sep">·</span>
-        <span>~43&nbsp;MB</span>
+        <span>~47&nbsp;MB</span>
       </p>
 
       <!-- faithful re-creation of the app's home window -->
@@ -548,7 +572,7 @@
 
         <div class="rv-body">
           <div class="rv-sec">
-            <h4>Duplicate photoshoots</h4>
+            <div class="rvh">Duplicate photoshoots</div>
             <div class="rv-sum">2 bursts · keeping 2 · removing 11</div>
             <div class="rv-group">
               <div class="ghead"><span class="gt">Jul 14, 2024</span><span class="gm">· 7 shots · keep 1 · remove 6</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
@@ -576,7 +600,7 @@
           </div>
 
           <div class="rv-sec">
-            <h4>Duplicate videos</h4>
+            <div class="rvh">Duplicate videos</div>
             <div class="rv-sum">2 sets · keeping 2 · removing 5</div>
             <div class="rv-group">
               <div class="ghead"><span class="gt">Sep 1, 2024</span><span class="gm">· 4 clips · keep 1 · remove 3</span><span class="sp"></span><span class="mini">Keep all</span><span class="mini">Remove all</span><span class="chev">▾</span></div>
@@ -612,7 +636,7 @@
     <div class="wrap">
       <div class="head">
         <p class="eyebrow">How it works</p>
-        <h2>Four steps — and you approve every removal.</h2>
+        <h2>Four steps, and you approve every removal.</h2>
       </div>
       <div class="steps">
         <div class="step">
@@ -670,7 +694,7 @@
         <div class="walk-copy">
           <div class="n">Step 1 · Scan</div>
           <h3>Point it at your library and walk away.</h3>
-          <p>Open the app and click <strong>Analyze</strong>. Apple's on-device Vision framework reads every photo and video right on your Mac, groups the look-alikes, and surfaces the clutter — no uploads, no account, no queue.</p>
+          <p>Open the app and click <strong>Analyze</strong>. Apple's on-device Vision framework reads every photo and video right on your Mac, groups the look-alikes, and surfaces the clutter. No uploads, no account, no queue.</p>
           <div class="chips">
             <span class="chip">On-device Vision</span>
             <span class="chip">Photos &amp; videos</span>
@@ -730,7 +754,7 @@
               <div class="rv-main">
                 <div class="rv-body" style="padding-bottom:14px">
                   <div class="rv-sec">
-                    <h4>Duplicate photoshoots</h4>
+                    <div class="rvh">Duplicate photoshoots</div>
                     <div class="rv-sum">2 bursts · keeping 2 · removing 7</div>
                     <div class="rv-group">
                       <div class="ghead"><span class="gt">Beach trip · Jul 14</span><span class="gm">· 5 · keep 1</span><span class="sp"></span><span class="chev">▾</span></div>
@@ -781,12 +805,12 @@
 
       <div class="midcta">
         <h3>Curious what's hiding in yours?</h3>
-        <p>One scan tells you — free, and nothing is removed until you say so.</p>
+        <p>One scan tells you. It's free, and nothing is removed until you say so.</p>
         <a class="btn btn-primary" data-evt="download_macos" href="https://github.com/Vaskiscz/library_cleanup/releases/latest/download/Library-Cleanup.dmg">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 v12 M7 11 l5 5 5 -5 M5 20 h14"/></svg>
           Download free for macOS
         </a>
-        <p class="req"><b>Free</b><span class="sep">·</span><a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit"><b>Open source</b></a><span class="sep">·</span><span>~43&nbsp;MB</span></p>
+        <p class="req"><b>Free</b><span class="sep">·</span><a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit"><b>Open source</b></a><span class="sep">·</span><span>~47&nbsp;MB</span></p>
       </div>
     </div>
   </section>
@@ -808,7 +832,7 @@
         <div class="priv-card">
           <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-cloud-off"/></svg></span>
           <h3>No cloud, no account</h3>
-          <p>Everything happens on your own Mac — no sign-up, no servers, no uploads, no analytics on your images.</p>
+          <p>Everything happens on your own Mac. No sign-up, no servers, no uploads, no analytics on your images.</p>
         </div>
         <div class="priv-card">
           <span class="ic"><svg viewBox="0 0 24 24"><use href="#i-lock"/></svg></span>
@@ -829,7 +853,7 @@
       <div class="body">
         <p>To do its job, Library Cleanup has to read your <strong>whole</strong> Photos library and delete photos through Apple's PhotoKit. That needs <strong>Full Disk Access</strong> and delete permissions the App Store sandbox won't hand out.</p>
         <p>Rather than gut what makes it useful to fit the sandbox, I distribute it directly.</p>
-        <p>And because it asks for that much access, the full source is public — you (or anyone) can <a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit">audit exactly what it does on GitHub</a> before trusting it with your library.</p>
+        <p>And because it asks for that much access, the full source is public, so you (or anyone) can <a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit">audit exactly what it does on GitHub</a> before trusting it with your library.</p>
       </div>
     </div>
   </section>
@@ -904,7 +928,7 @@
         </div>
         <div class="faq">
           <h3>Is it really free? What's the catch?</h3>
-          <p>Really free. No trial, no locked features, no subscription. I built it for my own library and decided to share it. If it saves you time, a tip is appreciated — but that's the entire business model.</p>
+          <p>Really free. No trial, no locked features, no subscription. I built it for my own library and decided to share it. If it saves you time, a tip is appreciated, but that's the entire business model.</p>
         </div>
         <div class="faq">
           <h3>Is it signed and notarized?</h3>
@@ -916,7 +940,7 @@
         </div>
         <div class="faq">
           <h3>What does it never do?</h3>
-          <p>It never uploads anything, never edits or re-compresses your originals, never deletes without your confirmation, and never phones home. The <a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit">source is public</a>, so you don't have to take my word for it.</p>
+          <p>It never uploads your photos, never edits or re-compresses your originals, and never deletes without your confirmation. The only network call it makes is an anonymous check to GitHub for a newer version. The <a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit">source is public</a>, so you don't have to take my word for it.</p>
         </div>
       </div>
     </div>
@@ -930,7 +954,7 @@
         <div>
           <p class="eyebrow">About the maker</p>
           <h2>Made by one person who wanted a tidier library.</h2>
-          <p>Hi, I'm Václav Trnka, an IT product manager. Library Cleanup started as a way to tame my own overflowing Photos library and became a passion project I'm sharing for free. No company behind it, no roadmap board — just someone who cares that it works well and keeps your photos safe.</p>
+          <p>Hi, I'm Václav Trnka, an IT product manager. Library Cleanup started as a way to tame my own overflowing Photos library and became a passion project I'm sharing for free. No company behind it, no roadmap board, just someone who cares that it works well and keeps your photos safe.</p>
           <p>Questions, ideas, or something not working right? I'd genuinely like to hear it. Reach me on LinkedIn.</p>
           <a class="btn btn-linkedin" data-evt="linkedin" href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">
             <svg viewBox="0 0 24 24" width="20" height="20"><use href="#i-linkedin"/></svg>
@@ -946,11 +970,11 @@
     .companion{display:grid; grid-template-columns:auto 1fr auto; gap:22px; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:26px 30px; box-shadow:var(--shadow-1);}
     .companion .cic{width:60px; height:60px; border-radius:14px; overflow:hidden; box-shadow:var(--shadow-1); flex:none;}
     .companion .cic svg{width:100%; height:100%; display:block;}
-    .companion .ctxt small{font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--brand);}
+    .companion .ctxt small{font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--brand-text);}
     .companion .ctxt h3{font-size:20px; font-weight:700; margin:6px 0 5px; letter-spacing:-.02em;}
     .companion .ctxt p{font-size:14.5px; color:var(--text-2); margin:0; line-height:1.5; max-width:56ch;}
     .companion .cbtn{display:inline-flex; align-items:center; gap:8px; text-decoration:none; white-space:nowrap; font-size:15px; font-weight:600; color:var(--text); border:1px solid var(--border); border-radius:12px; padding:12px 20px; background:var(--surface-2); transition:border-color .15s ease,color .15s ease;}
-    .companion .cbtn:hover{border-color:var(--brand); color:var(--brand);}
+    .companion .cbtn:hover{border-color:var(--brand-text); color:var(--brand-text);}
     @media(max-width:880px){.companion{grid-template-columns:1fr; text-align:center; justify-items:center; gap:16px;} .companion .ctxt p{margin:0 auto;}}
   </style>
   <section class="band band-tight">
@@ -978,7 +1002,7 @@
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 v12 M7 11 l5 5 5 -5 M5 20 h14"/></svg>
         Download free for macOS
       </a>
-      <p class="req"><b>Free</b><span class="sep">·</span><a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit"><b>Open source</b></a><span class="sep">·</span><b>Notarized by Apple</b><span class="sep">·</span><b>Apple Silicon</b><span class="sep">·</span><b>macOS 13 Ventura or later</b><span class="sep">·</span><span>~43&nbsp;MB</span></p>
+      <p class="req"><b>Free</b><span class="sep">·</span><a href="https://github.com/Vaskiscz/library_cleanup" target="_blank" rel="noopener noreferrer" data-evt="github_audit"><b>Open source</b></a><span class="sep">·</span><b>Notarized by Apple</b><span class="sep">·</span><b>Apple Silicon</b><span class="sep">·</span><b>macOS 13 Ventura or later</b><span class="sep">·</span><span>~47&nbsp;MB</span></p>
     </div>
   </section>
 

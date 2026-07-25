@@ -3,9 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Selects — Keep your best shots, free up space on iPhone</title>
+<meta name="theme-color" content="#f4f4f6">
+<meta property="og:locale" content="en_US">
+<link rel="apple-touch-icon" href="/selects/apple-touch-icon.png">
+<title>Selects: Photo Curator · Keep your best shots on iPhone</title>
 <meta name="description" content="Turn a 40-photo shoot into its best few. Selects groups your near-identical shots on iPhone, pre-picks the keepers, and clears the rest. Free, on-device, no account.">
-<meta property="og:title" content="Selects — Keep your best shots, free up space on iPhone">
+<meta property="og:title" content="Selects: Photo Curator · Keep your best shots on iPhone">
 <meta property="og:description" content="Turn a 40-photo photoshoot into its best few, right on your iPhone. Free and on-device.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vaclavtrnka.cz/selects/">
@@ -25,6 +28,27 @@
       y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
   })(window, document, "clarity", "script", "xh7wgelo83");
 </script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Selects: Photo Curator",
+ "applicationCategory": "MultimediaApplication",
+ "operatingSystem": "iOS 26 or later",
+ "url": "https://vaclavtrnka.cz/selects/",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "EUR"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Václav Trnka",
+  "url": "https://vaclavtrnka.cz/"
+ },
+ "description": "An iPhone app that groups near-identical photos into photoshoots, pre-picks the keepers, and lets you clear the rest. Runs on your iPhone."
+}
+</script>
 </head>
 <body>
 <style>
@@ -34,7 +58,7 @@
     --bg:#f4f4f6; --surface:#fff; --surface-2:#fbfbfd; --sunken:#ececef;
     --text:#1d1d1f; --text-2:#6e6e73; --text-3:#98989d;
     --border:#d9d9de; --separator:#e7e7eb;
-    --brand:#1f9e86; --brand-strong:#178a74;
+    --brand:#1f9e86; --brand-strong:#178a74; --brand-text:#147966;
     --brand-teal:#15a89a; --brand-green:#2f9e5f;
     --grad:linear-gradient(135deg,#15a89a,#2f9e5f);
     --keep:#2e9e57; --clear:#e5484d; --warn:#b26a00;
@@ -62,11 +86,11 @@
     background:#16302b; color:#eaf3f0;
     --surface:#1e3a34; --surface-2:#1a332e; --border:#2b473f; --separator:#264039;
     --text:#eaf3f0; --text-2:#9fbdb4; --text-3:#6f8f86;
-    --brand:#4fd6b8; --keep:#69d79a;
+    --brand:#4fd6b8; --brand-text:#4fd6b8; --keep:#69d79a;
   }
   .eyebrow{
     font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
-    color:var(--brand); margin:0 0 18px;
+    color:var(--brand-text); margin:0 0 18px;
   }
   .band-dark .eyebrow{color:#4fd6b8;}
 
@@ -112,17 +136,17 @@
     border-radius:13px; padding:11px 20px; box-shadow:var(--shadow-1);
     transition:transform .12s var(--ease),border-color .12s var(--ease);
   }
-  .appstore:hover{transform:translateY(-1px); border-color:var(--brand);}
+  .appstore:hover{transform:translateY(-1px); border-color:var(--brand-text);}
   .appstore svg{width:23px; height:23px; flex:none; color:var(--text-2);}
   .appstore .l1{font-size:11px; line-height:1; color:var(--text-3); display:block; margin-bottom:3px; letter-spacing:.02em;}
   .appstore .l2{font-size:18px; font-weight:600; line-height:1; letter-spacing:-.01em; display:block; color:var(--text);}
   .appstore .soon{
     margin-left:2px; font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
-    color:var(--brand); background:rgba(31,158,134,.12); padding:4px 8px; border-radius:999px; align-self:center;
+    color:var(--brand-text); background:rgba(31,158,134,.12); padding:4px 8px; border-radius:999px; align-self:center;
   }
-  .btn-text{display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-size:16px; font-weight:600; color:var(--brand); padding:8px 4px;}
+  .site a.btn-text{display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-size:16px; font-weight:600; color:var(--brand-text); padding:8px 4px;}
   .btn-text:hover{text-decoration:underline;}
-  .req{margin-top:22px; font-size:13.5px; color:var(--text-3); display:flex; gap:9px; flex-wrap:wrap; align-items:center; animation:rise .7s var(--ease) .2s both;}
+  .req{margin-top:22px; font-size:13.5px; color:var(--text-2); display:flex; gap:9px; flex-wrap:wrap; align-items:center; animation:rise .7s var(--ease) .2s both;}
   .req b{color:var(--text-2); font-weight:600;}
   .req .sep{opacity:.45;}
   .hero .device{animation:rise .8s var(--ease) .12s both;}
@@ -131,7 +155,7 @@
   /* ---------------- flow (real screens) ---------------- */
   .sec-head{max-width:640px; margin:0 auto 60px; text-align:center;}
   .sec-head h2{font-size:clamp(28px,3.6vw,40px); font-weight:700; letter-spacing:-.03em;}
-  .sec-head p{color:var(--text-2); font-size:clamp(16px,1.8vw,19px); margin:16px auto 0; max-width:52ch; line-height:1.5;}
+  .sec-head p:not(.eyebrow){color:var(--text-2); font-size:clamp(16px,1.8vw,19px); margin:16px auto 0; max-width:52ch; line-height:1.5;}
   .flow{display:flex; flex-direction:column; gap:84px; max-width:960px; margin:0 auto;}
   .flow-row{display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center;}
   .flow-row .flow-phone{display:flex; justify-content:center;}
@@ -140,9 +164,9 @@
   .flow-num{
     display:inline-flex; align-items:center; justify-content:center;
     width:34px; height:34px; border-radius:999px; margin-bottom:16px;
-    background:rgba(31,158,134,.12); color:var(--brand); font-size:15px; font-weight:700;
+    background:rgba(31,158,134,.12); color:var(--brand-text); font-size:15px; font-weight:700;
   }
-  .flow-copy .tag{font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--brand); margin:0 0 12px;}
+  .flow-copy .tag{font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--brand-text); margin:0 0 12px;}
   .flow-copy h3{font-size:clamp(23px,2.7vw,30px); font-weight:700; letter-spacing:-.028em;}
   .flow-copy p{font-size:16.5px; color:var(--text-2); line-height:1.6; margin:16px 0 0;}
   .flow-copy p b{color:var(--text); font-weight:600;}
@@ -150,7 +174,7 @@
   /* ---------------- privacy band ---------------- */
   .priv-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:44px;}
   .pcard{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px;}
-  .pcard .pi{width:34px; height:34px; color:var(--brand); margin-bottom:14px;}
+  .pcard .pi{width:34px; height:34px; color:var(--brand-text); margin-bottom:14px;}
   .pcard h3{font-size:16.5px; font-weight:600; margin:0 0 7px; color:var(--text);}
   .pcard p{font-size:14.5px; color:var(--text-2); line-height:1.55; margin:0;}
   .pcard p b{color:var(--text); font-weight:600;}
@@ -162,7 +186,7 @@
     padding:26px 30px; box-shadow:var(--shadow-1);
   }
   .companion .cic{width:60px; height:60px; border-radius:14px; box-shadow:var(--shadow-1);}
-  .companion .ctxt small{font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--brand);}
+  .companion .ctxt small{font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--brand-text);}
   .companion .ctxt h3{font-size:20px; font-weight:700; margin:6px 0 5px; letter-spacing:-.02em;}
   .companion .ctxt p{font-size:14.5px; color:var(--text-2); margin:0; line-height:1.5; max-width:52ch;}
   .companion .cbtn{
@@ -170,7 +194,7 @@
     font-size:15px; font-weight:600; color:var(--text); border:1px solid var(--border);
     border-radius:12px; padding:12px 20px; background:var(--surface-2);
   }
-  .companion .cbtn:hover{border-color:var(--brand); color:var(--brand);}
+  .companion .cbtn:hover{border-color:var(--brand-text); color:var(--brand-text);}
 
   /* ---------------- faq ---------------- */
   .faq-list{max-width:720px; margin:0 auto;}
@@ -180,7 +204,7 @@
   .faq h3{font-size:17px; font-weight:600; margin:0 0 8px;}
   .faq p{font-size:15.5px; color:var(--text-2); line-height:1.6; margin:0;}
   .faq p b{color:var(--text); font-weight:600;}
-  .faq a{color:var(--brand); font-weight:600; text-decoration:none;}
+  .site .faq a{color:var(--brand-text); font-weight:600; text-decoration:underline; text-underline-offset:2px;}
   .faq a:hover{text-decoration:underline;}
 
   /* ---------------- final cta ---------------- */
@@ -198,7 +222,7 @@
   .foot .fl img{width:26px; height:26px; border-radius:7px;}
   .foot nav{display:flex; gap:22px; font-size:14px;}
   .foot nav a{color:var(--text-2); text-decoration:none;}
-  .foot nav a:hover{color:var(--brand);}
+  .foot nav a:hover{color:var(--brand-text);}
 
   @keyframes rise{from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:none;}}
   @media (prefers-reduced-motion:reduce){.site *{animation:none !important;}}
@@ -231,14 +255,14 @@
             <span>iPhone&nbsp;&middot;&nbsp;Runs on&#8209;device</span>
           </div>
           <h1>Keep your best shots, clear the rest.</h1>
-          <p class="lede">You shoot the same scene thirty times to get one good photo. Selects finds those photoshoots and pre&#8209;picks the keepers — you just correct with a tap.</p>
+          <p class="lede">You shoot the same scene thirty times to get one good photo. Selects finds those photoshoots and pre&#8209;picks the keepers. You just correct with a tap.</p>
           <div class="cta-row">
             <a class="appstore" href="#" data-evt="cta_appstore_hero">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.54c-.02-2.02 1.65-2.99 1.72-3.04-0.94-1.37-2.4-1.56-2.92-1.58-1.24-.13-2.42.73-3.05.73-.63 0-1.6-.71-2.63-.69-1.35.02-2.6.79-3.29 2-1.4 2.43-.36 6.03 1 8 .67.96 1.46 2.04 2.5 2 1.01-.04 1.39-.65 2.61-.65 1.22 0 1.56.65 2.63.63 1.09-.02 1.77-.98 2.43-1.95.77-1.12 1.09-2.2 1.11-2.26-.02-.01-2.13-.82-2.15-3.24zM15.03 6.34c.55-.67.93-1.6.82-2.53-.8.03-1.77.53-2.34 1.2-.51.59-.96 1.53-.84 2.44.89.07 1.8-.45 2.36-1.11z"/></svg>
               <span><span class="l1">Download on the</span><span class="l2">App Store</span></span>
               <span class="soon">Soon</span>
             </a>
-            <a class="btn-text" href="#how" data-evt="cta_how_hero">See how it works — three taps
+            <a class="btn-text" href="#how" data-evt="cta_how_hero">See how it works in three taps
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </a>
           </div>
@@ -268,7 +292,7 @@
           <div class="flow-copy">
             <span class="flow-num">1</span>
             <h3>It pre-picks the keepers. You just correct.</h3>
-            <p>Selects groups each photoshoot — the same scene shot ten or twenty times — and pre&#8209;picks two keepers: the sharpest, and the one that's genuinely different so you don't lose the moment. Everything else it suggests for clearing. <b>Tap a circle to flip any shot between keep and clear.</b> That's the whole job.</p>
+            <p>Selects groups each photoshoot (the same scene shot ten or twenty times) and pre&#8209;picks two keepers: the sharpest, and the one that's genuinely different so you don't lose the moment. Everything else it suggests for clearing. <b>Tap a circle to flip any shot between keep and clear.</b> That's the whole job.</p>
           </div>
         </div>
 
@@ -288,7 +312,7 @@
           <div class="flow-copy">
             <span class="flow-num">3</span>
             <h3>Your best few, and the space back.</h3>
-            <p>A 40&#8209;photo shoot becomes its best handful. Selects tallies what you kept, what you cleared, and the gigabytes you reclaimed — then lets you roll straight into the next shoot.</p>
+            <p>A 40&#8209;photo shoot becomes its best handful. Selects tallies what you kept, what you cleared, and the gigabytes you reclaimed, then lets you roll straight into the next shoot.</p>
           </div>
         </div>
 
@@ -317,7 +341,7 @@
         <div class="pcard">
           <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
           <h3>On-device, always</h3>
-          <p>Grouping and scoring run entirely on your iPhone — no server, no round trip. Your photos are never uploaded.</p>
+          <p>Grouping and scoring run entirely on your iPhone. Your photos are never uploaded and never leave the device.</p>
         </div>
         <div class="pcard">
           <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
@@ -356,9 +380,9 @@
     <div class="wrap">
       <div class="sec-head"><h2>Questions</h2></div>
       <div class="faq-list">
-        <div class="faq"><h3>Is it really free?</h3><p>Yes — no account, no subscription, no ads, no upsell. There's an optional tip jar if you'd like to support it, nothing more.</p></div>
+        <div class="faq"><h3>Is it really free?</h3><p>Yes. No account, no subscription, no ads, no upsell. There's an optional tip jar if you'd like to support it, nothing more.</p></div>
         <div class="faq"><h3>Do my photos ever leave my iPhone?</h3><p>Never. Selects reads your library on&#8209;device using the Vision framework already on your iPhone, so your photos are never uploaded. No account, and no copy of your photos in the cloud.</p></div>
-        <div class="faq"><h3>Can it delete a photo I want to keep?</h3><p>No — Selects only suggests. You confirm the removal, and it goes through iPhone's own delete, so cleared photos sit in <b>Recently Deleted for 30 days</b> and can be restored any time in that window.</p></div>
+        <div class="faq"><h3>Can it delete a photo I want to keep?</h3><p>No. Selects only suggests. You confirm the removal, and it goes through iPhone's own delete, so cleared photos sit in <b>Recently Deleted for 30 days</b> and can be restored any time in that window.</p></div>
         <div class="faq"><h3>What if I'd rather choose everything myself?</h3><p>Tap <b>Browse all photos</b> to skip the grouping and go through your library by hand, newest first. Same safe removal at the end.</p></div>
         <div class="faq"><h3>Which iPhones does it support?</h3><p>Any iPhone running iOS&nbsp;26 or later.</p></div>
         <div class="faq"><h3>How is it different from Library Cleanup?</h3><p>Same family, different job. Selects is the on&#8209;the&#8209;go photoshoot curator for iPhone. <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a> is the deep&#8209;clean tier for your whole Mac library, focused on reclaiming storage from duplicate photoshoots and repeat videos.</p></div>

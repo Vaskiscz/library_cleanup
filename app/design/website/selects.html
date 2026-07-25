@@ -1,4 +1,3 @@
-<title>Selects: Photo Curator for iPhone</title>
 <style>
   :root{color-scheme:light;}
   .site{
@@ -6,7 +5,7 @@
     --bg:#f4f4f6; --surface:#fff; --surface-2:#fbfbfd; --sunken:#ececef;
     --text:#1d1d1f; --text-2:#6e6e73; --text-3:#98989d;
     --border:#d9d9de; --separator:#e7e7eb;
-    --brand:#1f9e86; --brand-strong:#178a74;
+    --brand:#1f9e86; --brand-strong:#178a74; --brand-text:#147966;
     --brand-teal:#15a89a; --brand-green:#2f9e5f;
     --grad:linear-gradient(135deg,#15a89a,#2f9e5f);
     --keep:#2e9e57; --clear:#e5484d; --warn:#b26a00;
@@ -34,11 +33,11 @@
     background:#16302b; color:#eaf3f0;
     --surface:#1e3a34; --surface-2:#1a332e; --border:#2b473f; --separator:#264039;
     --text:#eaf3f0; --text-2:#9fbdb4; --text-3:#6f8f86;
-    --brand:#4fd6b8; --keep:#69d79a;
+    --brand:#4fd6b8; --brand-text:#4fd6b8; --keep:#69d79a;
   }
   .eyebrow{
     font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
-    color:var(--brand); margin:0 0 18px;
+    color:var(--brand-text); margin:0 0 18px;
   }
   .band-dark .eyebrow{color:#4fd6b8;}
 
@@ -84,17 +83,17 @@
     border-radius:13px; padding:11px 20px; box-shadow:var(--shadow-1);
     transition:transform .12s var(--ease),border-color .12s var(--ease);
   }
-  .appstore:hover{transform:translateY(-1px); border-color:var(--brand);}
+  .appstore:hover{transform:translateY(-1px); border-color:var(--brand-text);}
   .appstore svg{width:23px; height:23px; flex:none; color:var(--text-2);}
   .appstore .l1{font-size:11px; line-height:1; color:var(--text-3); display:block; margin-bottom:3px; letter-spacing:.02em;}
   .appstore .l2{font-size:18px; font-weight:600; line-height:1; letter-spacing:-.01em; display:block; color:var(--text);}
   .appstore .soon{
     margin-left:2px; font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
-    color:var(--brand); background:rgba(31,158,134,.12); padding:4px 8px; border-radius:999px; align-self:center;
+    color:var(--brand-text); background:rgba(31,158,134,.12); padding:4px 8px; border-radius:999px; align-self:center;
   }
-  .btn-text{display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-size:16px; font-weight:600; color:var(--brand); padding:8px 4px;}
+  .site a.btn-text{display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-size:16px; font-weight:600; color:var(--brand-text); padding:8px 4px;}
   .btn-text:hover{text-decoration:underline;}
-  .req{margin-top:22px; font-size:13.5px; color:var(--text-3); display:flex; gap:9px; flex-wrap:wrap; align-items:center; animation:rise .7s var(--ease) .2s both;}
+  .req{margin-top:22px; font-size:13.5px; color:var(--text-2); display:flex; gap:9px; flex-wrap:wrap; align-items:center; animation:rise .7s var(--ease) .2s both;}
   .req b{color:var(--text-2); font-weight:600;}
   .req .sep{opacity:.45;}
   .hero .device{animation:rise .8s var(--ease) .12s both;}
@@ -103,7 +102,7 @@
   /* ---------------- flow (real screens) ---------------- */
   .sec-head{max-width:640px; margin:0 auto 60px; text-align:center;}
   .sec-head h2{font-size:clamp(28px,3.6vw,40px); font-weight:700; letter-spacing:-.03em;}
-  .sec-head p{color:var(--text-2); font-size:clamp(16px,1.8vw,19px); margin:16px auto 0; max-width:52ch; line-height:1.5;}
+  .sec-head p:not(.eyebrow){color:var(--text-2); font-size:clamp(16px,1.8vw,19px); margin:16px auto 0; max-width:52ch; line-height:1.5;}
   .flow{display:flex; flex-direction:column; gap:84px; max-width:960px; margin:0 auto;}
   .flow-row{display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center;}
   .flow-row .flow-phone{display:flex; justify-content:center;}
@@ -112,9 +111,9 @@
   .flow-num{
     display:inline-flex; align-items:center; justify-content:center;
     width:34px; height:34px; border-radius:999px; margin-bottom:16px;
-    background:rgba(31,158,134,.12); color:var(--brand); font-size:15px; font-weight:700;
+    background:rgba(31,158,134,.12); color:var(--brand-text); font-size:15px; font-weight:700;
   }
-  .flow-copy .tag{font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--brand); margin:0 0 12px;}
+  .flow-copy .tag{font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--brand-text); margin:0 0 12px;}
   .flow-copy h3{font-size:clamp(23px,2.7vw,30px); font-weight:700; letter-spacing:-.028em;}
   .flow-copy p{font-size:16.5px; color:var(--text-2); line-height:1.6; margin:16px 0 0;}
   .flow-copy p b{color:var(--text); font-weight:600;}
@@ -122,7 +121,7 @@
   /* ---------------- privacy band ---------------- */
   .priv-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:44px;}
   .pcard{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px;}
-  .pcard .pi{width:34px; height:34px; color:var(--brand); margin-bottom:14px;}
+  .pcard .pi{width:34px; height:34px; color:var(--brand-text); margin-bottom:14px;}
   .pcard h3{font-size:16.5px; font-weight:600; margin:0 0 7px; color:var(--text);}
   .pcard p{font-size:14.5px; color:var(--text-2); line-height:1.55; margin:0;}
   .pcard p b{color:var(--text); font-weight:600;}
@@ -134,7 +133,7 @@
     padding:26px 30px; box-shadow:var(--shadow-1);
   }
   .companion .cic{width:60px; height:60px; border-radius:14px; box-shadow:var(--shadow-1);}
-  .companion .ctxt small{font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--brand);}
+  .companion .ctxt small{font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--brand-text);}
   .companion .ctxt h3{font-size:20px; font-weight:700; margin:6px 0 5px; letter-spacing:-.02em;}
   .companion .ctxt p{font-size:14.5px; color:var(--text-2); margin:0; line-height:1.5; max-width:52ch;}
   .companion .cbtn{
@@ -142,7 +141,7 @@
     font-size:15px; font-weight:600; color:var(--text); border:1px solid var(--border);
     border-radius:12px; padding:12px 20px; background:var(--surface-2);
   }
-  .companion .cbtn:hover{border-color:var(--brand); color:var(--brand);}
+  .companion .cbtn:hover{border-color:var(--brand-text); color:var(--brand-text);}
 
   /* ---------------- faq ---------------- */
   .faq-list{max-width:720px; margin:0 auto;}
@@ -152,7 +151,7 @@
   .faq h3{font-size:17px; font-weight:600; margin:0 0 8px;}
   .faq p{font-size:15.5px; color:var(--text-2); line-height:1.6; margin:0;}
   .faq p b{color:var(--text); font-weight:600;}
-  .faq a{color:var(--brand); font-weight:600; text-decoration:none;}
+  .site .faq a{color:var(--brand-text); font-weight:600; text-decoration:underline; text-underline-offset:2px;}
   .faq a:hover{text-decoration:underline;}
 
   /* ---------------- final cta ---------------- */
@@ -170,7 +169,7 @@
   .foot .fl img{width:26px; height:26px; border-radius:7px;}
   .foot nav{display:flex; gap:22px; font-size:14px;}
   .foot nav a{color:var(--text-2); text-decoration:none;}
-  .foot nav a:hover{color:var(--brand);}
+  .foot nav a:hover{color:var(--brand-text);}
 
   @keyframes rise{from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:none;}}
   @media (prefers-reduced-motion:reduce){.site *{animation:none !important;}}
@@ -210,7 +209,7 @@
               <span><span class="l1">Download on the</span><span class="l2">App Store</span></span>
               <span class="soon">Soon</span>
             </a>
-            <a class="btn-text" href="#how" data-evt="cta_how_hero">See how it works
+            <a class="btn-text" href="#how" data-evt="cta_how_hero">See how it works in three taps
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </a>
           </div>
@@ -240,7 +239,7 @@
           <div class="flow-copy">
             <span class="flow-num">1</span>
             <h3>It pre-picks the keepers. You just correct.</h3>
-            <p>Selects groups each photoshoot, the same scene shot ten or twenty times, and pre&#8209;picks the sharpest plus the one that's genuinely different so you don't lose the moment. Everything else is suggested for clearing. <b>Tap a circle to flip between keep and clear.</b> That's the whole job.</p>
+            <p>Selects groups each photoshoot (the same scene shot ten or twenty times) and pre&#8209;picks two keepers: the sharpest, and the one that's genuinely different so you don't lose the moment. Everything else it suggests for clearing. <b>Tap a circle to flip any shot between keep and clear.</b> That's the whole job.</p>
           </div>
         </div>
 
@@ -250,7 +249,7 @@
           <div class="flow-copy">
             <span class="flow-num">2</span>
             <h3>Remove, safely.</h3>
-            <p>When you're happy, Selects shows exactly what you'll clear and the space you'll get back, then hands off to iPhone's own delete to confirm. Nothing is ever removed without your tap, and cleared photos stay in <b>Recently Deleted for 30 days</b>.</p>
+            <p>When you're ready, Selects shows exactly what you'll clear and the space you'll get back, then hands off to iPhone's own delete to confirm. Nothing is ever removed without your tap, and cleared photos stay in <b>Recently Deleted for 30 days</b>.</p>
           </div>
         </div>
 
@@ -269,8 +268,8 @@
           <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/library.webp" width="640" height="1391" loading="lazy" alt="Browse all photos: the whole library newest-first, with photos marked for removal"></div></div>
           <div class="flow-copy">
             <span class="tag">Another way</span>
-            <h3>Or curate the whole library by hand.</h3>
-            <p>Skip the grouping and browse everything, newest first. Tap the photos you don't want, and Selects queues them for the same safe removal. Two paths, one clean library.</p>
+            <h3>Prefer to choose everything yourself?</h3>
+            <p>Skip the grouping and browse your whole library, newest first. Tap the photos you don't want, and Selects queues them for the same safe removal. Two paths, one clean library.</p>
           </div>
         </div>
       </div>
@@ -283,7 +282,7 @@
       <div class="sec-head">
         <p class="eyebrow">Everything stays on your iPhone</p>
         <h2>Your photos never leave your iPhone.</h2>
-        <p>Selects reads your library on&#8209;device, using the same Vision framework built into your phone. No account, no ads, no photo uploads.</p>
+        <p>Selects reads your library on&#8209;device, using the same Vision framework already built into your phone. No account, no ads, no photo uploads.</p>
       </div>
       <div class="priv-grid">
         <div class="pcard">
@@ -313,7 +312,7 @@
         <div class="ctxt">
           <small>Its companion on the Mac</small>
           <h3>Freeing up space on your Mac too?</h3>
-          <p>Library Cleanup is the deep&#8209;clean tier of the same family: it sweeps your whole Mac photo library for duplicate photoshoots and videos, and shows you the gigabytes you can reclaim. Same on&#8209;device promise, same safety.</p>
+          <p>Library Cleanup is the deep&#8209;clean tier of the same family: it sweeps your whole Mac photo library for duplicate photoshoots and repeat videos. In my own 27,518-photo library, it found 33.4 GB to clear. Same on&#8209;device promise, same safety.</p>
         </div>
         <a class="cbtn" href="https://vaclavtrnka.cz/library-cleanup" data-evt="cta_library_cleanup">
           Get Library Cleanup
@@ -328,12 +327,12 @@
     <div class="wrap">
       <div class="sec-head"><h2>Questions</h2></div>
       <div class="faq-list">
-        <div class="faq"><h3>Is it really free?</h3><p>Yes. No account, no subscription, no ads, no upsell. Selects is free to use in full. There's an optional tip jar if you'd like to support it, nothing more.</p></div>
-        <div class="faq"><h3>Do my photos ever leave my iPhone?</h3><p>Never. Selects reads your library on&#8209;device using the Vision framework already on your iPhone, so your photos are never uploaded and never leave the device. No account, and no copy of your photos in the cloud.</p></div>
-        <div class="faq"><h3>Can it delete a photo I wanted to keep?</h3><p>Selects only suggests. You confirm the removal, and it goes through iPhone's own delete, so cleared photos sit in <b>Recently Deleted for 30 days</b> and can be restored any time in that window.</p></div>
+        <div class="faq"><h3>Is it really free?</h3><p>Yes. No account, no subscription, no ads, no upsell. There's an optional tip jar if you'd like to support it, nothing more.</p></div>
+        <div class="faq"><h3>Do my photos ever leave my iPhone?</h3><p>Never. Selects reads your library on&#8209;device using the Vision framework already on your iPhone, so your photos are never uploaded. No account, and no copy of your photos in the cloud.</p></div>
+        <div class="faq"><h3>Can it delete a photo I want to keep?</h3><p>No. Selects only suggests. You confirm the removal, and it goes through iPhone's own delete, so cleared photos sit in <b>Recently Deleted for 30 days</b> and can be restored any time in that window.</p></div>
         <div class="faq"><h3>What if I'd rather choose everything myself?</h3><p>Tap <b>Browse all photos</b> to skip the grouping and go through your library by hand, newest first. Same safe removal at the end.</p></div>
         <div class="faq"><h3>Which iPhones does it support?</h3><p>Any iPhone running iOS&nbsp;26 or later.</p></div>
-        <div class="faq"><h3>How is it different from Library Cleanup?</h3><p>Same family, different job. Selects is the on&#8209;the&#8209;go photoshoot curator for iPhone. <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a> is the deep&#8209;clean tier for your whole Mac library, focused on reclaiming storage from duplicate photoshoots and videos.</p></div>
+        <div class="faq"><h3>How is it different from Library Cleanup?</h3><p>Same family, different job. Selects is the on&#8209;the&#8209;go photoshoot curator for iPhone. <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a> is the deep&#8209;clean tier for your whole Mac library, focused on reclaiming storage from duplicate photoshoots and repeat videos.</p></div>
       </div>
     </div>
   </section>
@@ -369,3 +368,9 @@
     </div>
   </footer>
 </div>
+<script>
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-evt]');
+    if (el && window.clarity) { try { clarity('event', el.getAttribute('data-evt')); } catch (_) {} }
+  }, true);
+</script>
