@@ -21,7 +21,27 @@
   [headers.values]
     Cache-Control = "public, max-age=604800"
 
-# Long-cache raster images (favicons, OG cards, screenshots).
+# Long-cache raster images (OG cards, screenshots, app icons).
+#
+# Two different caches bite here, and they need different answers.
+#
+# Ordinary <img> assets are fine to replace in place. They ride this 7-day
+# cache, but HTML is max-age=0, must-revalidate, so a page load re-fetches
+# anything whose bytes changed.
+#
+# FAVICONS AND APPLE TOUCH ICONS ARE NOT ORDINARY ASSETS. Browsers keep them in
+# their own persistent icon store, separate from the HTTP cache and refreshed
+# lazily, so a replaced favicon can keep showing the old art for days after the
+# page itself has updated. No header fixes that, because the browser is not
+# asking. Only a new URL does.
+#
+# So those two filenames carry a version: favicon-v2.png,
+# apple-touch-icon-v2.png. When the art changes, bump the suffix and update
+# heads/selects.html and heads/selects-privacy.html rather than overwriting.
+#
+# Learned the hard way: the Selects favicon kept serving the old Library Cleanup
+# art after the icon was replaced in place, while every <img> on the page had
+# already updated correctly.
 [[headers]]
   for = "/*.png"
   [headers.values]
