@@ -41,16 +41,16 @@
   }
   .band-dark .eyebrow{color:#4fd6b8;}
 
-  /* ---------------- device frame ---------------- */
-  .device{
-    flex:none; border-radius:44px; padding:9px;
-    background:linear-gradient(158deg,#2b2d31,#141517);
-    box-shadow:var(--shadow-phone); position:relative;
-  }
-  .device::after{ content:""; position:absolute; left:-2px; top:150px; width:3px; height:56px; border-radius:2px; background:#0c0d0f;}
-  .device img{display:block; width:100%; height:auto; border-radius:36px;}
-  .device.d-hero{width:294px;}
-  .device.d-flow{width:262px;}
+  /* ---------------- device art ---------------- */
+  /* The 1.5 renders are pre-framed: body, side button, rounded screen and
+     shadow are all in the PNG, with transparent corners. Drawing the old CSS
+     bezel around them would frame the phone twice. Widths are nudged up from
+     294/262 because the render's soft shadow eats a few pixels the old padded
+     frame did not. */
+  .device{flex:none; position:relative;}
+  .device img{display:block; width:100%; height:auto;}
+  .device.d-hero{width:310px;}
+  .device.d-flow{width:278px;}
 
   /* ---------------- hero ---------------- */
   .hero{padding:64px 0 76px; position:relative;}
@@ -76,6 +76,9 @@
     font-size:clamp(17px,2vw,20px); color:var(--text-2); line-height:1.52;
     max-width:44ch; margin:20px 0 0; text-wrap:pretty; animation:rise .7s var(--ease) .1s both;
   }
+  /* The compression line supports the lede rather than repeating its weight:
+     tighter above it, a touch smaller, same measure. */
+  .hero .lede-2{font-size:clamp(15.5px,1.8vw,17.5px); margin-top:13px; animation-delay:.13s;}
   .cta-row{display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-top:30px; animation:rise .7s var(--ease) .15s both;}
   /* Apple's official "Download on the App Store" badge, used unaltered.
      Guidelines: min 40px tall on web, clear space >= 10% of badge height,
@@ -196,6 +199,7 @@
           </div>
           <h1>Keep your best shots, clear the rest.</h1>
           <p class="lede">You shoot the same scene thirty times to get one good photo. Selects finds those photoshoots and pre&#8209;picks the keepers. You just correct with a tap.</p>
+          <p class="lede lede-2">And a big video doesn't have to go at all. Selects makes a smaller copy and leaves your original alone.</p>
           <div class="cta-row">
             <a class="appstore" href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=website&amp;mt=8" target="_blank" rel="noopener" data-evt="cta_appstore_hero"><img src="/selects/img/app-store-badge.svg" width="162" height="54" alt="Download on the App Store"></a>
             <a class="btn-text" href="#how" data-evt="cta_how_hero">See how it works in three taps
@@ -206,7 +210,7 @@
         </div>
 
         <div class="hero-phone">
-          <div class="device d-hero"><img src="/selects/img/home.webp" width="640" height="1391" fetchpriority="high" alt="Selects home screen: 12,480 items totalling 48.2 GB, with time-range chips and a Find photoshoots button"></div>
+          <div class="device d-hero"><img src="/selects/img/home-v2.webp" width="640" height="1338" fetchpriority="high" alt="Selects home screen: 48 GB of photos and videos, an all-time tally of 2,017 cleared, and a button to open September"></div>
         </div>
       </div>
     </div>
@@ -222,43 +226,43 @@
       </div>
 
       <div class="flow">
-        <!-- 1 · review -->
+        <!-- 1 · curate hub -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/review.webp" width="640" height="1391" loading="lazy" alt="Review screen: a photoshoot of near-identical coastal shots, keeping 2 and clearing 14, with the keepers ringed in green"></div></div>
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/curate-v2.webp" width="640" height="1338" loading="lazy" alt="The Everything screen: 18 GB to save, split across photoshoots, videos, screenshots and bursts, each with its own estimate"></div></div>
           <div class="flow-copy">
             <span class="flow-num">1</span>
-            <h3>It pre-picks the keepers. You just correct.</h3>
-            <p>Selects groups each photoshoot (the same scene shot ten or twenty times) and pre&#8209;picks the keepers: the sharpest, plus the one that's genuinely different so you don't lose the moment. Everything else it suggests for clearing. <b>Tap a circle to flip any shot between keep and clear</b>, or tap Compare to put two frames side by side. That's the whole job.</p>
+            <h3>See where the space went.</h3>
+            <p>Selects sorts your library into four passes and shows what each one could give back. <b>Photoshoots</b>, <b>bursts</b> that collapse to the one frame worth keeping, the <b>screenshots</b> you never opened again, and <b>videos</b> listed largest first. Start with the biggest. Or skip the grouping and browse everything in a plain grid.</p>
           </div>
         </div>
 
-        <!-- 2 · finalize -->
+        <!-- 2 · review -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/finalize.webp" width="640" height="1391" loading="lazy" alt="Finalize sheet: keeping 3 photos, removing 49, saving 166.6 MB, with a red Delete button"></div></div>
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/review-v2.webp" width="640" height="1338" loading="lazy" alt="Review screen: four near-identical frames of one photoshoot, two already ticked as keepers, keeping 2 and clearing 2"></div></div>
           <div class="flow-copy">
             <span class="flow-num">2</span>
-            <h3>Remove, safely.</h3>
-            <p>When you're ready, Selects shows exactly what you'll clear and the space you'll get back, then hands off to iPhone's own delete to confirm. Nothing is ever removed without your tap, and cleared photos stay in <b>Recently Deleted for 30 days</b>.</p>
+            <h3>It pre-picks the keepers. You just correct.</h3>
+            <p>Selects groups each photoshoot (the same scene shot ten or twenty times) and pre&#8209;picks the keepers: the sharpest, plus the one that's genuinely different so you don't lose the moment. <b>Tap a circle to flip any shot between keep and clear</b>, or tap Compare to put two frames side by side. Your choices are saved as you go.</p>
           </div>
         </div>
 
         <!-- 3 · done -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/done.webp" width="640" height="1391" loading="lazy" alt="Done screen: your best 96 kept, 412 photos cleared, 3.1 GB saved"></div></div>
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/done-v2.webp" width="640" height="1338" loading="lazy" alt="Done screen: your best 32 kept, 2.1 GB back, 480 photos cleared across 12 photoshoots"></div></div>
           <div class="flow-copy">
             <span class="flow-num">3</span>
             <h3>Your best few, and the space back.</h3>
-            <p>A 40&#8209;photo shoot becomes its best handful. Selects tallies what you kept, what you cleared, and the gigabytes you reclaimed, then lets you roll straight into the next shoot.</p>
+            <p>A 40&#8209;photo shoot becomes its best handful. Selects hands off to iPhone's own delete to confirm, so nothing goes without your tap, and everything cleared waits in <b>Recently Deleted for 30 days</b>. Then it tallies what you kept and what you got back, and rolls you into the next shoot.</p>
           </div>
         </div>
 
-        <!-- alt · browse -->
+        <!-- 4 · compress -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/hub.webp" width="640" height="1391" loading="lazy" alt="Overview screen: 1,674 items found taking up 21 GB, with separate passes for photoshoots, videos, screenshots and bursts"></div></div>
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/compress-v2.webp" width="640" height="1338" loading="lazy" alt="Compress screen: a coastal video previewed as Original or Compressed, with a smaller copy saving about 253 MB"></div></div>
           <div class="flow-copy">
-            <span class="tag">More ways in</span>
-            <h3>Bursts, screenshots and videos too.</h3>
-            <p>Photoshoots are one pass of four. <b>Bursts</b> hand you the one frame worth keeping out of a stack of forty. <b>Screenshots</b> clears the receipts and maps you never opened again. <b>Videos</b> lists yours largest first, since they are usually what fills the phone. Or skip the grouping entirely and <b>browse all photos</b> in a plain grid, tapping whatever goes.</p>
+            <span class="tag">Smaller, not gone</span>
+            <h3>A big video doesn't have to go.</h3>
+            <p>Selects makes a <b>smaller copy</b> and never touches your original. You see a real preview first, encoded from the hardest seconds of that clip, so you judge the quality yourself instead of trusting a number. Both sit in your library until you decide. The space comes back when you remove the original, which is its own confirmed step.</p>
           </div>
         </div>
       </div>
@@ -317,13 +321,16 @@
       <div class="sec-head"><h2>Questions</h2></div>
       <div class="faq-list">
         <div class="faq"><h3>Is it really free?</h3><p>Yes. No account, no subscription, no ads, and nothing locked behind a paywall. There's an optional tip jar if you'd like to support it, and it unlocks nothing, because there's nothing to unlock. I built it for my own photo library and decided to share it.</p></div>
+        <div class="faq"><h3>Do I have to delete my big videos?</h3><p>No. Selects makes a smaller copy of a long clip and leaves your original exactly as it was. You get a real preview first, encoded from the hardest seconds, so you judge the quality yourself. Both sit in your library until you decide, and the space comes back when you remove the original, which is its own confirmed step. HDR stays HDR, and slow motion and Cinematic clips are left alone.</p></div>
         <div class="faq"><h3>Do my photos ever leave my iPhone?</h3><p>Never. Selects reads your library on&#8209;device using the Vision framework already on your iPhone, so your photos are never uploaded. No account, and no copy of your photos in the cloud.</p></div>
         <div class="faq"><h3>Can it delete a photo I want to keep?</h3><p>No. Selects only suggests, and it never suggests clearing a photo you have marked as a favorite. You confirm the removal, and it goes through iPhone's own delete, so cleared photos sit in <b>Recently Deleted for 30 days</b> and can be restored any time in that window.</p></div>
+        <div class="faq"><h3>Do I have to finish in one go?</h3><p>No. Your keep and clear choices are saved as you go, so you can put the phone down mid&#8209;photoshoot and pick up exactly where you were. Nothing is removed until you confirm, so a half&#8209;finished review leaves your library exactly as it was. Selects remembers where you got to.</p></div>
         <div class="faq"><h3>What if I'd rather choose everything myself?</h3><p>Tap <b>Browse all photos</b> to skip the grouping and go through your library by hand, newest first or largest first. Same safe removal at the end. You can also tell Selects how bold to be: <b>Keep more</b>, <b>Balanced</b>, or <b>Clear more</b>.</p></div>
+        <div class="faq"><h3>Can I clean up just one album?</h3><p>Yes. <b>Albums</b> is one of the ways in: pick any album you have and Selects looks only there. You can also narrow by <b>dates</b>, a single year or a range, or skip the grouping entirely and browse everything in a plain grid. Whatever you pick, the review and the safe removal work the same way.</p></div>
         <div class="faq"><h3>What if my photos are in iCloud?</h3><p>That works. If your library is optimized for storage, Selects fetches what it needs to look properly at a photo. Whether it does that over mobile data is your choice, not an assumption, and anything still in iCloud is never deleted by a failed fetch.</p></div>
         <div class="faq"><h3>Why did a whole burst disappear?</h3><p>iOS won't let an app delete single frames inside a burst stack, so keeping one works differently: Selects saves your chosen frame as a new photo, then removes the stack. You end up with the frame you wanted and one fewer pile. Because the keeper is a new photo, it leaves any album the burst was in, and everything removed waits in <b>Recently Deleted for 30 days</b>.</p></div>
         <div class="faq"><h3>Which iPhones does it support?</h3><p>Any iPhone running iOS&nbsp;26 or later.</p></div>
-        <div class="faq"><h3>How is it different from Library Cleanup?</h3><p>Same family, different job. Selects is the on&#8209;the&#8209;go photoshoot curator for iPhone. <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a> is the deep&#8209;clean tier for your whole Mac library, focused on reclaiming storage from duplicate photoshoots and repeat videos.</p></div>
+        <div class="faq"><h3>How is it different from Library Cleanup?</h3><p>Same family, different job. Selects is the on&#8209;the&#8209;go tier for your iPhone, covering photoshoots, bursts, screenshots and videos. <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a> is the deep&#8209;clean tier for your whole Mac library, focused on reclaiming storage from duplicate photoshoots and repeat videos.</p></div>
       </div>
     </div>
   </section>
@@ -333,7 +340,7 @@
     <div class="wrap final">
       <img class="ic" src="/selects/app-icon.png" width="160" height="160" alt="Selects icon">
       <h2>Turn a 40-photo shoot into its best few.</h2>
-      <p>On&#8209;device photoshoot curation for iPhone. Free, private, and quietly good at its one job.</p>
+      <p>On&#8209;device cleanup for your iPhone photos and videos. Free, private, and quietly good at its one job.</p>
       <div class="cta-row">
         <a class="appstore" href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=website&amp;mt=8" target="_blank" rel="noopener" data-evt="cta_appstore_footer"><img src="/selects/img/app-store-badge.svg" width="162" height="54" alt="Download on the App Store"></a>
       </div>
@@ -344,7 +351,7 @@
   <!-- ============ FOOTER ============ -->
   <footer class="foot">
     <div class="wrap">
-      <div class="fl"><img src="/selects/app-icon.png" width="160" height="160" alt="">Selects &middot; On-device photoshoot curation for iPhone</div>
+      <div class="fl"><img src="/selects/app-icon.png" width="160" height="160" alt="">Selects &middot; On-device photo and video cleanup for iPhone</div>
       <nav>
         <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a>
         <a href="https://vaclavtrnka.cz">More projects</a>
