@@ -1,0 +1,132 @@
+<style>
+  :root{
+    color-scheme:light;
+    --bg:#f4f4f6; --surface:#fff; --line:#e7e7eb; --line-2:#d9d9de;
+    --text:#1d1d1f; --text-2:#6e6e73; --text-3:#98989d;
+    --accent:#147966; --accent-2:#147966;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,"Segoe UI",Helvetica,sans-serif;
+  }
+  .site{font-family:var(--font); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; font-size:17px; min-height:100vh; display:flex; flex-direction:column;}
+  .site *{box-sizing:border-box;}
+  .site a{color:var(--accent-2); text-decoration:none;}
+  .site a:hover{text-decoration:underline;}
+  .wrap{max-width:680px; margin:0 auto; padding:0 28px; width:100%;}
+  .site h1{margin:0; font-size:clamp(30px,5vw,44px); font-weight:700; letter-spacing:-.03em; text-wrap:balance;}
+  .site h2{margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em;}
+
+  .nav{border-bottom:1px solid var(--line);}
+  .nav .wrap{display:flex; align-items:center; height:64px;}
+  .nav .mark{display:flex; align-items:center; gap:11px; font-weight:600; font-size:15.5px; color:var(--text);}
+  .nav .badge{width:30px; height:30px; border-radius:9px; display:block;}
+
+  main{flex:1; padding:64px 0 40px;}
+  .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
+  .updated{color:var(--text-3); font-size:14px; margin:14px 0 0;}
+  .block{margin-top:40px;}
+  .block h2{margin-bottom:10px;}
+  .block p{color:var(--text-2); margin:0 0 14px;}
+  .block ul{color:var(--text-2); margin:0 0 14px; padding-left:20px;}
+  .block li{margin:7px 0;}
+  .block strong{color:var(--text); font-weight:600;}
+  .callout{border:1px solid var(--line-2); background:var(--surface); border-radius:14px; padding:20px 22px; margin-top:16px;}
+  .callout p{margin:0 0 12px; color:var(--text-2);}
+  .callout p:last-child{margin:0;}
+  .callout strong{color:var(--text);}
+  .tldr{border-color:rgba(31,158,134,.32); background:linear-gradient(180deg,rgba(31,158,134,.08),rgba(31,158,134,.02));}
+
+  .foot{border-top:1px solid var(--line); padding:28px 0; font-size:13.5px; color:var(--text-3);}
+  .foot .wrap{display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+  .foot a{color:var(--text-2);}
+  @media(max-width:520px){.wrap{padding:0 22px;} main{padding:44px 0;}}
+</style>
+
+<div class="site">
+  <nav class="nav">
+    <div class="wrap"><a class="mark" href="https://vaclavtrnka.cz/selects"><img class="badge" src="/selects/app-icon.png" width="160" height="160" alt=""> Selects</a></div>
+  </nav>
+
+  <main>
+    <div class="wrap">
+      <p class="eyebrow">Selects &middot; Terms</p>
+      <h1>Terms of service</h1>
+      <p class="updated">Last updated September 15, 2026</p>
+
+      <div class="block">
+        <p>These are the terms for using the <strong>Selects</strong> app for iPhone. Selects is a photo&#8209;curation app: it groups your near&#8209;identical photos into photoshoots, pre&#8209;picks the best ones, and lets you clear the rest. It is developed by <strong>V&aacute;clav Trnka</strong> (the &ldquo;developer&rdquo;, &ldquo;I&rdquo;), based in the Czech Republic.</p>
+      </div>
+
+      <div class="block">
+        <div class="callout tldr">
+          <p><strong>The short version.</strong> Selects is free, there is no account, and the only purchase is an optional tip that unlocks nothing. The app suggests which photos to clear, and you decide. Nothing is removed without your confirmation.</p>
+          <p>The license itself is Apple&rsquo;s standard one, the same agreement that covers every App Store app without a custom EULA. This page explains the parts specific to Selects in plain language.</p>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2>The license</h2>
+        <p>Downloading Selects from the App Store licenses it to you; it does not sell it to you. Because no custom agreement is supplied, the license is Apple&rsquo;s <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener noreferrer">Licensed Application End User License Agreement</a>, the standard terms that apply to App Store apps by default. For a third&#8209;party app like this one, that agreement is between you and the developer rather than between you and Apple, and it carries the usage restrictions, the &ldquo;as is&rdquo; disclaimer, and the limit on liability.</p>
+        <p>This page does not replace it. It explains the parts that are specific to Selects.</p>
+      </div>
+
+      <div class="block">
+        <h2>What it costs</h2>
+        <p>Selects is free. No sign&#8209;up, no subscription, no ads, no locked features, and no trial that turns into a bill.</p>
+        <p>There is one in&#8209;app purchase: an optional tip. It unlocks nothing, because there is nothing to unlock. Apple processes the payment, so the developer never sees your name, card, or payment details. If you want a refund for a tip, ask Apple rather than me, at <a href="https://reportaproblem.apple.com/" target="_blank" rel="noopener noreferrer">reportaproblem.apple.com</a>. Apple handles refunds and I have no way to issue one.</p>
+      </div>
+
+      <div class="block">
+        <h2>What the app does, and who decides</h2>
+        <p>Selects reads your photo library and suggests which shots are worth keeping and which can go. It suggests. You decide. Nothing is removed without your confirmation, and removal is handed to iOS&rsquo;s own delete, so photos go to your <strong>Recently Deleted</strong> album and stay recoverable for <strong>30 days</strong>.</p>
+      </div>
+
+      <div class="block">
+        <h2>It will sometimes be wrong</h2>
+        <p>This is the honest part. Selects makes judgments about which photos are worth keeping, and judgments can be wrong. It may suggest clearing a shot you wanted, or keep one you had no use for. That is why nothing happens without your confirmation, and why everything goes through Recently Deleted.</p>
+        <p>Your photo library is yours to look after. Keeping a backup is sensible whatever app you use, and it is sensible here too. Selects is provided as it is, without a promise that every suggestion will suit you.</p>
+      </div>
+
+      <div class="block">
+        <h2>What you need to run it</h2>
+        <p>Selects requires <strong>iOS&nbsp;26 or later</strong>.</p>
+      </div>
+
+      <div class="block">
+        <h2>There is no account</h2>
+        <p>Selects has no sign&#8209;up and no user accounts, so there is nothing here to suspend, terminate, or lock you out of. If you stop wanting the app, delete it. That is the whole process.</p>
+      </div>
+
+      <div class="block">
+        <h2>Privacy</h2>
+        <p>How Selects handles your data is covered in the <a href="/selects/privacy/">privacy policy</a>, which is the page to read for that. The short version is that your photos are analyzed on your device and never leave it.</p>
+      </div>
+
+      <div class="block">
+        <h2>Changes to these terms</h2>
+        <p>If these terms change, the updated version will be posted here with a new date at the top.</p>
+      </div>
+
+      <div class="block">
+        <h2>Which law applies</h2>
+        <p>These terms are governed by the law of the Czech Republic, where the developer is based. If you are a consumer in the EU, nothing here affects the statutory rights you have where you live.</p>
+      </div>
+
+      <div class="block">
+        <h2>Contact</h2>
+        <p>Questions about these terms? Email <a href="mailto:vaclavtrnkaproductsupport@gmail.com?subject=Selects%20terms">vaclavtrnkaproductsupport@gmail.com</a>.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
+      <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
+    </div>
+  </footer>
+</div>
+<script>
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-evt]');
+    if (el && window.clarity) { try { clarity('event', el.getAttribute('data-evt')); } catch (_) {} }
+  }, true);
+</script>

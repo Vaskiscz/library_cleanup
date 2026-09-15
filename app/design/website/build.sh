@@ -14,3 +14,4 @@ build index.html            site/library-cleanup/index.html
 build selects.html          site/selects/index.html
 build privacy.html          site/privacy/index.html
 build selects-privacy.html  site/selects/privacy/index.html
+build selects-terms.html    site/selects/terms/index.html
