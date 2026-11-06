@@ -14,7 +14,46 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vaclavtrnka.cz/selects/press/">
 <link rel="icon" type="image/png" href="/selects/favicon-v3.png">
-<!-- No analytics. -->
+<!-- Visit statistics: PostHog EU Cloud in cookieless mode. No cookies, nothing
+     in browser storage, no session recording, no autocapture, no heatmaps, no
+     surveys. The website's own PostHog project (EU Cloud, in a separate
+     PostHog account from the Selects app's, switched on 2026-11-06), never
+     the app's project. Cookieless mode strips the IP before PostHog's GeoIP
+     step, so these events carry no country; `$timezone` is the rough stand-in.
+     Project settings it relies on: cookieless mode ON (or these events are
+     dropped) and "Discard client IP data" ON (the privacy notice says the IP is
+     not stored). Runs only on the live domain, so previews send nothing.
+     What it collects is described in /privacy/; change both together. -->
+<script>
+  (function () {
+    var KEY = 'phc_CLxMu6jCsRBcpHfwdjj8LR2x7Ju6VbmJqxJVqfdyXXEp';
+    if (!/(^|\.)vaclavtrnka\.cz$/i.test(location.hostname)) return;
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init(KEY, {
+      api_host: 'https://eu.i.posthog.com',
+      defaults: '2026-08-30',
+      cookieless_mode: 'always',        // no cookies, no local or session storage
+      person_profiles: 'never',         // no person records (also drops a $set per load)
+      autocapture: false,               // only pageviews and the named clicks below
+      // Scroll depth needs nothing extra: with these defaults every page also
+      // sends $pageleave, carrying $prev_pageview_max_scroll_percentage,
+      // ..._max_content_percentage and _duration (checked 2026-11-06 against
+      // posthog-js 1.447.3 with autocapture off: present, no storage used).
+      capture_dead_clicks: false,
+      rageclick: false,
+      capture_heatmaps: false,
+      capture_exceptions: false,
+      disable_session_recording: true,
+      disable_surveys: true,
+      advanced_disable_flags: true      // no feature-flag round trip
+    });
+  })();
+  // Named clicks: any element with data-evt="name" sends that name as an event.
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest && e.target.closest('[data-evt]');
+    if (el && window.posthog && posthog.capture) { try { posthog.capture(el.getAttribute('data-evt')); } catch (_) {} }
+  }, true);
+</script>
 </head>
 <body>
 <style>
@@ -36,6 +75,9 @@
 
   main{flex:1; padding:64px 0 40px;}
   .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
+  /* the way back sits where an iOS back button would: top left, 44 pt tall */
+  .site a.back{display:inline-flex; align-items:center; gap:7px; min-height:44px; margin:-10px 0 10px -2px; padding-right:8px; font-size:15px; font-weight:600; color:var(--accent); text-decoration:none;}
+  .site a.back:hover{text-decoration:underline; text-underline-offset:3px;}
   .updated{color:var(--text-3); font-size:14px; margin:14px 0 0;}
   .block{margin-top:40px;}
   .block h2{margin-bottom:10px;}
@@ -67,6 +109,7 @@
   .copybox{border:1px solid var(--line-2); background:var(--surface); border-radius:14px; padding:16px 18px; margin:0 0 12px;}
   .copybox .lab{font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin:0 0 6px;}
   .copybox p{margin:0; color:var(--text);}
+  .copybox p.gloss{color:var(--text-2); font-size:15px; margin-top:4px;}
   blockquote{margin:0; border-left:3px solid rgba(31,158,134,.45); padding:4px 0 4px 16px; color:var(--text); font-size:18px;}
   .shots{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px;}
   @media(max-width:880px){.shots{grid-template-columns:repeat(3,minmax(0,1fr));}}
@@ -220,6 +263,7 @@
 
   <main>
     <div class="wrap">
+      <a class="back" href="/selects/" data-evt="back_selects_top"><svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 1.5 1.5 7.5l6 6"/></svg>Back to Selects</a>
       <p class="eyebrow">Selects &middot; Press kit</p>
       <h1>Selects press kit</h1>
       <p class="lede">Everything you need to write about Selects: descriptions, facts, numbers, screenshots, videos, the app icon and a portrait. Use any of it freely in coverage.</p>
@@ -264,12 +308,23 @@
 
       <div class="block">
         <h2>Numbers</h2>
-        <p>As of 26 October 2026, twelve weeks after launch.</p>
+        <p>As of 6 November 2026, three months after launch.</p>
         <div class="stats">
-          <div class="stat"><b>5.0</b><span>average App Store rating, from 107 ratings</span></div>
-          <div class="stat"><b>120,000+</b><span>photos and videos removed</span></div>
-          <div class="stat"><b>1.8&nbsp;TB</b><span>of space saved</span></div>
-          <div class="stat"><b>2,000+</b><span>videos compressed</span></div>
+          <div class="stat"><b data-asc="average">5.0</b><span>average App Store rating, from <span data-asc="count">107</span> ratings</span></div>
+          <div class="stat"><b>350,000+</b><span>photos and videos cleared</span></div>
+          <div class="stat"><b>4.8&nbsp;TB</b><span>of space cleared (the app&#8217;s estimate)</span></div>
+          <div class="stat"><b>3,500+</b><span>videos compressed</span></div>
+        </div>
+      </div>
+
+      <!-- Newest first. Each entry: publication, date, language; the original
+           headline as the link; an English gloss when it is not English. -->
+      <div class="block">
+        <h2>In the press</h2>
+        <div class="copybox">
+          <p class="lab">iphone&#8209;ticker.de &middot; 4 November 2026 &middot; German</p>
+          <p><a href="https://www.iphone-ticker.de/selects-kostenlose-iphone-app-sortiert-aehnliche-fotos-aus-289815/" target="_blank" rel="noopener" lang="de">Selects: Kostenlose iPhone-App sortiert ähnliche Fotos aus</a></p>
+          <p class="gloss">Free iPhone app sorts out similar photos</p>
         </div>
       </div>
 
@@ -279,7 +334,7 @@
           <dt>App</dt><dd>Selects: Clean Up Your Photos</dd>
           <dt>Developer</dt><dd>V&aacute;clav Trnka, Czechia</dd>
           <dt>Launched</dt><dd>4 August 2026</dd>
-          <dt>Current version</dt><dd>2.0.0, released 19 October 2026</dd>
+          <dt>Current version</dt><dd><span data-asc="version">2.1.0</span>, released <span data-asc="released">28 October 2026</span></dd>
           <dt>Platform</dt><dd>iPhone, iOS&nbsp;26 or later</dd>
           <dt>Price</dt><dd>Free. One optional in&#8209;app tip</dd>
           <dt>Languages</dt><dd>English, Czech, German, Spanish. The App Store listing is also in French, Italian and Latin American Spanish</dd>
@@ -326,7 +381,7 @@
 
   <footer class="foot">
     <div class="wrap">
-      <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
+      <a href="/selects/">&larr; Back to Selects</a>
       <a href="/selects/privacy/" data-evt="nav_privacy">Privacy policy</a>
       <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
 <!-- Operator identification (§ 435 of the Czech Civil Code: name, registered
@@ -335,5 +390,35 @@
     </div>
   </footer>
 </div>
+<!-- App Store sync. Fills [data-asc] elements from /api/selects-rating
+     (site/netlify/functions/selects-rating.mjs): the worldwide rating, its
+     stars, and the live version and its release date. The numbers written
+     into the HTML stay as they are when the call fails, when JS is off, and
+     in a local preview (python's server has no functions), so keep them
+     roughly current by hand anyway. A count LOWER than the one in the HTML
+     is ignored: it can only mean some storefronts failed to answer. Same
+     origin only, so a visitor's browser never talks to Apple. -->
+<script>
+  (function(){
+    if(!document.querySelector('[data-asc]') || !window.fetch) return;
+    function each(k, f){ [].forEach.call(document.querySelectorAll('[data-asc="'+k+'"]'), f); }
+    function set(k, v){ each(k, function(e){ e.textContent = v; }); }
+    var baked = 0;
+    each('count', function(e){ baked = Math.max(baked, parseInt(e.textContent.replace(/\D/g, ''), 10) || 0); });
+    fetch('/api/selects-rating').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      if(!d || !d.ok) return;
+      if(d.count >= baked && d.average > 0){
+        var n = Math.round(d.average);
+        set('count', d.count.toLocaleString('en-US'));
+        set('average', d.average.toFixed(1));
+        set('stars', '★'.repeat(n) + '☆'.repeat(5 - n));
+      }
+      if(/^\d+(\.\d+)*$/.test(d.version || '') && d.released){
+        set('version', d.version);
+        set('released', new Date(d.released).toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric', timeZone:'UTC'}));
+      }
+    }).catch(function(){});
+  })();
+</script>
 </body>
 </html>

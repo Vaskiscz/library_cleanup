@@ -13,8 +13,12 @@ Netlify publishes. Everything else here is source.
     partials/          shared pieces, pulled in by `<!--#include NAME-->`:
                        header (top bar, phone menu, bottom download bar),
                        operator (the legal line in every footer),
-                       analytics (empty for now: the site has no analytics)
-    site/              built output, what actually deploys
+                       analytics (cookieless PostHog visit statistics),
+                       asc-sync (fills the App Store numbers, see below)
+    site/              built output, what actually deploys. Like netlify.toml,
+                       the images and the sitemap, the one Netlify function
+                       is edited in place here:
+                       site/netlify/functions/selects-rating.mjs
 
 Each page's `.site` root carries `data-theme` (dark | light) and `data-page`
 (home | selects | library-cleanup | privacy); the shared header reads both.
@@ -31,18 +35,48 @@ page id passed to `build` must match the page's `data-page`.
 browser storage for tracking: no session replay, no embedded widget that sets
 cookies. Microsoft Clarity was removed for this reason.
 
-The site currently has **no analytics at all**. A cookieless PostHog setup is
-parked in `partials/analytics-posthog.parked.html`. To switch it on:
-1. It needs its own PostHog project (EU), never the Selects app's. The current
-   PostHog organization is on the free plan, which allows one project, and
-   Selects uses it: a second free organization or a paid plan is needed first.
-2. In that project, turn cookieless mode on (or its events are dropped) and
-   "Discard client IP data" on.
-3. Put the project key in the parked file, rename it to `analytics.html`.
-4. Rewrite the "Visit statistics" part of `privacy.html` to describe it. The
-   notice currently says the site collects none, and it must stay true.
+**Visit statistics: PostHog, cookieless** (switched on 2026-11-06), in
+`partials/analytics.html`, included on every page. Page views plus the named
+clicks: any element with `data-evt="name"` sends that name. No autocapture,
+no session recording, no heatmaps, no surveys, and it runs only on the live
+domain, so previews send nothing.
+- It is the website's **own PostHog project, EU Cloud, in a separate PostHog
+  account** from the Selects app's (the free plan allows one project per
+  organization). Never point it at the app's project.
+- That project must keep **"Enable cookieless tracking" ON** (Settings →
+  Project → Web analytics), or PostHog drops every event, and **"Discard
+  client IP data" ON**, which the privacy notice promises.
+- **No country.** Cookieless mode strips the IP before PostHog's GeoIP step
+  (posthog/posthog#48660), so `$geoip_*` stays empty; `$timezone` is the
+  rough stand-in. The privacy notice says no location is recorded, so a fix
+  on PostHog's side that starts adding it means updating the notice.
+- What it records is described in the "Visit statistics, without cookies"
+  section of `privacy.html`. Change the two together.
     build.sh           heads/ + fragments -> site/   (byte-reproducible)
     check-drift.sh     compares site/ against the deploy repo before you copy
+
+## App Store numbers update themselves
+
+The Selects rating (average, star row, count) on the home page, the Selects
+page and the press kit, and the press kit's "Current version" line, are
+filled in by `partials/asc-sync.html` from `/api/selects-rating`, a Netlify
+function that adds up Apple's public per-storefront ratings (the sum matches
+App Store Connect's worldwide figure). Netlify's CDN keeps the answer a day,
+so Apple is asked about once a day and an update never needs a deploy.
+
+Mark a number with `data-asc="average" | "stars" | "count" | "version" |
+"released"` and include `asc-sync` at the end of the page. The figures written
+in the HTML are the fallback (no JS, a failed call, the local preview, which
+has no functions), so refresh them by hand when you are editing the page
+anyway. A count lower than the written one is ignored, since it can only mean
+some storefronts did not answer.
+
+Not synced, on purpose: the usage totals under the Selects hero and in the
+press kit (from PostHog, refreshed by hand with a date), and the review
+quotes (picked by hand).
+
+To test the function locally: `node` can import it and call its default
+export with a `Request`; it needs no Netlify runtime.
 
 ## Editing
 

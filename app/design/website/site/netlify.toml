@@ -5,6 +5,22 @@
   publish = "."
   command = ""
 
+# One function: /api/selects-rating (netlify/functions/selects-rating.mjs),
+# the worldwide App Store rating and live version, summed from Apple's public
+# per-storefront lookup and cached on Netlify's CDN for a day. It needs no
+# build step and no dependencies. See partials/asc-sync.html in the source
+# for the page side.
+[functions]
+  directory = "netlify/functions"
+
+# The function's source sits inside the published folder (publish = "."), so
+# keep it from being served as a static file.
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
 # Sensible security headers for a static marketing site.
 [[headers]]
   for = "/*"

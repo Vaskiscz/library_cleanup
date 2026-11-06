@@ -17,6 +17,9 @@
 
   main{flex:1; padding:64px 0 40px;}
   .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
+  /* the way back sits where an iOS back button would: top left, 44 pt tall */
+  .site a.back{display:inline-flex; align-items:center; gap:7px; min-height:44px; margin:-10px 0 10px -2px; padding-right:8px; font-size:15px; font-weight:600; color:var(--accent); text-decoration:none;}
+  .site a.back:hover{text-decoration:underline; text-underline-offset:3px;}
   .updated{color:var(--text-3); font-size:14px; margin:14px 0 0;}
   .block{margin-top:40px;}
   .block h2{margin-bottom:10px;}
@@ -48,6 +51,7 @@
   .copybox{border:1px solid var(--line-2); background:var(--surface); border-radius:14px; padding:16px 18px; margin:0 0 12px;}
   .copybox .lab{font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin:0 0 6px;}
   .copybox p{margin:0; color:var(--text);}
+  .copybox p.gloss{color:var(--text-2); font-size:15px; margin-top:4px;}
   blockquote{margin:0; border-left:3px solid rgba(31,158,134,.45); padding:4px 0 4px 16px; color:var(--text); font-size:18px;}
   .shots{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px;}
   @media(max-width:880px){.shots{grid-template-columns:repeat(3,minmax(0,1fr));}}
@@ -72,6 +76,7 @@
 
   <main>
     <div class="wrap">
+      <a class="back" href="/selects/" data-evt="back_selects_top"><svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 1.5 1.5 7.5l6 6"/></svg>Back to Selects</a>
       <p class="eyebrow">Selects &middot; Press kit</p>
       <h1>Selects press kit</h1>
       <p class="lede">Everything you need to write about Selects: descriptions, facts, numbers, screenshots, videos, the app icon and a portrait. Use any of it freely in coverage.</p>
@@ -116,12 +121,23 @@
 
       <div class="block">
         <h2>Numbers</h2>
-        <p>As of 26 October 2026, twelve weeks after launch.</p>
+        <p>As of 6 November 2026, three months after launch.</p>
         <div class="stats">
-          <div class="stat"><b>5.0</b><span>average App Store rating, from 107 ratings</span></div>
-          <div class="stat"><b>120,000+</b><span>photos and videos removed</span></div>
-          <div class="stat"><b>1.8&nbsp;TB</b><span>of space saved</span></div>
-          <div class="stat"><b>2,000+</b><span>videos compressed</span></div>
+          <div class="stat"><b data-asc="average">5.0</b><span>average App Store rating, from <span data-asc="count">107</span> ratings</span></div>
+          <div class="stat"><b>350,000+</b><span>photos and videos cleared</span></div>
+          <div class="stat"><b>4.8&nbsp;TB</b><span>of space cleared (the app&#8217;s estimate)</span></div>
+          <div class="stat"><b>3,500+</b><span>videos compressed</span></div>
+        </div>
+      </div>
+
+      <!-- Newest first. Each entry: publication, date, language; the original
+           headline as the link; an English gloss when it is not English. -->
+      <div class="block">
+        <h2>In the press</h2>
+        <div class="copybox">
+          <p class="lab">iphone&#8209;ticker.de &middot; 4 November 2026 &middot; German</p>
+          <p><a href="https://www.iphone-ticker.de/selects-kostenlose-iphone-app-sortiert-aehnliche-fotos-aus-289815/" target="_blank" rel="noopener" lang="de">Selects: Kostenlose iPhone-App sortiert ähnliche Fotos aus</a></p>
+          <p class="gloss">Free iPhone app sorts out similar photos</p>
         </div>
       </div>
 
@@ -131,7 +147,7 @@
           <dt>App</dt><dd>Selects: Clean Up Your Photos</dd>
           <dt>Developer</dt><dd>V&aacute;clav Trnka, Czechia</dd>
           <dt>Launched</dt><dd>4 August 2026</dd>
-          <dt>Current version</dt><dd>2.0.0, released 19 October 2026</dd>
+          <dt>Current version</dt><dd><span data-asc="version">2.1.0</span>, released <span data-asc="released">28 October 2026</span></dd>
           <dt>Platform</dt><dd>iPhone, iOS&nbsp;26 or later</dd>
           <dt>Price</dt><dd>Free. One optional in&#8209;app tip</dd>
           <dt>Languages</dt><dd>English, Czech, German, Spanish. The App Store listing is also in French, Italian and Latin American Spanish</dd>
@@ -178,10 +194,11 @@
 
   <footer class="foot">
     <div class="wrap">
-      <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
+      <a href="/selects/">&larr; Back to Selects</a>
       <a href="/selects/privacy/" data-evt="nav_privacy">Privacy policy</a>
       <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
       <!--#include operator-->
     </div>
   </footer>
 </div>
+<!--#include asc-sync-->

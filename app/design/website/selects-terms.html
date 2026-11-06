@@ -17,6 +17,9 @@
 
   main{flex:1; padding:64px 0 40px;}
   .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
+  /* the way back sits where an iOS back button would: top left, 44 pt tall */
+  .site a.back{display:inline-flex; align-items:center; gap:7px; min-height:44px; margin:-10px 0 10px -2px; padding-right:8px; font-size:15px; font-weight:600; color:var(--accent); text-decoration:none;}
+  .site a.back:hover{text-decoration:underline; text-underline-offset:3px;}
   .updated{color:var(--text-3); font-size:14px; margin:14px 0 0;}
   .block{margin-top:40px;}
   .block h2{margin-bottom:10px;}
@@ -41,12 +44,13 @@
 
   <main>
     <div class="wrap">
+      <a class="back" href="/selects/" data-evt="back_selects_top"><svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 1.5 1.5 7.5l6 6"/></svg>Back to Selects</a>
       <p class="eyebrow">Selects &middot; Terms</p>
       <h1>Terms of service</h1>
-      <p class="updated">Last updated September 15, 2026</p>
+      <p class="updated">Last updated November 6, 2026</p>
 
       <div class="block">
-        <p>These are the terms for using the <strong>Selects</strong> app for iPhone. Selects is a photo&#8209;curation app: it groups your near&#8209;identical photos into photoshoots, pre&#8209;picks the best ones, and lets you clear the rest. It is developed by <strong>V&aacute;clav Trnka</strong> (the &ldquo;developer&rdquo;, &ldquo;I&rdquo;), based in the Czech Republic.</p>
+        <p>These are the terms for using the <strong>Selects</strong> app for iPhone. Selects is a photo&#8209;curation app: it groups your near&#8209;identical photos into photoshoots, pre&#8209;picks the best ones, and lets you clear the rest. It is developed by <strong>V&aacute;clav Trnka</strong> (the &ldquo;developer&rdquo;, &ldquo;I&rdquo;), IČO 03940110, Tylova Čtvrť 378, 384 02 Lhenice, Czechia.</p>
       </div>
 
       <div class="block">
@@ -71,11 +75,13 @@
       <div class="block">
         <h2>What the app does, and who decides</h2>
         <p>Selects reads your photo library and suggests which shots are worth keeping and which can go. It suggests. You decide. Nothing is removed without your confirmation, and removal is handed to iOS&rsquo;s own delete, so photos go to your <strong>Recently Deleted</strong> album and stay recoverable for <strong>30 days</strong>.</p>
+        <p>Two features also add to your library. <strong>Compressing a video</strong> saves a smaller copy beside the original, and the original stays until you choose to remove it, which is its own confirmed step. <strong>Keeping one frame of a burst</strong> saves that frame as a new photo and then removes the burst, because iOS does not let an app remove single frames from a burst. The new photo is not in the albums the burst was in.</p>
       </div>
 
       <div class="block">
         <h2>It will sometimes be wrong</h2>
         <p>This is the honest part. Selects makes judgments about which photos are worth keeping, and judgments can be wrong. It may suggest clearing a shot you wanted, or keep one you had no use for. That is why nothing happens without your confirmation, and why everything goes through Recently Deleted.</p>
+        <p>The same goes for compression. A compressed copy is smaller because it keeps less detail, and you see a preview first so you can judge that yourself. Once you remove the original and it leaves Recently Deleted, the full&#8209;quality version is gone for good.</p>
         <p>Your photo library is yours to look after. Keeping a backup is sensible whatever app you use, and it is sensible here too. Selects is provided as it is, without a promise that every suggestion will suit you.</p>
       </div>
 
@@ -87,6 +93,11 @@
       <div class="block">
         <h2>There is no account</h2>
         <p>Selects has no sign&#8209;up and no user accounts, so there is nothing here to suspend, terminate, or lock you out of. If you stop wanting the app, delete it. That is the whole process.</p>
+      </div>
+
+      <div class="block">
+        <h2>Feedback</h2>
+        <p>If you write feedback in the app or answer one of its short surveys, I may use what you send to improve Selects. It reaches me without your name or email address, so I can read it but cannot reply. For an answer, email me instead.</p>
       </div>
 
       <div class="block">
@@ -113,7 +124,7 @@
 
   <footer class="foot">
     <div class="wrap">
-      <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
+      <a href="/selects/">&larr; Back to Selects</a>
       <a href="/selects/privacy/" data-evt="nav_privacy">Privacy policy</a>
       <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
       <!--#include operator-->

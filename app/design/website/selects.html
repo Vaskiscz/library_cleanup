@@ -50,9 +50,6 @@
   .device{flex:none; position:relative;}
   .device img{display:block; width:100%; height:auto; filter:drop-shadow(0 34px 38px rgba(20,45,40,.22)) drop-shadow(0 10px 14px rgba(20,45,40,.14));}
   .device.d-hero{width:310px;}
-  .device.d-flow{width:278px;}
-  /* a card that overhangs the phone: the image carries 251 px of extra canvas on the left (of 640) */
-  .device.d-pop img{width:139.21875%; max-width:none; margin-left:-39.21875%;}
 
   /* ---------------- hero ---------------- */
   .hero{padding:64px 0 76px; position:relative;}
@@ -78,9 +75,6 @@
     font-size:clamp(17px,2vw,20px); color:var(--text-2); line-height:1.52;
     max-width:44ch; margin:20px 0 0; text-wrap:pretty; animation:rise .7s var(--ease) .1s both;
   }
-  /* The compression line supports the lede rather than repeating its weight:
-     tighter above it, a touch smaller, same measure. */
-  .hero .lede-2{font-size:clamp(15.5px,1.8vw,17.5px); margin-top:13px; animation-delay:.13s;}
   .cta-row{display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-top:30px; animation:rise .7s var(--ease) .15s both;}
   /* Apple's official "Download on the App Store" badge, used unaltered.
      Guidelines: min 40px tall on web, clear space >= 10% of badge height,
@@ -93,31 +87,85 @@
   .btn-text:hover{text-decoration:underline;}
   .rating{margin-top:20px; font-size:15px; font-weight:600; color:var(--text); display:flex; gap:10px; align-items:center; flex-wrap:wrap; animation:rise .7s var(--ease) .18s both;}
   .rating .st{color:#F2A516; letter-spacing:2px; font-size:17px;}
-  .rating span:last-child{color:var(--text-2); font-weight:500;}
+  .rating > span:last-child{color:var(--text-2); font-weight:500;}
   .req{margin-top:22px; font-size:13.5px; color:var(--text-2); display:flex; gap:9px; flex-wrap:wrap; align-items:center; animation:rise .7s var(--ease) .2s both;}
   .req b{color:var(--text-2); font-weight:600;}
   .req .sep{opacity:.45;}
   .hero .device{animation:rise .8s var(--ease) .12s both;}
   .hero-phone{display:flex; justify-content:center;}
 
-  /* ---------------- flow (real screens) ---------------- */
+  /* ---------------- how it works: three modes ---------------- */
   .sec-head{max-width:640px; margin:0 auto 60px; text-align:center;}
   .sec-head h2{font-size:clamp(28px,3.6vw,40px); font-weight:700; letter-spacing:-.03em;}
   .sec-head p:not(.eyebrow){color:var(--text-2); font-size:clamp(16px,1.8vw,19px); margin:16px auto 0; max-width:52ch; line-height:1.5;}
-  .flow{display:flex; flex-direction:column; gap:84px; max-width:960px; margin:0 auto;}
-  .flow-row{display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center;}
-  .flow-row .flow-phone{display:flex; justify-content:center;}
-  .flow-row:nth-child(even) .flow-phone{order:2;}
-  .flow-copy{max-width:38ch;}
-  .flow-num{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:34px; height:34px; border-radius:999px; margin-bottom:16px;
-    background:rgba(31,158,134,.12); color:var(--brand-text); font-size:15px; font-weight:700;
-  }
-  .flow-copy .tag{font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--brand-text); margin:0 0 12px;}
-  .flow-copy h3{font-size:clamp(23px,2.7vw,30px); font-weight:700; letter-spacing:-.028em;}
-  .flow-copy p{font-size:16.5px; color:var(--text-2); line-height:1.6; margin:16px 0 0;}
-  .flow-copy p b{color:var(--text); font-weight:600;}
+
+  /* the three cards: a map of the section, each one a jump to its panel */
+  .modes{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; max-width:960px; margin:-20px auto 0;}
+  .site a.mode-card{display:flex; flex-direction:column; gap:6px; padding:22px 22px 24px; border-radius:18px; background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-1); text-decoration:none; color:var(--text); transition:transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease), opacity .7s var(--ease) var(--d,0s), translate .7s var(--ease) var(--d,0s);}
+  .site a.mode-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-2); border-color:rgba(31,158,134,.45);}
+  .site a.mode-card:focus-visible{outline:2px solid var(--brand-text); outline-offset:3px;}
+  .mode-card .mi{width:42px; height:42px; border-radius:12px; display:grid; place-items:center; background:rgba(31,158,134,.12); color:var(--brand-text); margin-bottom:8px;}
+  .mode-card .mi svg{width:23px; height:23px;}
+  .mode-card .mn{font-size:19px; font-weight:700; letter-spacing:-.02em;}
+  .mode-card .ml{font-size:15px; color:var(--text-2); line-height:1.5;}
+
+  /* one panel per mode */
+  .mode{max-width:960px; margin:28px auto 0; padding:52px 48px 56px; border-radius:28px; background:var(--surface); border:1px solid var(--border); scroll-margin-top:84px;}
+  .modes + .mode{margin-top:56px;}
+  .mode-head{max-width:58ch;}
+  .mode .tag{display:block; font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--brand-text); margin:0 0 12px;}
+  .mode h3{font-size:clamp(25px,3vw,34px); font-weight:700; letter-spacing:-.03em;}
+  .mode-head p{font-size:16.5px; color:var(--text-2); line-height:1.6; margin:14px 0 0; text-wrap:pretty;}
+  .mode-head p b{color:var(--text); font-weight:600;}
+  .shots{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:32px; margin-top:44px; align-items:start;}
+  .shots-2{grid-template-columns:repeat(2,minmax(0,1fr)); max-width:600px; margin-left:auto; margin-right:auto;}
+  .shot{margin:0;}
+  .shot .device{width:100%; max-width:236px; margin:0 auto;}
+  .shot figcaption{margin:22px auto 0; max-width:30ch; text-align:center; font-size:14.5px; color:var(--text-2); line-height:1.5; text-wrap:pretty;}
+  .shot .n{display:inline-grid; place-items:center; width:24px; height:24px; border-radius:999px; margin-right:8px; background:rgba(31,158,134,.12); color:var(--brand-text); font-size:13px; font-weight:700; vertical-align:1px;}
+  .mode-split{display:grid; grid-template-columns:1fr auto; gap:56px; align-items:center;}
+  .gestures{list-style:none; margin:26px 0 0; padding:0; display:grid; gap:10px;}
+  .gestures li{display:flex; align-items:center; gap:12px; font-size:15.5px; font-weight:600; color:var(--text);}
+  .gestures .g{display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:var(--sunken); color:var(--text-2); font-size:17px; font-weight:700;}
+
+  /* scroll reveal: only once the script has run (it adds .rv to <html>, and
+     never under Reduce Motion), so without it everything is simply there */
+  /* `translate`, not `transform`, so it never fights the cards' hover lift */
+  .rv .reveal{opacity:0; translate:0 28px; transition:opacity .7s var(--ease) var(--d,0s), translate .7s var(--ease) var(--d,0s);}
+  .rv .reveal.in{opacity:1; translate:none;}
+
+  /* a phone that plays: the clip is already framed, so only its corners need
+     masking (radius measured on the render: ~53 px of 440 x 926) */
+  .device.d-video{width:262px; filter:drop-shadow(0 34px 38px rgba(20,45,40,.22)) drop-shadow(0 10px 14px rgba(20,45,40,.14));}
+  .device.d-video video{display:block; width:100%; height:auto; aspect-ratio:440/926; border-radius:12% / 5.7%; background:#000;}
+
+  /* ---------------- proof strip ---------------- */
+  .proof{padding:0 0 72px;}
+  .proof-grid{display:grid; grid-template-columns:repeat(3,1fr); margin:0; border-top:1px solid var(--separator); border-bottom:1px solid var(--separator);}
+  .proof-grid div{display:flex; flex-direction:column-reverse; align-items:center; gap:4px; padding:26px 12px; text-align:center;}
+  .proof-grid div + div{border-left:1px solid var(--separator);}
+  .proof-grid dd{margin:0; font-size:clamp(30px,4.2vw,44px); font-weight:700; letter-spacing:-.03em; line-height:1.1; font-variant-numeric:tabular-nums; color:var(--text);}
+  .proof-grid dt{font-size:14.5px; color:var(--text-2);}
+  .proof-note{margin:14px auto 0; max-width:60ch; text-align:center; font-size:13px; color:var(--text-3); line-height:1.5;}
+  .press-quote{margin:48px auto 0; max-width:640px; text-align:center;}
+  .press-quote blockquote{margin:0;}
+  .press-quote blockquote p{margin:0; font-size:clamp(19px,2.3vw,24px); font-weight:600; letter-spacing:-.015em; line-height:1.4; color:var(--text); text-wrap:balance;}
+  .press-quote figcaption{margin-top:14px; font-size:14px; color:var(--text-2); line-height:1.6;}
+  .press-quote figcaption b{color:var(--text); font-weight:600;}
+  .site .press-quote a{color:var(--brand-text); font-weight:600; text-decoration:underline; text-underline-offset:2px; white-space:nowrap;}
+
+  /* ---------------- reviews ---------------- */
+  .band-reviews{background:var(--surface-2); border-top:1px solid var(--separator);}
+  .rev-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  .rev{margin:0; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:22px 22px 20px; display:flex; flex-direction:column; box-shadow:var(--shadow-1);}
+  .rev .st{color:#F2A516; letter-spacing:2px; font-size:15px;}
+  .rev blockquote{margin:10px 0 0; flex:1;}
+  .rev blockquote p{margin:0; font-size:15.5px; line-height:1.55; color:var(--text-2); text-wrap:pretty;}
+  .rev blockquote p.rt{font-weight:600; color:var(--text); margin-bottom:6px; font-size:16px;}
+  .rev figcaption{margin-top:16px; font-size:13.5px; font-weight:600; color:var(--text);}
+  .rev figcaption .tr{display:block; font-weight:500; color:var(--text-3); margin-top:2px;}
+  .rev-more{text-align:center; margin:30px 0 0; font-size:15.5px;}
+  .site .rev-more a{color:var(--brand-text); font-weight:600; text-decoration:underline; text-underline-offset:2px;}
 
   /* ---------------- privacy band ---------------- */
   .priv-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:44px;}
@@ -171,15 +219,33 @@
     .hero-copy{max-width:none; margin:0 auto;}
     .hero .lede{margin-left:auto; margin-right:auto;}
     .cta-row,.req,.rating{justify-content:center;}
-    .flow{gap:64px;}
-    .flow-row{grid-template-columns:1fr; gap:32px; text-align:center; max-width:440px; margin:0 auto;}
-    .flow-row:nth-child(even) .flow-phone{order:0;}
-    .device.d-pop{transform:translateX(54px);}
-    .flow-copy{max-width:none;}
-    .flow-copy p{margin-left:auto; margin-right:auto; max-width:46ch;}
+    .modes{grid-template-columns:1fr; gap:10px; margin-top:-24px;}
+    .site a.mode-card{display:grid; grid-template-columns:auto 1fr; column-gap:14px; row-gap:2px; padding:16px 18px; align-items:center;}
+    .mode-card .mi{grid-row:span 2; margin:0;}
+    .mode{padding:36px 24px 40px; border-radius:24px; margin-top:20px;}
+    .modes + .mode{margin-top:40px;}
+    /* the phones become a sideways row, like the reviews */
+    .shots,.shots-2{display:flex; gap:18px; overflow-x:auto; scroll-snap-type:x mandatory; margin:32px -24px 0; padding:4px 24px 10px; scroll-padding:0 24px; scrollbar-width:none; max-width:none;}
+    .shots::-webkit-scrollbar{display:none;}
+    .shot{flex:0 0 62%; scroll-snap-align:start;}
+    .mode-split{grid-template-columns:1fr; gap:36px;}
+    .mode-split .d-video{margin:0 auto; width:236px;}
     .priv-grid{grid-template-columns:1fr;}
+    /* a sideways row on phones: six stacked cards were a 1,300 px scroll.
+       The next card peeks in so the row reads as swipeable. */
+    .rev-grid{display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding:0 28px; margin:0 -28px; padding:4px 28px 8px; scrollbar-width:none; text-align:left;}
+    .rev-grid::-webkit-scrollbar{display:none;}
+    .rev{flex:0 0 min(82%,340px); scroll-snap-align:start;}
   }
-  @media (max-width:520px){ .band{padding:64px 0;} .wrap{padding:0 20px;} }
+  @media (max-width:560px){
+    .proof-grid{grid-template-columns:1fr;}
+    .proof-grid div{flex-direction:row-reverse; justify-content:space-between; padding:16px 4px;}
+    .proof-grid div + div{border-left:0; border-top:1px solid var(--separator);}
+    .proof-grid dd{font-size:26px;}
+    .proof-grid dt{text-align:right;}
+    .proof{padding-bottom:56px;}
+  }
+  @media (max-width:520px){ .band{padding:64px 0;} .wrap{padding:0 20px;} .rev-grid{margin:0 -20px; padding:4px 20px 8px; scroll-padding:0 20px;} }
 </style>
 
 <div class="site" data-theme="light" data-page="selects">
@@ -196,14 +262,13 @@
           </div>
           <h1>Keep your best shots, clear the rest.</h1>
           <p class="lede">You shoot the same scene thirty times to get one good photo. Selects finds those photoshoots and pre&#8209;picks the keepers. You just correct with a tap.</p>
-          <p class="lede lede-2">Three ways in: let Selects pick the keepers, see what takes the most space, or swipe one photo at a time.</p>
           <div class="cta-row" data-cta-anchor>
             <a class="appstore" href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=website&amp;mt=8" target="_blank" rel="noopener" data-evt="cta_appstore_hero"><img src="/selects/img/app-store-badge.svg" width="162" height="54" alt="Download on the App Store"></a>
             <a class="btn-text" href="#how" data-evt="cta_how_hero">See how it works
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </a>
           </div>
-          <p class="rating"><span class="st" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span>5.0 on the App Store</span><span>from 107 ratings</span></p>
+          <p class="rating"><span class="st" aria-hidden="true" data-asc="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span><span data-asc="average">5.0</span> on the App Store</span><span>from <span data-asc="count">107</span> ratings</span></p>
           <p class="req"><b>iPhone</b><span class="sep">&middot;</span><b>iOS&nbsp;26 or later</b><span class="sep">&middot;</span><b>Free</b><span class="sep">&middot;</span><b>No account</b></p>
         </div>
 
@@ -214,76 +279,174 @@
     </div>
   </section>
 
+  <!-- ============ PROOF: totals from PostHog, refreshed by hand ============
+       Counted 2026-11-06 over finalize_confirmed (cleared, est_mb_cleared) and
+       compress_finished (outcome = saved), with the internal-user filter
+       inlined. Round DOWN when refreshing, and move the date. -->
+  <section class="proof" aria-label="Selects in numbers">
+    <div class="wrap">
+      <dl class="proof-grid">
+        <div><dt>photos and videos cleared</dt><dd>350,000+</dd></div>
+        <div><dt>of space back</dt><dd>4.8&nbsp;TB</dd></div>
+        <div><dt>videos compressed</dt><dd>3,500+</dd></div>
+      </dl>
+      <p class="proof-note">Counted from Selects' anonymous usage statistics since launch in August, as of 6 November 2026. The space figure is the app's own estimate.</p>
+      <!-- Press: one pull quote, the strongest article. When more coverage
+           comes, add a "Featured in" line of publication names here and keep
+           the full list on the press kit. -->
+      <figure class="press-quote">
+        <blockquote><p>&ldquo;What sets Selects apart is, above all, the combination of automatic pre&#8209;selection, manual review and video compression.&rdquo;</p></blockquote>
+        <figcaption><b>iphone&#8209;ticker.de</b>, 4 November 2026 &middot; translated from German &middot; <a href="https://www.iphone-ticker.de/selects-kostenlose-iphone-app-sortiert-aehnliche-fotos-aus-289815/" target="_blank" rel="noopener" data-evt="press_iphoneticker">Read the article (in German)</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
   <!-- ============ FLOW: real screens ============ -->
   <section class="band" id="how">
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow">How it works</p>
         <h2>Three ways in.</h2>
-        <p>Swipe through your photos one at a time, let Selects pre&#8209;pick the keepers, or start with what takes the most space. Whichever you choose, nothing is removed until you confirm.</p>
+        <p>Let Selects pre&#8209;pick the keepers, start with what takes the most space, or swipe through one photo at a time. Whichever way you choose, nothing is removed until you confirm.</p>
       </div>
 
-      <div class="flow">
-        <!-- swipe, first: the simplest way in -->
-        <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow d-pop"><img src="/selects/img/swipe-v3.webp" width="891" height="1338" loading="lazy" alt="Swipe: a photo dragged left with the Remove stamp on it, and the next one waiting behind"></div></div>
-          <div class="flow-copy">
+      <!-- Three modes, one per app tab, in tab-bar order. Each card jumps to
+           its own panel; Swipe gets the same weight as the other two (owner,
+           2026-11-06: one of the top features). Panels and cards rise in as
+           they scroll into view (.reveal, script at the end); without JS or
+           under Reduce Motion they are simply there. -->
+      <!-- Icons are the app's tab-bar icons (App/Components/AppTabBar.swift):
+           Curate and Swipe are copied from tab-curate.svg / tab-swipe.svg in
+           Assets.xcassets. Tidy up is the SF Symbol "checklist" in the app,
+           which Apple licenses for use inside apps only, so the web draws
+           its own checklist in the same shape and stroke instead. -->
+      <nav class="modes" aria-label="The three ways in">
+        <a class="mode-card reveal" href="#curate" style="--d:0s" data-evt="mode_curate">
+          <span class="mi" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.44" y="1.97" width="11.79" height="14.73" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-opacity=".55"/><rect x="6.11" y="4.63" width="11.79" height="14.73" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="8.77" y="7.30" width="11.79" height="14.73" rx="1.5" fill="currentColor"/></svg></span>
+          <span class="mn">Curate</span>
+          <span class="ml">Selects pre&#8209;picks the keepers. You correct with a tap.</span>
+        </a>
+        <a class="mode-card reveal" href="#tidy" style="--d:.08s" data-evt="mode_tidy">
+          <span class="mi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.2l1.7 1.7 3-3.2M3.5 12.7l1.7 1.7 3-3.2M3.5 19.2l1.7 1.7 3-3.2M11.5 6.5h9M11.5 13h9M11.5 19.5h9"/></svg></span>
+          <span class="mn">Tidy up</span>
+          <span class="ml">Your library, sorted by what takes the most space.</span>
+        </a>
+        <a class="mode-card reveal" href="#swipe" style="--d:.16s" data-evt="mode_swipe">
+          <span class="mi" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="3.5" width="10" height="14" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4 20.5 H20 M4 20.5 l2.4 -2.2 M4 20.5 l2.4 2.2 M20 20.5 l-2.4 -2.2 M20 20.5 l-2.4 2.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="mn">Swipe</span>
+          <span class="ml">One photo at a time. Left to remove, right to keep.</span>
+        </a>
+      </nav>
+
+      <!-- ---- Curate ---- -->
+      <article class="mode reveal" id="curate">
+        <div class="mode-head">
+          <span class="tag">Best first</span>
+          <h3>The keepers, already picked.</h3>
+          <p><b>Curate</b> opens on a month of your photos, or pick an album, any dates, or <b>Browse all</b>. Selects finds every photoshoot in it, the same scene taken ten or twenty times, and pre&#8209;picks the sharpest shot plus any that's genuinely different. You just correct with a tap.</p>
+        </div>
+        <div class="shots">
+          <figure class="shot reveal" style="--d:0s">
+            <div class="device"><img src="/selects/img/curate-v3.webp" width="640" height="1338" loading="lazy" alt="Curate on the last 30 days: six photoshoots found, each with how many to keep, how many to clear and the space it saves"></div>
+            <figcaption><span class="n">1</span>Open a month and see every photoshoot in it.</figcaption>
+          </figure>
+          <figure class="shot reveal" style="--d:.1s">
+            <div class="device"><img src="/selects/img/review-v3.webp" width="640" height="1338" loading="lazy" alt="A photoshoot open for review: four portraits from one series, two ticked as keepers and two set to clear"></div>
+            <figcaption><span class="n">2</span>Check the keepers. Tap a circle to switch, or Compare two.</figcaption>
+          </figure>
+          <figure class="shot reveal" style="--d:.2s">
+            <div class="device"><img src="/selects/img/done-v3.webp" width="640" height="1338" loading="lazy" alt="The Done screen: your best 96 kept, 3.1 GB back, and a note that removed photos wait 30 days in Recently Deleted"></div>
+            <figcaption><span class="n">3</span>Confirm, and see what you kept and got back. Removed photos wait 30 days in Recently Deleted.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <!-- ---- Tidy up (compression lives here: it starts from Large videos) ---- -->
+      <article class="mode reveal" id="tidy">
+        <div class="mode-head">
+          <span class="tag">Biggest first</span>
+          <h3>See what takes the most space.</h3>
+          <p><b>Tidy up</b> sorts your whole library into lists. Worth a look first: large videos, exact copies, bursts, and compressed videos whose original is still there. Any time: screenshots, screen recordings, all videos, blurry and low&#8209;light photos, and utility photos like receipts.</p>
+        </div>
+        <div class="shots shots-2">
+          <figure class="shot reveal" style="--d:0s">
+            <div class="device"><img src="/selects/img/tidy-v3.webp" width="640" height="1338" loading="lazy" alt="Tidy up: 48.2 GB in the library, with lists for large videos, exact copies, compressed videos beside their originals, and bursts"></div>
+            <figcaption>Every list, with how much space it takes.</figcaption>
+          </figure>
+          <figure class="shot reveal" style="--d:.1s">
+            <div class="device"><img src="/selects/img/compress-v3.webp" width="640" height="1338" loading="lazy" alt="A compressed copy of a video in preview, saving about 876 MB, with a switch to compare it with the original"></div>
+            <figcaption>Compress a big video instead. Preview it first, and the original stays until you remove it.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <!-- ---- Swipe. The loop is the press kit's 4:5 Swipe loop cropped to
+           the phone (its frame carries an old rating line); the radius masks
+           the paper ground in the corners. Reduce Motion gets the poster. ---- -->
+      <article class="mode reveal" id="swipe">
+        <div class="mode-split">
+          <div class="mode-head">
             <span class="tag">One at a time</span>
             <h3>Keep it simple: swipe.</h3>
-            <p>The <b>Swipe</b> tab shows your photos one at a time. Left to remove, right to keep, up to add it to Favorites. Swipe through a month, an album, just videos or screenshots, or any list in Tidy up. Nothing is removed until you confirm.</p>
+            <p>The <b>Swipe</b> tab shows your photos one at a time. Swipe through a month, an album, just videos or screenshots, or any list in Tidy up. Nothing is removed until you confirm.</p>
+            <ul class="gestures">
+              <li><span class="g" aria-hidden="true">&larr;</span>Swipe left to remove</li>
+              <li><span class="g" aria-hidden="true">&rarr;</span>Swipe right to keep</li>
+              <li><span class="g" aria-hidden="true">&uarr;</span>Swipe up to add to Favorites</li>
+            </ul>
+          </div>
+          <div class="device d-video">
+            <video src="/selects/img/swipe-loop-v1.mp4" poster="/selects/img/swipe-loop-v1.webp" width="440" height="926" muted loop playsinline preload="none" aria-label="Swipe: photos dragged left to remove and right to keep, one at a time"></video>
           </div>
         </div>
+      </article>
+    </div>
+  </section>
 
-        <!-- 1 · curate: a month's photoshoots -->
-        <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/curate-v3.webp" width="640" height="1338" loading="lazy" alt="Curate on the last 30 days: six photoshoots found, each with how many to keep, how many to clear and the space it saves"></div></div>
-          <div class="flow-copy">
-            <span class="flow-num">1</span>
-            <h3>Or start with a month.</h3>
-            <p>The <b>Curate</b> tab opens on a month of your own photos. Not that one? <b>Shuffle</b> for another, or pick an <b>album</b>, a range of <b>dates</b>, or <b>Browse all</b>. Selects finds every photoshoot in it: the same scene, taken ten or twenty times, grouped together.</p>
-          </div>
-        </div>
-
-        <!-- 2 · review -->
-        <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/review-v3.webp" width="640" height="1338" loading="lazy" alt="A photoshoot open for review: four portraits from one series, two ticked as keepers and two set to clear"></div></div>
-          <div class="flow-copy">
-            <span class="flow-num">2</span>
-            <h3>It pre&#8209;picks the keepers. You just correct.</h3>
-            <p>In each photoshoot, Selects pre&#8209;picks the keepers: the sharpest photo, plus the one that's genuinely different, so you don't lose the moment. <b>Tap a circle to switch any photo between keep and clear</b>, or tap Compare to put two side by side. Your choices are saved as you go.</p>
-          </div>
-        </div>
-
-        <!-- 3 · done -->
-        <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/done-v3.webp" width="640" height="1338" loading="lazy" alt="The Done screen: your best 96 kept, 3.1 GB back, and a note that removed photos wait 30 days in Recently Deleted"></div></div>
-          <div class="flow-copy">
-            <span class="flow-num">3</span>
-            <h3>Your best few, and the space back.</h3>
-            <p>A photoshoot of 40 becomes its best handful. Nothing is removed until you confirm, through your iPhone's own delete, and removed photos stay in <b>Recently Deleted for 30 days</b>. Then Selects tallies what you kept and what you got back, and takes you to the next photoshoot.</p>
-          </div>
-        </div>
-
-        <!-- 4 · tidy up -->
-        <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/tidy-v3.webp" width="640" height="1338" loading="lazy" alt="Tidy up: 48.2 GB in the library, with lists for large videos, exact copies, compressed videos beside their originals, and bursts"></div></div>
-          <div class="flow-copy">
-            <span class="tag">Biggest first</span>
-            <h3>See what takes the most space.</h3>
-            <p><b>Tidy up</b> sorts your whole library into lists. First what's worth a look: large videos, exact copies, bursts, and videos you've compressed whose original is still there. Then lists for any time: screenshots, screen recordings, all videos, blurry and low&#8209;light photos, and utility photos like receipts.</p>
-          </div>
-        </div>
-
-        <!-- 6 · compress -->
-        <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/compress-v3.webp" width="640" height="1338" loading="lazy" alt="A compressed copy of a video in preview, saving about 876 MB, with a switch to compare it with the original"></div></div>
-          <div class="flow-copy">
-            <span class="tag">Smaller, not gone</span>
-            <h3>A big video doesn't have to go.</h3>
-            <p>Selects makes a <b>smaller copy</b> and never touches your original. You see a real preview first, encoded from the hardest seconds of that clip, so you judge the quality yourself instead of trusting a number. Videos stored in iCloud work too. Both sit in your library until you decide, and the space comes back when you remove the original, which is its own confirmed step.</p>
-          </div>
-        </div>
+  <!-- ============ REVIEWS ============
+       Picked by hand from the App Store review feed on 2026-11-06, quoted as
+       written (an excerpt starts or ends at a sentence). Translations went
+       through /vt-copywriter and are labelled. Never stream these live. -->
+  <section class="band band-reviews">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">From the App Store</p>
+        <h2>In their own words.</h2>
+        <p>A few App Store reviews, quoted as written. Two are translated.</p>
       </div>
+      <div class="rev-grid">
+        <figure class="rev">
+          <span class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          <blockquote><p class="rt">Where have you been all my life!</p><p>Great app, processed like 2 years of photos in less than 20 mins</p></blockquote>
+          <figcaption>BootsyCallico &middot; Canada</figcaption>
+        </figure>
+        <figure class="rev">
+          <span class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          <blockquote><p class="rt">Exceeds expectations</p><p>&hellip;this one is so simple, it&rsquo;s amazing. I saved so much room on my camera roll.</p></blockquote>
+          <figcaption>Y0LEAUX &middot; United States</figcaption>
+        </figure>
+        <figure class="rev">
+          <span class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          <blockquote><p class="rt">Great app. Intuitive to use</p><p>The best thing about the app, though, is that it doesn&rsquo;t force you into an account, and privacy is clearly taken very seriously.</p></blockquote>
+          <figcaption>Michael Diamond &middot; Germany<span class="tr">Translated from German</span></figcaption>
+        </figure>
+        <figure class="rev">
+          <span class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          <blockquote><p class="rt">truly free, and best functionality</p><p>what can i say, the app is excellent. easy and intuitive, all the features that even the paid ones have.</p></blockquote>
+          <figcaption>isteeb &middot; Australia</figcaption>
+        </figure>
+        <figure class="rev">
+          <span class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          <blockquote><p class="rt">Great workflow!</p><p>Really Enjoying this one. Reliving memories while clearing out the clutter.</p></blockquote>
+          <figcaption>Twm1010 &middot; United States</figcaption>
+        </figure>
+        <figure class="rev">
+          <span class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          <blockquote><p class="rt">Best app</p><p>I hate deleting and going through photos, and this is a total gamechanger! I love it!</p></blockquote>
+          <figcaption>ddenisahanusova &middot; Czechia<span class="tr">Translated from Czech</span></figcaption>
+        </figure>
+      </div>
+      <p class="rev-more"><a href="https://apps.apple.com/app/id6790501172?see-all=reviews" target="_blank" rel="noopener" data-evt="reviews_appstore">Read all reviews on the App Store</a></p>
     </div>
   </section>
 
@@ -364,3 +527,36 @@
     </div>
   </footer>
 </div>
+<script>
+  /* The Swipe loop plays only while on screen, and never under Reduce
+     Motion, where the poster stands in. preload="none" keeps its 0.5 MB off
+     the first load. */
+  (function(){
+    var v=document.querySelector('.d-video video');
+    if(!v||!('IntersectionObserver' in window)) return;
+    var still=window.matchMedia('(prefers-reduced-motion: reduce)');
+    new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting && !still.matches){ var p=v.play(); if(p&&p.catch) p.catch(function(){}); }
+        else v.pause();
+      });
+    },{threshold:.35}).observe(v);
+  })();
+
+  /* Scroll reveal for How it works. Anything already on screen when this
+     runs (a reload mid-page, a jump to #swipe) is marked shown first, so it
+     never blinks out and back in. */
+  (function(){
+    if(!('IntersectionObserver' in window)) return;
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var els=[].slice.call(document.querySelectorAll('.reveal'));
+    var h=window.innerHeight;
+    els.forEach(function(el){ var r=el.getBoundingClientRect(); if(r.top<h && r.bottom>0) el.classList.add('in'); });
+    document.documentElement.classList.add('rv');
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    },{rootMargin:'0px 0px -8% 0px', threshold:.12});
+    els.forEach(function(el){ if(!el.classList.contains('in')) io.observe(el); });
+  })();
+</script>
+<!--#include asc-sync-->

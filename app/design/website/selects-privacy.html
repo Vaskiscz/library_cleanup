@@ -17,6 +17,9 @@
 
   main{flex:1; padding:64px 0 40px;}
   .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
+  /* the way back sits where an iOS back button would: top left, 44 pt tall */
+  .site a.back{display:inline-flex; align-items:center; gap:7px; min-height:44px; margin:-10px 0 10px -2px; padding-right:8px; font-size:15px; font-weight:600; color:var(--accent); text-decoration:none;}
+  .site a.back:hover{text-decoration:underline; text-underline-offset:3px;}
   .updated{color:var(--text-3); font-size:14px; margin:14px 0 0;}
   .block{margin-top:40px;}
   .block h2{margin-bottom:10px;}
@@ -41,25 +44,26 @@
 
   <main>
     <div class="wrap">
+      <a class="back" href="/selects/" data-evt="back_selects_top"><svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 1.5 1.5 7.5l6 6"/></svg>Back to Selects</a>
       <p class="eyebrow">Selects &middot; Privacy</p>
       <h1>Privacy policy</h1>
-      <p class="updated">Last updated August 13, 2026</p>
+      <p class="updated">Last updated November 6, 2026</p>
 
       <div class="block">
-        <p>This policy explains how the <strong>Selects</strong> app for iPhone handles your data. Selects is a photo&#8209;curation app: it groups your near&#8209;identical photos into photoshoots, pre&#8209;picks the best ones, and lets you clear the rest. It is developed by <strong>V&aacute;clav Trnka</strong> (the &ldquo;developer&rdquo;, &ldquo;I&rdquo;), based in the Czech Republic.</p>
+        <p>This policy explains how the <strong>Selects</strong> app for iPhone handles your data. Selects is a photo&#8209;curation app: it groups your near&#8209;identical photos into photoshoots, pre&#8209;picks the best ones, and lets you clear the rest. It is developed by <strong>V&aacute;clav Trnka</strong> (the &ldquo;developer&rdquo;, &ldquo;I&rdquo;), IČO 03940110, Tylova Čtvrť 378, 384 02 Lhenice, Czechia, who is responsible for the data described here.</p>
       </div>
 
       <div class="block">
         <div class="callout tldr">
           <p><strong>The short version.</strong> Selects works on your iPhone. Your photos are analyzed on&#8209;device and are never uploaded or sent anywhere. There is no account and no advertising.</p>
-          <p>The app does collect <strong>anonymous, aggregate usage statistics</strong> to help improve it. These are never your photos and are never tied to you, and you can turn them off at any time in Settings.</p>
+          <p>The app does send <strong>anonymous usage statistics</strong> to help improve it. They describe how the app is used and, in counts and sizes, what your library holds, but never your photos themselves, and they are never tied to you. You can turn them off at any time in Settings. If you write feedback in the app, what you write is sent too.</p>
         </div>
       </div>
 
       <div class="block">
         <h2>Your photos stay on your iPhone</h2>
         <p>When you grant Photos access, Selects reads your library <strong>on your device</strong> to find photoshoots and score which shots are sharpest and most distinct. All of this analysis happens locally on your device.</p>
-        <p>Your photos and thumbnails <strong>never leave your device</strong>, and nothing about your library is ever sent to the developer. The one small exception is described under <em>Place names</em> below.</p>
+        <p>Your photos and thumbnails <strong>never leave your device</strong>. What the anonymous statistics below do say about your library is limited to counts, sizes and the technical format of videos, never the photos themselves. Apart from those statistics, the one other thing that leaves the device is described under <em>Place names</em> below.</p>
         <p>You can grant full or limited access, and change it at any time in the iOS Settings app. When you choose to remove photos, Selects hands them to iOS&rsquo;s own delete, so they go to your <strong>Recently Deleted</strong> album and remain recoverable for 30 days. Nothing is ever removed without your confirmation.</p>
       </div>
 
@@ -70,11 +74,25 @@
 
       <div class="block">
         <h2>Anonymous usage statistics</h2>
-        <p>To understand how the app is used and where it can be improved, Selects collects anonymous, aggregate usage statistics through <a href="https://posthog.com/" target="_blank" rel="noopener noreferrer">PostHog</a>, hosted in the European Union. These describe general activity in the app, such as which features are used, as fixed categories and aggregate counts.</p>
-        <p>They <strong>never</strong> include your photos or anything that could identify you or your library, and Selects does <strong>not</strong> build advertising profiles, use the advertising identifier (IDFA), track you across other apps or websites, or record your screen. A random identifier is created when you install the app, so unique installs can be counted rather than one person counted many times. It is not your device's own identifier, it is not linked to you, and deleting the app discards it.</p>
+        <p>To understand how the app is used and where it can be improved, Selects sends anonymous usage statistics to <a href="https://posthog.com/" target="_blank" rel="noopener noreferrer">PostHog</a>, hosted in the European Union. They cover:</p>
+        <ul>
+          <li><strong>How the app is used</strong>: which screens and features are opened, and what happens in them, as fixed categories and counts (for example, how many photos were kept and cleared in a review, and the estimated space cleared).</li>
+          <li><strong>What your library holds, in numbers</strong>: how many photos, videos, screenshots and other kinds of items it has, and how much space they take. Usually this is in ranges, at most once every 30 days. Once per install, it is the exact count and size of each list in Tidy up.</li>
+          <li><strong>The technical format of videos you open or compress</strong>: resolution, frame rate, codec, whether it is HDR or slow motion, its length in ranges and its size rounded down to 10 MB, plus how a compression went, including error codes if it failed.</li>
+          <li><strong>Taps that seem stuck</strong>: when the same spot is tapped repeatedly, the screen it happened on and the position of the taps, so unresponsive buttons can be found.</li>
+          <li><strong>Survey answers</strong>: the app may occasionally ask a short question. Answering is optional, and answers are sent the same anonymous way.</li>
+        </ul>
+        <p>They <strong>never</strong> include your photos, filenames, the dates or places your photos were taken, album names, or any identifier of a photo. Selects does <strong>not</strong> build advertising profiles, use the advertising identifier (IDFA), track you across other apps or websites, or record your screen. A random identifier is created when you install the app, so unique installs can be counted rather than one person counted many times. It is not your device's own identifier, it is not linked to you, and deleting the app discards it. PostHog sees your IP address as any connection over the internet does. It is used once to look up the country you are in, and then discarded: the country is kept, the IP address is not, and nothing finer than the country (no city or region) is recorded.</p>
+        <p>The legal basis is the developer&rsquo;s legitimate interest in understanding and improving the app (GDPR Article 6(1)(f)), balanced by the statistics being anonymous and easy to switch off.</p>
         <div class="callout">
           <p><strong>Your choice.</strong> Anonymous statistics are on by default. You can turn them off at any time in the app&rsquo;s privacy settings, and the app works exactly the same either way.</p>
         </div>
+      </div>
+
+      <div class="block">
+        <h2>Feedback you write</h2>
+        <p>When the app asks how Selects is working for you, you can write a few lines about what could be better. If you send them, the text you wrote (up to 1,000 characters) goes to the developer through the same anonymous statistics. It carries no name or email address, so I can read it but cannot reply. If you want an answer, email <a href="mailto:selects@vaclavtrnka.cz">selects@vaclavtrnka.cz</a> instead, and please don&rsquo;t put personal details in the feedback box.</p>
+        <p>This box is only offered while anonymous statistics are on. With them off, the app opens an email draft instead, and nothing is sent unless you send that email yourself.</p>
       </div>
 
       <div class="block">
@@ -113,7 +131,7 @@
 
       <div class="block">
         <h2>Your rights</h2>
-        <p>Because the statistics Selects collects are anonymous and are not linked to your identity, the developer generally cannot single out, retrieve, or delete an individual person&rsquo;s data. You remain in full control on the device: you can turn analytics off at any time in Settings, and revoke Photos access in the iOS Settings app. If you are in the EU, EEA, or UK and have questions about your rights under the GDPR, please get in touch.</p>
+        <p>Because the statistics Selects collects are anonymous and are not linked to your identity, the developer generally cannot single out, retrieve, or delete an individual person&rsquo;s data. You remain in full control on the device: you can turn analytics off at any time in Settings, and revoke Photos access in the iOS Settings app. If you are in the EU, EEA, or UK and have questions about your rights under the GDPR, please get in touch. You can also complain to a data protection authority; in the Czech Republic that is the <a href="https://uoou.gov.cz/" target="_blank" rel="noopener noreferrer">Office for Personal Data Protection (&Uacute;OO&Uacute;)</a>.</p>
       </div>
 
       <div class="block">
@@ -130,7 +148,7 @@
 
   <footer class="foot">
     <div class="wrap">
-      <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
+      <a href="/selects/">&larr; Back to Selects</a>
       <a href="/selects/terms/" data-evt="nav_terms">Terms of service</a>
       <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
       <!--#include operator-->

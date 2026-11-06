@@ -1,0 +1,30 @@
+<!-- App Store sync. Fills [data-asc] elements from /api/selects-rating
+     (site/netlify/functions/selects-rating.mjs): the worldwide rating, its
+     stars, and the live version and its release date. The numbers written
+     into the HTML stay as they are when the call fails, when JS is off, and
+     in a local preview (python's server has no functions), so keep them
+     roughly current by hand anyway. A count LOWER than the one in the HTML
+     is ignored: it can only mean some storefronts failed to answer. Same
+     origin only, so a visitor's browser never talks to Apple. -->
+<script>
+  (function(){
+    if(!document.querySelector('[data-asc]') || !window.fetch) return;
+    function each(k, f){ [].forEach.call(document.querySelectorAll('[data-asc="'+k+'"]'), f); }
+    function set(k, v){ each(k, function(e){ e.textContent = v; }); }
+    var baked = 0;
+    each('count', function(e){ baked = Math.max(baked, parseInt(e.textContent.replace(/\D/g, ''), 10) || 0); });
+    fetch('/api/selects-rating').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      if(!d || !d.ok) return;
+      if(d.count >= baked && d.average > 0){
+        var n = Math.round(d.average);
+        set('count', d.count.toLocaleString('en-US'));
+        set('average', d.average.toFixed(1));
+        set('stars', '★'.repeat(n) + '☆'.repeat(5 - n));
+      }
+      if(/^\d+(\.\d+)*$/.test(d.version || '') && d.released){
+        set('version', d.version);
+        set('released', new Date(d.released).toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric', timeZone:'UTC'}));
+      }
+    }).catch(function(){});
+  })();
+</script>
