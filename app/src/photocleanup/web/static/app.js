@@ -184,7 +184,7 @@ function renderHome() {
             <button class="btn-secondary sm" id="openlog">Open Log</button>
           </div>
           <div class="errmsg" style="margin-top:8px">If it keeps failing, send the log to
-            vaclavtrnkaproductsupport@gmail.com and I'll take a look.</div>
+            info@vaclavtrnka.cz and I'll take a look.</div>
         </div>` : "";
     body = `
       <div class="scroll"><div class="home"><div class="hero">
