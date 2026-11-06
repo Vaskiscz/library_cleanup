@@ -1,0 +1,187 @@
+<style>
+  :root{
+    color-scheme:light;
+    --bg:#f4f4f6; --surface:#fff; --line:#e7e7eb; --line-2:#d9d9de;
+    --text:#1d1d1f; --text-2:#6e6e73; --text-3:#98989d;
+    --accent:#147966; --accent-2:#147966;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,"Segoe UI",Helvetica,sans-serif;
+  }
+  .site{font-family:var(--font); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; font-size:17px; min-height:100vh; display:flex; flex-direction:column;}
+  .site *{box-sizing:border-box;}
+  .site a{color:var(--accent-2); text-decoration:none;}
+  .site a:hover{text-decoration:underline;}
+  .wrap{max-width:880px; margin:0 auto; padding:0 28px; width:100%;}
+  .site h1{margin:0; font-size:clamp(30px,5vw,44px); font-weight:700; letter-spacing:-.03em; text-wrap:balance;}
+  .site h2{margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em;}
+
+
+  main{flex:1; padding:64px 0 40px;}
+  .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
+  .updated{color:var(--text-3); font-size:14px; margin:14px 0 0;}
+  .block{margin-top:40px;}
+  .block h2{margin-bottom:10px;}
+  .block p{color:var(--text-2); margin:0 0 14px;}
+  .block ul{color:var(--text-2); margin:0 0 14px; padding-left:20px;}
+  .block li{margin:7px 0;}
+  .block strong{color:var(--text); font-weight:600;}
+  .callout{border:1px solid var(--line-2); background:var(--surface); border-radius:14px; padding:20px 22px; margin-top:16px;}
+  .callout p{margin:0 0 12px; color:var(--text-2);}
+  .callout p:last-child{margin:0;}
+  .callout strong{color:var(--text);}
+  .tldr{border-color:rgba(31,158,134,.32); background:linear-gradient(180deg,rgba(31,158,134,.08),rgba(31,158,134,.02));}
+
+  .foot{border-top:1px solid var(--line); padding:28px 0; font-size:13.5px; color:var(--text-3);}
+  .foot .wrap{display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+  .foot a{color:var(--text-2);}
+  @media(max-width:520px){.wrap{padding:0 22px;} main{padding:44px 0;}}
+</style>
+<style>
+  .lede{color:var(--text-2); font-size:19px; margin:16px 0 0;}
+  .promo{display:block; width:100%; height:auto; aspect-ratio:16/9; margin-top:32px; border-radius:16px; background:#F3ECE2; box-shadow:0 18px 40px rgba(20,45,40,.14),0 4px 10px rgba(20,45,40,.08);}
+  .facts{display:grid; grid-template-columns:150px minmax(0,1fr); gap:10px 18px; margin:0; color:var(--text-2);}
+  .facts dt{color:var(--text-3); font-size:14px; padding-top:2px;}
+  .facts dd{margin:0;}
+  .stats{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:6px;}
+  .stat{border:1px solid var(--line-2); background:var(--surface); border-radius:14px; padding:16px 18px;}
+  .stat b{display:block; font-size:28px; letter-spacing:-.02em; color:var(--text);}
+  .stat span{font-size:14px; color:var(--text-2);}
+  .copybox{border:1px solid var(--line-2); background:var(--surface); border-radius:14px; padding:16px 18px; margin:0 0 12px;}
+  .copybox .lab{font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin:0 0 6px;}
+  .copybox p{margin:0; color:var(--text);}
+  blockquote{margin:0; border-left:3px solid rgba(31,158,134,.45); padding:4px 0 4px 16px; color:var(--text); font-size:18px;}
+  .shots{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px;}
+  @media(max-width:880px){.shots{grid-template-columns:repeat(3,minmax(0,1fr));}}
+  .shots img{width:100%; height:auto; border-radius:12px; border:1px solid var(--line); display:block;}
+  .assets{display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:18px;}
+  .assets img{width:72px; height:72px; border-radius:16px;}
+  /* LinkedIn button: the same as the home page's .btn.btn-linkedin, scoped so .site a cannot recolour it */
+  .site a.btn-linkedin{display:inline-flex; align-items:center; gap:10px; font-weight:600; font-size:15.5px; background:#0a66c2; color:#fff; border:1px solid transparent; border-radius:999px; padding:13px 26px 13px 22px; box-shadow:0 8px 22px rgba(10,102,194,.28); text-decoration:none; transition:transform .12s ease,background .15s ease;}
+  .site a.btn-linkedin svg{fill:#fff;}
+  .site a.btn-linkedin:hover{background:#004182; text-decoration:none;}
+  .site a.btn-linkedin:active{transform:scale(.98);}
+  .maker{display:flex; gap:24px; align-items:center; margin-bottom:14px;}
+  .maker img{width:200px; height:200px; border-radius:18px; object-fit:cover; flex:none;}
+  @media(max-width:520px){.maker{flex-direction:column; align-items:flex-start; gap:16px;} .maker img{width:180px; height:180px;}}
+  .maker p{margin:0;}
+  .btn{display:inline-block; border:1px solid var(--line-2); background:var(--surface); border-radius:999px; padding:9px 16px; font-weight:600; font-size:15px;}
+  @media(max-width:520px){.facts{grid-template-columns:1fr; gap:2px 0;} .facts dd{margin-bottom:10px;} .shots{grid-template-columns:repeat(2,minmax(0,1fr));} .stats{grid-template-columns:1fr;}}
+</style>
+
+<div class="site" data-theme="light" data-page="selects">
+  <!--#include header-->
+
+  <main>
+    <div class="wrap">
+      <p class="eyebrow">Selects &middot; Press kit</p>
+      <h1>Selects press kit</h1>
+      <p class="lede">Everything you need to write about Selects: descriptions, facts, numbers, screenshots, videos, the app icon and a portrait. Use any of it freely in coverage.</p>
+      <video class="promo" src="selects-video-loop-1280.mp4" poster="img/selects-video-poster.jpg" width="1280" height="720" autoplay muted loop playsinline preload="auto" aria-label="Selects in 22 seconds: picking the keepers in a photoshoot, Tidy up, compressing a video and swiping through photos"></video>
+      <script>(function(){var v=document.querySelector('video.promo');if(v&&window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){v.removeAttribute('autoplay');v.pause();v.controls=true;}})();</script>
+
+      <div class="block">
+        <h2>In one line</h2>
+        <div class="copybox"><p>Selects is a free iPhone app that finds the photos you took over and over and pre&#8209;picks the keepers, so you can clear the rest with a tap.</p></div>
+      </div>
+
+      <div class="block">
+        <h2>Short description</h2>
+        <div class="copybox"><p class="lab">About 50 words</p><p>Selects is a free iPhone app that keeps a photo library in good shape. It groups near&#8209;identical photos into photoshoots and pre&#8209;picks the keepers, sorts the library by what takes the most space, and lets you swipe through photos one at a time. It also compresses big videos. Everything runs on the iPhone.</p></div>
+      </div>
+
+      <div class="block">
+        <h2>Long description</h2>
+        <div class="copybox"><p class="lab">About 150 words</p><p>Most people shoot the same moment ten times to get one good photo, and keep all ten. Selects does the tedious first pass. It finds those photoshoots and pre&#8209;picks the keepers: the sharpest photo, plus the one that is genuinely different, so the moment isn&#8217;t lost. Two more ways in sit beside it. Tidy up sorts the whole library into lists of what takes the most space: large videos, exact copies, bursts, screenshots, screen recordings, blurry and low&#8209;light photos. Swipe shows one photo at a time: left to remove, right to keep. A big video can get a compressed copy instead of going, with a real preview first and the original kept until you decide. Nothing is removed until you confirm, and removed photos stay in Recently Deleted for 30 days. The photos are analyzed on the iPhone with Apple&#8217;s Vision framework and never leave it. Selects is free, with no account, no subscription and no ads.</p></div>
+      </div>
+
+      <div class="block">
+        <h2>The maker</h2>
+        <div class="maker">
+          <img src="img/vaclav-trnka-bust.jpg" width="460" height="460" alt="V&aacute;clav Trnka, maker of Selects">
+          <p>Selects is made by <strong>V&aacute;clav Trnka</strong>, a senior product manager based in Czechia who has built and scaled apps internationally. On the side, V&aacute;clav builds <a href="https://vaclavtrnka.cz/">solutions for problems from real life</a>. Selects started as one of them: the tool missing from a personal library full of near&#8209;duplicates.</p>
+        </div>
+        <p>Many apps in this category are cleaners sold on weekly subscriptions. Selects went the other way: it is free, with no account, no ads and nothing locked, and an optional tip for anyone who wants to support it. It&#8217;s built with the help of AI tools, which is what makes it possible for one person to design, test and look after an app this carefully, and still keep it free.</p>
+        <blockquote>&ldquo;I build things for problems I run into in real life. This one was my own photo library: the same shot ten times over, and no app that would pick the keepers without asking for a subscription.&rdquo;<br><span style="color:var(--text-3); font-size:15px;">V&aacute;clav Trnka, maker of Selects</span></blockquote>
+      </div>
+
+      <div class="block">
+        <h2>What it does</h2>
+        <ul>
+          <li><strong>Curate picks the keepers.</strong> Near&#8209;identical photos are grouped into photoshoots, a month or an album at a time, with the best few already chosen.</li>
+          <li><strong>Tidy up shows what takes the most space.</strong> Large videos, exact copies, bursts, screenshots, screen recordings, blurry and low&#8209;light photos and utility photos, each in its own list.</li>
+          <li><strong>Swipe keeps it simple.</strong> One photo at a time: left to remove, right to keep, up to add it to Favorites.</li>
+          <li><strong>Compresses big videos.</strong> A smaller copy with a real preview, and the original stays until you choose to remove it.</li>
+          <li><strong>Stays on the iPhone.</strong> Photos are analyzed on the iPhone and never leave it. Nothing is removed until you confirm.</li>
+        </ul>
+      </div>
+
+      <div class="block">
+        <h2>Numbers</h2>
+        <p>As of 26 October 2026, twelve weeks after launch.</p>
+        <div class="stats">
+          <div class="stat"><b>5.0</b><span>average App Store rating, from 107 ratings</span></div>
+          <div class="stat"><b>120,000+</b><span>photos and videos removed</span></div>
+          <div class="stat"><b>1.8&nbsp;TB</b><span>of space saved</span></div>
+          <div class="stat"><b>2,000+</b><span>videos compressed</span></div>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2>Facts</h2>
+        <dl class="facts">
+          <dt>App</dt><dd>Selects: Clean Up Your Photos</dd>
+          <dt>Developer</dt><dd>V&aacute;clav Trnka, Czechia</dd>
+          <dt>Launched</dt><dd>4 August 2026</dd>
+          <dt>Current version</dt><dd>2.0.0, released 19 October 2026</dd>
+          <dt>Platform</dt><dd>iPhone, iOS&nbsp;26 or later</dd>
+          <dt>Price</dt><dd>Free. One optional in&#8209;app tip</dd>
+          <dt>Languages</dt><dd>English, Czech, German, Spanish. The App Store listing is also in French, Italian and Latin American Spanish</dd>
+          <dt>App Store</dt><dd><a href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=press&amp;mt=8" target="_blank" rel="noopener" data-evt="press_appstore">Selects on the App Store</a></dd>
+          <dt>Website</dt><dd><a href="https://vaclavtrnka.cz/selects">vaclavtrnka.cz/selects</a></dd>
+          <dt>Privacy</dt><dd><a href="/selects/privacy/">Privacy policy</a> &middot; <a href="/selects/terms/">Terms</a></dd>
+        </dl>
+      </div>
+
+      <div class="block">
+        <h2>Images</h2>
+        <div class="assets">
+          <img src="img/selects-icon-1024.png" width="1024" height="1024" alt="Selects app icon">
+          <a class="btn" href="img/selects-icon-1024.png" download data-evt="press_icon">App icon, 1024&nbsp;px</a>
+          <a class="btn" href="img/vaclav-trnka-portrait.jpg" download data-evt="press_portrait">Portrait, 960&nbsp;px</a>
+          <a class="btn" href="selects-video-1920x1080.mp4" download data-evt="press_video">Video, 22&nbsp;s, 1920&nbsp;&times;&nbsp;1080</a>
+          <a class="btn" href="selects-swipe-loop-1080x1350.mp4" download data-evt="press_loop">Swipe loop, 7&nbsp;s, 1080&nbsp;&times;&nbsp;1350</a>
+          <a class="btn" href="selects-press-kit.zip" download data-evt="press_zip">Download everything (.zip)</a>
+        </div>
+        <p>App Store screenshots, 1320&nbsp;&times;&nbsp;2868. Tap one for full size.</p>
+        <div class="shots">
+          <a href="img/selects-screenshot-1-review.jpg" target="_blank" rel="noopener"><img src="img/selects-screenshot-1-review-thumb.jpg" width="440" height="956" loading="lazy" alt="Photoshoot review with the keepers already picked"></a>
+          <a href="img/selects-screenshot-2-swipe.jpg" target="_blank" rel="noopener"><img src="img/selects-screenshot-2-swipe-thumb.jpg" width="440" height="956" loading="lazy" alt="Swipe, one photo at a time"></a>
+          <a href="img/selects-screenshot-3-free.jpg" target="_blank" rel="noopener"><img src="img/selects-screenshot-3-free-thumb.jpg" width="440" height="956" loading="lazy" alt="Free, with no ads, no subscription and no paywall"></a>
+          <a href="img/selects-screenshot-4-compress.jpg" target="_blank" rel="noopener"><img src="img/selects-screenshot-4-compress-thumb.jpg" width="440" height="956" loading="lazy" alt="Video compression with a real preview"></a>
+          <a href="img/selects-screenshot-5-tidy.jpg" target="_blank" rel="noopener"><img src="img/selects-screenshot-5-tidy-thumb.jpg" width="440" height="956" loading="lazy" alt="Tidy up, the whole library sorted by what takes space"></a>
+          <a href="img/selects-screenshot-6-finalize.jpg" target="_blank" rel="noopener"><img src="img/selects-screenshot-6-finalize-thumb.jpg" width="440" height="956" loading="lazy" alt="Removal confirmed, with 30 days in Recently Deleted"></a>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2>Contact</h2>
+        <p>For questions or an interview, message me on LinkedIn. It&#8217;s the fastest way to reach me.</p>
+        <div class="assets">
+          <a class="btn-linkedin" data-evt="press_linkedin" href="https://www.linkedin.com/in/vaclav-trnka/" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm6 0h3.8v1.7h.05c.53-1 1.83-2.05 3.76-2.05C20.4 8.65 21 11 21 14.1V21h-4v-6.1c0-1.45-.03-3.3-2-3.3-2 0-2.3 1.57-2.3 3.2V21H9V9Z"/></svg>
+            Connect on LinkedIn
+          </a>
+        </div>
+        <p>Prefer email? Write to <a href="mailto:selects@vaclavtrnka.cz?subject=Selects%20press">selects@vaclavtrnka.cz</a>.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
+      <a href="/selects/privacy/" data-evt="nav_privacy">Privacy policy</a>
+      <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
+      <!--#include operator-->
+    </div>
+  </footer>
+</div>

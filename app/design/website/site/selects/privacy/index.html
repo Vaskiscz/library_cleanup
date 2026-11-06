@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f4f4f6">
 <meta property="og:locale" content="en_US">
-<link rel="apple-touch-icon" href="/selects/apple-touch-icon-v2.png">
+<link rel="apple-touch-icon" href="/selects/apple-touch-icon-v3.png">
 <title>Selects · Privacy policy</title>
 <link rel="canonical" href="https://vaclavtrnka.cz/selects/privacy/">
 <meta name="description" content="How the Selects iPhone app handles your data: photos are processed on-device and never uploaded, with only anonymous, opt-out usage statistics.">
@@ -13,15 +13,8 @@
 <meta property="og:description" content="Your photos never leave your iPhone. Anonymous, opt-out usage statistics only.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vaclavtrnka.cz/selects/privacy/">
-<link rel="icon" type="image/png" href="/selects/favicon-v2.png">
-<script type="text/javascript">
-  if (/(^|\.)vaclavtrnka\.cz$/i.test(location.hostname))
-  (function(c,l,a,r,i,t,y){
-      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window, document, "clarity", "script", "xh7wgelo83");
-</script>
+<link rel="icon" type="image/png" href="/selects/favicon-v3.png">
+<!-- No analytics. -->
 </head>
 <body>
 <style>
@@ -40,10 +33,6 @@
   .site h1{margin:0; font-size:clamp(30px,5vw,44px); font-weight:700; letter-spacing:-.03em; text-wrap:balance;}
   .site h2{margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em;}
 
-  .nav{border-bottom:1px solid var(--line);}
-  .nav .wrap{display:flex; align-items:center; height:64px;}
-  .nav .mark{display:flex; align-items:center; gap:11px; font-weight:600; font-size:15.5px; color:var(--text);}
-  .nav .badge{width:30px; height:30px; border-radius:9px; display:block;}
 
   main{flex:1; padding:64px 0 40px;}
   .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
@@ -66,10 +55,137 @@
   @media(max-width:520px){.wrap{padding:0 22px;} main{padding:44px 0;}}
 </style>
 
-<div class="site">
-  <nav class="nav">
-    <div class="wrap"><a class="mark" href="https://vaclavtrnka.cz/selects"><img class="badge" src="/selects/app-icon.png" width="160" height="160" alt=""> Selects</a></div>
-  </nav>
+<div class="site" data-theme="light" data-page="selects">
+<!-- ============ SHARED TOP BAR (partials/header.html) ============
+     One header for every page. The page says who it is on its .site root:
+       data-theme="dark" | "light"   which palette the bar takes
+       data-page="home" | "privacy" | "notfound" (the hub pages)
+                 | "selects" | "library-cleanup" (the project pages)
+     data-page picks the call to action (Selects pages get the App Store,
+     are dropped by build.sh from every app page: the projects are separate
+     topics and only the hub links to them (owner, 2026-11-06). On phones the
+     hub's links fold into a menu; an app page keeps just Contact inline, and
+     its call to action moves to a bar at the bottom of the screen (see .vt-bar
+     below), which shows only while no other download button is in view. -->
+<style>
+  .vt-top{position:sticky; top:0; z-index:40; border-bottom:1px solid var(--vt-line);
+    background:var(--vt-glass); -webkit-backdrop-filter:saturate(1.4) blur(14px); backdrop-filter:saturate(1.4) blur(14px);}
+  .site[data-theme=light]{--vt-glass:rgba(244,244,246,.82); --vt-line:rgba(0,0,0,.08); --vt-ink:#1d1d1f; --vt-ink-2:#5f5f65; --vt-hover:rgba(0,0,0,.05); --vt-cta:#147966; --vt-cta-ink:#fff; --vt-panel:#fbfbfd;}
+  .site[data-theme=dark]{--vt-glass:rgba(15,17,20,.78); --vt-line:#262b33; --vt-ink:#eef0f3; --vt-ink-2:#a3a9b3; --vt-hover:rgba(255,255,255,.06); --vt-cta:#e6a93a; --vt-cta-ink:#2a1d05; --vt-panel:#161920;}
+  @media (prefers-reduced-transparency:reduce){ .site[data-theme=light] .vt-top{background:#f4f4f6;} .site[data-theme=dark] .vt-top{background:#0f1114;} }
+  .vt-top-in{display:flex; align-items:center; justify-content:space-between; gap:16px; height:60px;}
+  .vt-mark{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; letter-spacing:-.01em; color:var(--vt-ink) !important; text-decoration:none !important; white-space:nowrap;}
+  .vt-badge{width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#e6a93a,#f2c469); color:#2a1d05; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; letter-spacing:0;}
+  .vt-right{display:flex; align-items:center; gap:6px;}
+  .vt-nav{display:flex; align-items:center; gap:2px;}
+  .vt-nav a{font-size:14.5px; font-weight:500; color:var(--vt-ink-2) !important; text-decoration:none !important; padding:8px 12px; border-radius:8px; transition:color .15s ease, background-color .15s ease;}
+  .vt-nav a:hover{color:var(--vt-ink) !important; background:var(--vt-hover);}
+  .vt-nav a[aria-current=page]{color:var(--vt-ink) !important; font-weight:600;}
+  .vt-nav .vt-ext{opacity:.6; margin-left:2px;}
+  .vt-cta{display:none; align-items:center; gap:7px; margin-left:8px; font-size:14px; font-weight:600; line-height:1; padding:10px 15px; border-radius:10px;
+    background:var(--vt-cta); color:var(--vt-cta-ink) !important; text-decoration:none !important; white-space:nowrap; transition:filter .15s ease;}
+  .vt-cta:hover{filter:brightness(1.08);}
+  .site[data-page=selects] .vt-cta-selects, .site[data-page=library-cleanup] .vt-cta-lc{display:inline-flex;}
+  .vt-burger{display:none; width:44px; height:44px; margin-right:-10px; border:0; border-radius:10px; background:none; color:var(--vt-ink); cursor:pointer; align-items:center; justify-content:center;}
+  .vt-burger:hover{background:var(--vt-hover);}
+  .vt-burger .x{display:none;}
+  .vt-top.open .vt-burger .x{display:block;} .vt-top.open .vt-burger .b{display:none;}
+  .vt-nav a:focus-visible,.vt-cta:focus-visible,.vt-burger:focus-visible,.vt-mark:focus-visible,.vt-bar a:focus-visible{outline:2px solid var(--vt-cta); outline-offset:2px;}
+
+  /* Hub pages (home, site privacy) carry the project links, folded into a menu
+     on phones. App pages carry only Contact, so it stays inline and there is
+     no menu button. */
+  .site:is([data-page=selects],[data-page=library-cleanup]) .vt-burger{display:none !important;}
+  @media (max-width:760px){
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-burger{display:inline-flex;}
+    .vt-cta{display:none !important;}
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-nav{display:none; position:absolute; left:0; right:0; top:100%; flex-direction:column; align-items:stretch; gap:0;
+      padding:8px 12px 14px; background:var(--vt-panel); border-bottom:1px solid var(--vt-line); box-shadow:0 18px 30px rgba(0,0,0,.12);}
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-top.open .vt-nav{display:flex;}
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-nav a{font-size:17px; padding:13px 12px; min-height:44px;}
+    .site:is([data-page=selects],[data-page=library-cleanup]) .vt-nav a{display:inline-flex; align-items:center; min-height:44px; margin-right:-12px;}
+  }
+
+  /* ---- bottom download bar: phones, app pages only ---- */
+  .vt-bar{display:none;}
+  @media (max-width:760px){
+    .site[data-page=selects] .vt-bar-selects, .site[data-page=library-cleanup] .vt-bar-lc{display:flex;}
+    .vt-bar{position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:39; align-items:center; justify-content:space-between; gap:12px;
+      padding:10px 10px 10px 16px; border-radius:16px; border:1px solid var(--vt-line); background:var(--vt-panel); box-shadow:0 12px 32px rgba(0,0,0,.18);
+      transform:translateY(calc(100% + 40px)); opacity:0; pointer-events:none; transition:transform .28s cubic-bezier(.22,.61,.36,1), opacity .2s ease;}
+    .vt-bar.show{transform:none; opacity:1; pointer-events:auto;}
+    .vt-bar p{margin:0; font-size:14px; line-height:1.3; color:var(--vt-ink-2);}
+    .vt-bar p b{display:block; color:var(--vt-ink); font-weight:600;}
+    .vt-bar a{flex:none; display:inline-flex; align-items:center; min-height:44px; padding:0 16px; border-radius:11px; font-size:15px; font-weight:600;
+      background:var(--vt-cta); color:var(--vt-cta-ink) !important; text-decoration:none !important;}
+    /* a .dmg is no use on an iPhone or iPad, so no bar there */
+    html.vt-ios .vt-bar-lc{display:none !important;}
+  }
+  @media (prefers-reduced-motion:reduce){ .vt-bar{transition:none;} }
+</style>
+
+<header class="vt-top">
+  <div class="wrap vt-top-in">
+    <a class="vt-mark" href="/" aria-label="Václav Trnka, home" data-evt="nav_home"><span class="vt-badge" aria-hidden="true">VT</span><span aria-hidden="true">Václav Trnka</span></a>
+    <div class="vt-right">
+      <nav class="vt-nav" id="vt-nav" aria-label="Main">
+        <a href="mailto:info@vaclavtrnka.cz" data-evt="nav_contact">Contact</a>
+      </nav>
+      <a class="vt-cta vt-cta-selects" href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=website&amp;mt=8" target="_blank" rel="noopener" data-only="selects" data-evt="cta_appstore_header">Get it free</a>
+      <button class="vt-burger" type="button" aria-controls="vt-nav" aria-expanded="false" aria-label="Open menu" data-evt="nav_menu">
+        <svg class="b" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <svg class="x" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- one line each, so build.sh can keep each bar on its own page only (data-only) -->
+<div class="vt-bar vt-bar-selects" aria-hidden="true" data-only="selects"><p><b>Selects for iPhone</b>No account, no ads</p><a href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=website&amp;mt=8" target="_blank" rel="noopener" tabindex="-1" data-evt="cta_appstore_bar">Get it free</a></div>
+
+<script>
+  (function () {
+    var site = document.currentScript.closest('.site');
+    var page = site && site.getAttribute('data-page');
+    var top = document.querySelector('.vt-top');
+    // iPhone and iPad (iPadOS reports itself as a Mac, but with touch).
+    var ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) document.documentElement.classList.add('vt-ios');
+    // Current page link.
+    var cur = top.querySelector('.vt-nav a[data-nav="' + page + '"]');
+    if (cur) cur.setAttribute('aria-current', 'page');
+    // Phone menu.
+    var btn = top.querySelector('.vt-burger');
+    function setOpen(open) {
+      top.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    }
+    btn.addEventListener('click', function () { setOpen(!top.classList.contains('open')); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && top.classList.contains('open')) { setOpen(false); btn.focus(); } });
+    document.addEventListener('click', function (e) { if (top.classList.contains('open') && !top.contains(e.target)) setOpen(false); });
+    top.querySelectorAll('.vt-nav a').forEach(function (a) { a.addEventListener('click', function () { setOpen(false); }); });
+    // Bottom bar: shown once the visitor has scrolled, and only while no other
+    // download button (data-cta-anchor) and not the footer is on screen.
+    var bar = site && site.querySelector(page === 'selects' ? '.vt-bar-selects' : page === 'library-cleanup' ? '.vt-bar-lc' : null);
+    if (!bar || !('IntersectionObserver' in window)) return;
+    var visible = new Set(), scrolled = false;
+    function update() {
+      var show = scrolled && visible.size === 0;
+      bar.classList.toggle('show', show);
+      bar.setAttribute('aria-hidden', show ? 'false' : 'true');
+      bar.querySelectorAll('a').forEach(function (a) { a.tabIndex = show ? 0 : -1; });
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) visible.add(en.target); else visible.delete(en.target); });
+      update();
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+      site.querySelectorAll('[data-cta-anchor], footer').forEach(function (el) { io.observe(el); });
+    });
+    addEventListener('scroll', function () { var s = scrollY > 240; if (s !== scrolled) { scrolled = s; update(); } }, { passive: true });
+  })();
+</script>
 
   <main>
     <div class="wrap">
@@ -155,7 +271,7 @@
 
       <div class="block">
         <h2>Contact</h2>
-        <p>Questions about privacy in Selects? Email <a href="mailto:vaclavtrnkaproductsupport@gmail.com?subject=Selects%20privacy">vaclavtrnkaproductsupport@gmail.com</a>.</p>
+        <p>Questions about privacy in Selects? Email <a href="mailto:selects@vaclavtrnka.cz?subject=Selects%20privacy">selects@vaclavtrnka.cz</a>.</p>
       </div>
     </div>
   </main>
@@ -165,14 +281,11 @@
       <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
       <a href="/selects/terms/" data-evt="nav_terms">Terms of service</a>
       <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
+<!-- Operator identification (§ 435 of the Czech Civil Code: name, registered
+     address, IČO). Every page's footer includes this; keep it in one place. -->
+<p class="vt-op" style="flex-basis:100%; width:100%; margin:6px 0 0; font-size:13px; line-height:1.6; opacity:.8;">Run by Václav Trnka<span aria-hidden="true"> · </span>IČO 03940110<span aria-hidden="true"> · </span>Tylova Čtvrť 378, 384 02 Lhenice, Czechia<span aria-hidden="true"> · </span><a href="mailto:info@vaclavtrnka.cz" data-evt="footer_contact">info@vaclavtrnka.cz</a></p>
     </div>
   </footer>
 </div>
-<script>
-  document.addEventListener('click', function (e) {
-    var el = e.target.closest('[data-evt]');
-    if (el && window.clarity) { try { clarity('event', el.getAttribute('data-evt')); } catch (_) {} }
-  }, true);
-</script>
 </body>
 </html>

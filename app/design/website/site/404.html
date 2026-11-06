@@ -3,31 +3,196 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#f4f4f6">
+<meta name="theme-color" content="#0f1114">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>Page not found · vaclavtrnka.cz</title>
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
-  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro",system-ui,"Segoe UI",sans-serif;
-       background:#f4f4f6; color:#1d1d1f; min-height:100vh; display:flex; align-items:center; justify-content:center;}
-  .box{text-align:center; padding:40px 28px; max-width:520px;}
-  h1{font-size:64px; margin:0 0 8px; letter-spacing:-.03em;}
-  p{color:#6e6e73; font-size:17px; line-height:1.6; margin:0 0 28px;}
-  nav{display:flex; gap:18px; justify-content:center; flex-wrap:wrap; font-size:15.5px;}
-  a{color:#178a74; font-weight:600; text-decoration:none;}
-  a:hover{text-decoration:underline;}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#0f1114}
 </style>
+<!-- No analytics. -->
 </head>
 <body>
-  <div class="box">
-    <h1>404</h1>
-    <p>This page doesn't exist (or moved). The rest of the site is still here:</p>
-    <nav>
-      <a href="/">Home</a>
-      <a href="/library-cleanup/">Library Cleanup</a>
-      <a href="/selects/">Selects</a>
-    </nav>
+<style>
+  :root{
+    --bg:#0f1114; --line:#262b33; --line-2:#343a44;
+    --text:#eef0f3; --text-2:#a3a9b3; --text-3:#6c737e;
+    --accent:#e6a93a;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,"Segoe UI",Helvetica,sans-serif;
+  }
+  .site{font-family:var(--font); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; font-size:17px; min-height:100vh; display:flex; flex-direction:column;}
+  .site *{box-sizing:border-box;}
+  .wrap{max-width:680px; margin:0 auto; padding:0 28px; width:100%;}
+  main{flex:1; display:flex; align-items:center; padding:72px 0;}
+  .box{text-align:center;}
+  .box h1{font-size:clamp(56px,10vw,80px); font-weight:700; letter-spacing:-.04em; line-height:1; margin:0 0 16px;}
+  .box p{color:var(--text-2); margin:0 0 28px;}
+  .box nav{display:flex; gap:10px 22px; justify-content:center; flex-wrap:wrap; font-size:15.5px;}
+  .box nav a{color:var(--accent); font-weight:600; text-decoration:none;}
+  .box nav a:hover{text-decoration:underline;}
+  .foot{border-top:1px solid var(--line); padding:28px 0; font-size:13.5px; color:var(--text-3);}
+  .foot .wrap{display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+  .foot a{color:var(--text-2);}
+  @media(max-width:520px){.wrap{padding:0 22px;}}
+</style>
+
+<div class="site" data-theme="dark" data-page="notfound">
+<!-- ============ SHARED TOP BAR (partials/header.html) ============
+     One header for every page. The page says who it is on its .site root:
+       data-theme="dark" | "light"   which palette the bar takes
+       data-page="home" | "privacy" | "notfound" (the hub pages)
+                 | "selects" | "library-cleanup" (the project pages)
+     data-page picks the call to action (Selects pages get the App Store,
+     Library Cleanup the .dmg). Lines marked data-hub-only (the project links)
+     are dropped by build.sh from every app page: the projects are separate
+     topics and only the hub links to them (owner, 2026-11-06). On phones the
+     hub's links fold into a menu; an app page keeps just Contact inline, and
+     its call to action moves to a bar at the bottom of the screen (see .vt-bar
+     below), which shows only while no other download button is in view. -->
+<style>
+  .vt-top{position:sticky; top:0; z-index:40; border-bottom:1px solid var(--vt-line);
+    background:var(--vt-glass); -webkit-backdrop-filter:saturate(1.4) blur(14px); backdrop-filter:saturate(1.4) blur(14px);}
+  .site[data-theme=light]{--vt-glass:rgba(244,244,246,.82); --vt-line:rgba(0,0,0,.08); --vt-ink:#1d1d1f; --vt-ink-2:#5f5f65; --vt-hover:rgba(0,0,0,.05); --vt-cta:#147966; --vt-cta-ink:#fff; --vt-panel:#fbfbfd;}
+  .site[data-theme=dark]{--vt-glass:rgba(15,17,20,.78); --vt-line:#262b33; --vt-ink:#eef0f3; --vt-ink-2:#a3a9b3; --vt-hover:rgba(255,255,255,.06); --vt-cta:#e6a93a; --vt-cta-ink:#2a1d05; --vt-panel:#161920;}
+  @media (prefers-reduced-transparency:reduce){ .site[data-theme=light] .vt-top{background:#f4f4f6;} .site[data-theme=dark] .vt-top{background:#0f1114;} }
+  .vt-top-in{display:flex; align-items:center; justify-content:space-between; gap:16px; height:60px;}
+  .vt-mark{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; letter-spacing:-.01em; color:var(--vt-ink) !important; text-decoration:none !important; white-space:nowrap;}
+  .vt-badge{width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#e6a93a,#f2c469); color:#2a1d05; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; letter-spacing:0;}
+  .vt-right{display:flex; align-items:center; gap:6px;}
+  .vt-nav{display:flex; align-items:center; gap:2px;}
+  .vt-nav a{font-size:14.5px; font-weight:500; color:var(--vt-ink-2) !important; text-decoration:none !important; padding:8px 12px; border-radius:8px; transition:color .15s ease, background-color .15s ease;}
+  .vt-nav a:hover{color:var(--vt-ink) !important; background:var(--vt-hover);}
+  .vt-nav a[aria-current=page]{color:var(--vt-ink) !important; font-weight:600;}
+  .vt-nav .vt-ext{opacity:.6; margin-left:2px;}
+  .vt-cta{display:none; align-items:center; gap:7px; margin-left:8px; font-size:14px; font-weight:600; line-height:1; padding:10px 15px; border-radius:10px;
+    background:var(--vt-cta); color:var(--vt-cta-ink) !important; text-decoration:none !important; white-space:nowrap; transition:filter .15s ease;}
+  .vt-cta:hover{filter:brightness(1.08);}
+  .site[data-page=selects] .vt-cta-selects, .site[data-page=library-cleanup] .vt-cta-lc{display:inline-flex;}
+  .vt-burger{display:none; width:44px; height:44px; margin-right:-10px; border:0; border-radius:10px; background:none; color:var(--vt-ink); cursor:pointer; align-items:center; justify-content:center;}
+  .vt-burger:hover{background:var(--vt-hover);}
+  .vt-burger .x{display:none;}
+  .vt-top.open .vt-burger .x{display:block;} .vt-top.open .vt-burger .b{display:none;}
+  .vt-nav a:focus-visible,.vt-cta:focus-visible,.vt-burger:focus-visible,.vt-mark:focus-visible,.vt-bar a:focus-visible{outline:2px solid var(--vt-cta); outline-offset:2px;}
+
+  /* Hub pages (home, site privacy) carry the project links, folded into a menu
+     on phones. App pages carry only Contact, so it stays inline and there is
+     no menu button. */
+  .site:is([data-page=selects],[data-page=library-cleanup]) .vt-burger{display:none !important;}
+  @media (max-width:760px){
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-burger{display:inline-flex;}
+    .vt-cta{display:none !important;}
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-nav{display:none; position:absolute; left:0; right:0; top:100%; flex-direction:column; align-items:stretch; gap:0;
+      padding:8px 12px 14px; background:var(--vt-panel); border-bottom:1px solid var(--vt-line); box-shadow:0 18px 30px rgba(0,0,0,.12);}
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-top.open .vt-nav{display:flex;}
+    .site:is([data-page=home],[data-page=privacy],[data-page=notfound]) .vt-nav a{font-size:17px; padding:13px 12px; min-height:44px;}
+    .site:is([data-page=selects],[data-page=library-cleanup]) .vt-nav a{display:inline-flex; align-items:center; min-height:44px; margin-right:-12px;}
+  }
+
+  /* ---- bottom download bar: phones, app pages only ---- */
+  .vt-bar{display:none;}
+  @media (max-width:760px){
+    .site[data-page=selects] .vt-bar-selects, .site[data-page=library-cleanup] .vt-bar-lc{display:flex;}
+    .vt-bar{position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:39; align-items:center; justify-content:space-between; gap:12px;
+      padding:10px 10px 10px 16px; border-radius:16px; border:1px solid var(--vt-line); background:var(--vt-panel); box-shadow:0 12px 32px rgba(0,0,0,.18);
+      transform:translateY(calc(100% + 40px)); opacity:0; pointer-events:none; transition:transform .28s cubic-bezier(.22,.61,.36,1), opacity .2s ease;}
+    .vt-bar.show{transform:none; opacity:1; pointer-events:auto;}
+    .vt-bar p{margin:0; font-size:14px; line-height:1.3; color:var(--vt-ink-2);}
+    .vt-bar p b{display:block; color:var(--vt-ink); font-weight:600;}
+    .vt-bar a{flex:none; display:inline-flex; align-items:center; min-height:44px; padding:0 16px; border-radius:11px; font-size:15px; font-weight:600;
+      background:var(--vt-cta); color:var(--vt-cta-ink) !important; text-decoration:none !important;}
+    /* a .dmg is no use on an iPhone or iPad, so no bar there */
+    html.vt-ios .vt-bar-lc{display:none !important;}
+  }
+  @media (prefers-reduced-motion:reduce){ .vt-bar{transition:none;} }
+</style>
+
+<header class="vt-top">
+  <div class="wrap vt-top-in">
+    <a class="vt-mark" href="/" aria-label="Václav Trnka, home" data-evt="nav_home"><span class="vt-badge" aria-hidden="true">VT</span><span aria-hidden="true">Václav Trnka</span></a>
+    <div class="vt-right">
+      <nav class="vt-nav" id="vt-nav" aria-label="Main">
+        <a href="/selects/" data-hub-only data-evt="nav_selects">Selects</a>
+        <a href="/library-cleanup/" data-hub-only data-evt="nav_library_cleanup">Library Cleanup</a>
+        <a href="https://dumvporadku.cz" target="_blank" rel="noopener noreferrer" data-hub-only data-evt="nav_dum_v_poradku">Dům v pořádku<span class="vt-ext" aria-hidden="true">&#8599;</span></a>
+        <a href="mailto:info@vaclavtrnka.cz" data-evt="nav_contact">Contact</a>
+      </nav>
+      <button class="vt-burger" type="button" aria-controls="vt-nav" aria-expanded="false" aria-label="Open menu" data-evt="nav_menu">
+        <svg class="b" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <svg class="x" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
   </div>
+</header>
+
+<!-- one line each, so build.sh can keep each bar on its own page only (data-only) -->
+
+<script>
+  (function () {
+    var site = document.currentScript.closest('.site');
+    var page = site && site.getAttribute('data-page');
+    var top = document.querySelector('.vt-top');
+    // iPhone and iPad (iPadOS reports itself as a Mac, but with touch).
+    var ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) document.documentElement.classList.add('vt-ios');
+    // Current page link.
+    var cur = top.querySelector('.vt-nav a[data-nav="' + page + '"]');
+    if (cur) cur.setAttribute('aria-current', 'page');
+    // Phone menu.
+    var btn = top.querySelector('.vt-burger');
+    function setOpen(open) {
+      top.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    }
+    btn.addEventListener('click', function () { setOpen(!top.classList.contains('open')); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && top.classList.contains('open')) { setOpen(false); btn.focus(); } });
+    document.addEventListener('click', function (e) { if (top.classList.contains('open') && !top.contains(e.target)) setOpen(false); });
+    top.querySelectorAll('.vt-nav a').forEach(function (a) { a.addEventListener('click', function () { setOpen(false); }); });
+    // Bottom bar: shown once the visitor has scrolled, and only while no other
+    // download button (data-cta-anchor) and not the footer is on screen.
+    var bar = site && site.querySelector(page === 'selects' ? '.vt-bar-selects' : page === 'library-cleanup' ? '.vt-bar-lc' : null);
+    if (!bar || !('IntersectionObserver' in window)) return;
+    var visible = new Set(), scrolled = false;
+    function update() {
+      var show = scrolled && visible.size === 0;
+      bar.classList.toggle('show', show);
+      bar.setAttribute('aria-hidden', show ? 'false' : 'true');
+      bar.querySelectorAll('a').forEach(function (a) { a.tabIndex = show ? 0 : -1; });
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) visible.add(en.target); else visible.delete(en.target); });
+      update();
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+      site.querySelectorAll('[data-cta-anchor], footer').forEach(function (el) { io.observe(el); });
+    });
+    addEventListener('scroll', function () { var s = scrollY > 240; if (s !== scrolled) { scrolled = s; update(); } }, { passive: true });
+  })();
+</script>
+
+  <main>
+    <div class="wrap box">
+      <h1>404</h1>
+      <p>This page doesn't exist (or moved). The rest of the site is still here:</p>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/library-cleanup/">Library Cleanup</a>
+        <a href="/selects/">Selects</a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <span>© 2026 · vaclavtrnka.cz</span>
+<!-- Operator identification (§ 435 of the Czech Civil Code: name, registered
+     address, IČO). Every page's footer includes this; keep it in one place. -->
+<p class="vt-op" style="flex-basis:100%; width:100%; margin:6px 0 0; font-size:13px; line-height:1.6; opacity:.8;">Run by Václav Trnka<span aria-hidden="true"> · </span>IČO 03940110<span aria-hidden="true"> · </span>Tylova Čtvrť 378, 384 02 Lhenice, Czechia<span aria-hidden="true"> · </span><a href="mailto:info@vaclavtrnka.cz" data-evt="footer_contact">info@vaclavtrnka.cz</a></p>
+    </div>
+  </footer>
+</div>
 </body>
 </html>

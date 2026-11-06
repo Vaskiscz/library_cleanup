@@ -9,6 +9,7 @@ DEPLOY="${1:-$HOME/Projects/vaclavtrnka-web}"
 drift=0
 for f in index.html library-cleanup/index.html selects/index.html \
          privacy/index.html selects/privacy/index.html \
+         selects/terms/index.html selects/press/index.html \
          sitemap.xml robots.txt 404.html netlify.toml; do
   if [ ! -f "$DEPLOY/$f" ]; then echo "  MISSING in deploy: $f"; drift=1
   elif ! diff -q "site/$f" "$DEPLOY/$f" >/dev/null; then

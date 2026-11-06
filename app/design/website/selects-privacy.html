@@ -14,10 +14,6 @@
   .site h1{margin:0; font-size:clamp(30px,5vw,44px); font-weight:700; letter-spacing:-.03em; text-wrap:balance;}
   .site h2{margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em;}
 
-  .nav{border-bottom:1px solid var(--line);}
-  .nav .wrap{display:flex; align-items:center; height:64px;}
-  .nav .mark{display:flex; align-items:center; gap:11px; font-weight:600; font-size:15.5px; color:var(--text);}
-  .nav .badge{width:30px; height:30px; border-radius:9px; display:block;}
 
   main{flex:1; padding:64px 0 40px;}
   .eyebrow{font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 16px;}
@@ -40,10 +36,8 @@
   @media(max-width:520px){.wrap{padding:0 22px;} main{padding:44px 0;}}
 </style>
 
-<div class="site">
-  <nav class="nav">
-    <div class="wrap"><a class="mark" href="https://vaclavtrnka.cz/selects"><img class="badge" src="/selects/app-icon.png" width="160" height="160" alt=""> Selects</a></div>
-  </nav>
+<div class="site" data-theme="light" data-page="selects">
+  <!--#include header-->
 
   <main>
     <div class="wrap">
@@ -129,7 +123,7 @@
 
       <div class="block">
         <h2>Contact</h2>
-        <p>Questions about privacy in Selects? Email <a href="mailto:vaclavtrnkaproductsupport@gmail.com?subject=Selects%20privacy">vaclavtrnkaproductsupport@gmail.com</a>.</p>
+        <p>Questions about privacy in Selects? Email <a href="mailto:selects@vaclavtrnka.cz?subject=Selects%20privacy">selects@vaclavtrnka.cz</a>.</p>
       </div>
     </div>
   </main>
@@ -139,12 +133,7 @@
       <a href="https://vaclavtrnka.cz/selects">&larr; Back to Selects</a>
       <a href="/selects/terms/" data-evt="nav_terms">Terms of service</a>
       <span>&copy; 2026 &middot; V&aacute;clav Trnka</span>
+      <!--#include operator-->
     </div>
   </footer>
 </div>
-<script>
-  document.addEventListener('click', function (e) {
-    var el = e.target.closest('[data-evt]');
-    if (el && window.clarity) { try { clarity('event', el.getAttribute('data-evt')); } catch (_) {} }
-  }, true);
-</script>

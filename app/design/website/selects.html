@@ -1,7 +1,7 @@
 <style>
   :root{color-scheme:light;}
   .site{
-    /* ---- family palette (shared with the Library Cleanup page) ---- */
+    /* ---- palette ---- */
     --bg:#f4f4f6; --surface:#fff; --surface-2:#fbfbfd; --sunken:#ececef;
     --text:#1d1d1f; --text-2:#6e6e73; --text-3:#98989d;
     --border:#d9d9de; --separator:#e7e7eb;
@@ -18,7 +18,7 @@
 
     font-family:var(--font); color:var(--text); background:var(--bg);
     -webkit-font-smoothing:antialiased; line-height:1.5; font-size:17px;
-    overflow-x:hidden;
+    overflow-x:clip;
   }
   .site *{box-sizing:border-box;}
   .site a:not(.btn){color:inherit;}
@@ -48,9 +48,11 @@
      294/262 because the render's soft shadow eats a few pixels the old padded
      frame did not. */
   .device{flex:none; position:relative;}
-  .device img{display:block; width:100%; height:auto;}
+  .device img{display:block; width:100%; height:auto; filter:drop-shadow(0 34px 38px rgba(20,45,40,.22)) drop-shadow(0 10px 14px rgba(20,45,40,.14));}
   .device.d-hero{width:310px;}
   .device.d-flow{width:278px;}
+  /* a card that overhangs the phone: the image carries 251 px of extra canvas on the left (of 640) */
+  .device.d-pop img{width:139.21875%; max-width:none; margin-left:-39.21875%;}
 
   /* ---------------- hero ---------------- */
   .hero{padding:64px 0 76px; position:relative;}
@@ -89,6 +91,9 @@
   .appstore img{display:block; height:54px; width:auto;}
   .site a.btn-text{display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-size:16px; font-weight:600; color:var(--brand-text); padding:8px 4px;}
   .btn-text:hover{text-decoration:underline;}
+  .rating{margin-top:20px; font-size:15px; font-weight:600; color:var(--text); display:flex; gap:10px; align-items:center; flex-wrap:wrap; animation:rise .7s var(--ease) .18s both;}
+  .rating .st{color:#F2A516; letter-spacing:2px; font-size:17px;}
+  .rating span:last-child{color:var(--text-2); font-weight:500;}
   .req{margin-top:22px; font-size:13.5px; color:var(--text-2); display:flex; gap:9px; flex-wrap:wrap; align-items:center; animation:rise .7s var(--ease) .2s both;}
   .req b{color:var(--text-2); font-weight:600;}
   .req .sep{opacity:.45;}
@@ -122,33 +127,24 @@
   .pcard p{font-size:14.5px; color:var(--text-2); line-height:1.55; margin:0;}
   .pcard p b{color:var(--text); font-weight:600;}
 
-  /* ---------------- companion ---------------- */
-  .companion{
-    display:grid; grid-template-columns:auto 1fr auto; gap:22px; align-items:center;
-    background:var(--surface); border:1px solid var(--border); border-radius:20px;
-    padding:26px 30px; box-shadow:var(--shadow-1);
-  }
-  .companion .cic{width:60px; height:60px; border-radius:14px; box-shadow:var(--shadow-1);}
-  .companion .ctxt small{font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--brand-text);}
-  .companion .ctxt h3{font-size:20px; font-weight:700; margin:6px 0 5px; letter-spacing:-.02em;}
-  .companion .ctxt p{font-size:14.5px; color:var(--text-2); margin:0; line-height:1.5; max-width:52ch;}
-  .companion .cbtn{
-    display:inline-flex; align-items:center; gap:8px; text-decoration:none; white-space:nowrap;
-    font-size:15px; font-weight:600; color:var(--text); border:1px solid var(--border);
-    border-radius:12px; padding:12px 20px; background:var(--surface-2);
-  }
-  .companion .cbtn:hover{border-color:var(--brand-text); color:var(--brand-text);}
-
   /* ---------------- faq ---------------- */
-  .faq-list{max-width:720px; margin:0 auto;}
-  .faq{padding:22px 0; border-bottom:1px solid var(--separator);}
-  .faq:first-child{padding-top:0;}
-  .faq:last-child{border-bottom:none; padding-bottom:0;}
-  .faq h3{font-size:17px; font-weight:600; margin:0 0 8px;}
-  .faq p{font-size:15.5px; color:var(--text-2); line-height:1.6; margin:0;}
+  /* native <details>: no script, keyboard and screen-reader friendly, and the
+     answers stay in the page for search engines */
+  .faq-list{max-width:720px; margin:0 auto; border-top:1px solid var(--separator);}
+  .faq{border-bottom:1px solid var(--separator);}
+  .faq summary{list-style:none; display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:44px; padding:18px 2px; cursor:pointer;}
+  .faq summary::-webkit-details-marker{display:none;}
+  .faq summary::after{content:""; flex:none; width:9px; height:9px; margin-right:6px; border-right:2px solid var(--text-3); border-bottom:2px solid var(--text-3); transform:translateY(-3px) rotate(45deg); transition:transform .2s var(--ease);}
+  .faq[open] summary::after{transform:translateY(2px) rotate(-135deg);}
+  .faq summary:hover h3{color:var(--brand-text);}
+  .faq summary:focus-visible{outline:2px solid var(--brand-text); outline-offset:2px; border-radius:6px;}
+  .faq h3{font-size:17px; font-weight:600; margin:0; transition:color .15s ease;}
+  .faq p{font-size:15.5px; color:var(--text-2); line-height:1.6; margin:0 0 22px; padding:0 30px 0 2px;}
   .faq p b{color:var(--text); font-weight:600;}
   .site .faq a{color:var(--brand-text); font-weight:600; text-decoration:underline; text-underline-offset:2px;}
   .faq a:hover{text-decoration:underline;}
+  .faq-more{max-width:720px; margin:28px auto 0; text-align:center; font-size:15.5px; color:var(--text-2);}
+  .site .faq-more a{color:var(--brand-text); font-weight:600; text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere;}
 
   /* ---------------- final cta ---------------- */
   .final{text-align:center;}
@@ -163,7 +159,7 @@
   .foot .wrap{display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:center;}
   .foot .fl{display:flex; align-items:center; gap:11px; font-size:14px; color:var(--text-2);}
   .foot .fl img{width:26px; height:26px; border-radius:7px;}
-  .foot nav{display:flex; gap:22px; font-size:14px;}
+  .foot nav{display:flex; flex-wrap:wrap; gap:10px 22px; font-size:14px;}
   .foot nav a{color:var(--text-2); text-decoration:none;}
   .foot nav a:hover{color:var(--brand-text);}
 
@@ -174,43 +170,45 @@
     .hero-grid{grid-template-columns:1fr; gap:44px; text-align:center;}
     .hero-copy{max-width:none; margin:0 auto;}
     .hero .lede{margin-left:auto; margin-right:auto;}
-    .cta-row,.req{justify-content:center;}
+    .cta-row,.req,.rating{justify-content:center;}
     .flow{gap:64px;}
     .flow-row{grid-template-columns:1fr; gap:32px; text-align:center; max-width:440px; margin:0 auto;}
     .flow-row:nth-child(even) .flow-phone{order:0;}
+    .device.d-pop{transform:translateX(54px);}
     .flow-copy{max-width:none;}
     .flow-copy p{margin-left:auto; margin-right:auto; max-width:46ch;}
     .priv-grid{grid-template-columns:1fr;}
-    .companion{grid-template-columns:1fr; text-align:center; justify-items:center; gap:16px;}
-    .companion .ctxt p{margin:0 auto;}
   }
   @media (max-width:520px){ .band{padding:64px 0;} .wrap{padding:0 20px;} }
 </style>
 
-<div class="site">
+<div class="site" data-theme="light" data-page="selects">
+  <!--#include header-->
+
   <!-- ============ HERO ============ -->
   <section class="hero">
     <div class="wrap">
       <div class="hero-grid">
         <div class="hero-copy">
           <div class="badge-row">
-            <img class="ic" src="/selects/app-icon.png" width="160" height="160" alt="Selects icon">
+            <img class="ic" src="/selects/app-icon-v2.png" width="160" height="160" alt="Selects icon">
             <span>iPhone&nbsp;&middot;&nbsp;Runs on&#8209;device</span>
           </div>
           <h1>Keep your best shots, clear the rest.</h1>
           <p class="lede">You shoot the same scene thirty times to get one good photo. Selects finds those photoshoots and pre&#8209;picks the keepers. You just correct with a tap.</p>
-          <p class="lede lede-2">And a big video doesn't have to go at all. Selects makes a smaller copy and leaves your original alone.</p>
-          <div class="cta-row">
+          <p class="lede lede-2">Three ways in: let Selects pick the keepers, see what takes the most space, or swipe one photo at a time.</p>
+          <div class="cta-row" data-cta-anchor>
             <a class="appstore" href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=website&amp;mt=8" target="_blank" rel="noopener" data-evt="cta_appstore_hero"><img src="/selects/img/app-store-badge.svg" width="162" height="54" alt="Download on the App Store"></a>
             <a class="btn-text" href="#how" data-evt="cta_how_hero">See how it works
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </a>
           </div>
+          <p class="rating"><span class="st" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span>5.0 on the App Store</span><span>from 107 ratings</span></p>
           <p class="req"><b>iPhone</b><span class="sep">&middot;</span><b>iOS&nbsp;26 or later</b><span class="sep">&middot;</span><b>Free</b><span class="sep">&middot;</span><b>No account</b></p>
         </div>
 
         <div class="hero-phone">
-          <div class="device d-hero"><img src="/selects/img/home-v2.webp" width="640" height="1341" fetchpriority="high" alt="Selects on iPhone: 48 GB of photos and videos, 2,017 cleared all time, and a button to open September"></div>
+          <div class="device d-hero"><img src="/selects/img/home-v3.webp" width="640" height="1338" fetchpriority="high" alt="Selects on iPhone: the Curate tab on July 2026, three photos from that month fanned out, and a button to open July"></div>
         </div>
       </div>
     </div>
@@ -221,48 +219,68 @@
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow">How it works</p>
-        <h2>The tedious first pass, already done.</h2>
-        <p>Selects does the boring sorting, then hands you the few decisions that actually need an eye.</p>
+        <h2>Three ways in.</h2>
+        <p>Swipe through your photos one at a time, let Selects pre&#8209;pick the keepers, or start with what takes the most space. Whichever you choose, nothing is removed until you confirm.</p>
       </div>
 
       <div class="flow">
-        <!-- 1 · curate hub -->
+        <!-- swipe, first: the simplest way in -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/curate-v2.webp" width="640" height="1338" loading="lazy" alt="The Everything screen: 18 GB to save, broken into photoshoots 3.4 GB, videos 4.2 GB, screenshots 2.8 GB and bursts 7.6 GB"></div></div>
+          <div class="flow-phone"><div class="device d-flow d-pop"><img src="/selects/img/swipe-v3.webp" width="891" height="1338" loading="lazy" alt="Swipe: a photo dragged left with the Remove stamp on it, and the next one waiting behind"></div></div>
+          <div class="flow-copy">
+            <span class="tag">One at a time</span>
+            <h3>Keep it simple: swipe.</h3>
+            <p>The <b>Swipe</b> tab shows your photos one at a time. Left to remove, right to keep, up to add it to Favorites. Swipe through a month, an album, just videos or screenshots, or any list in Tidy up. Nothing is removed until you confirm.</p>
+          </div>
+        </div>
+
+        <!-- 1 · curate: a month's photoshoots -->
+        <div class="flow-row">
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/curate-v3.webp" width="640" height="1338" loading="lazy" alt="Curate on the last 30 days: six photoshoots found, each with how many to keep, how many to clear and the space it saves"></div></div>
           <div class="flow-copy">
             <span class="flow-num">1</span>
-            <h3>See where the space went.</h3>
-            <p>Selects sorts your library into four passes and shows what each one could give back. <b>Photoshoots</b>, <b>bursts</b> that collapse to the one frame worth keeping, the <b>screenshots</b> you never opened again, and <b>videos</b> listed largest first. Start with the biggest. Or skip the grouping and browse everything in a plain grid.</p>
+            <h3>Or start with a month.</h3>
+            <p>The <b>Curate</b> tab opens on a month of your own photos. Not that one? <b>Shuffle</b> for another, or pick an <b>album</b>, a range of <b>dates</b>, or <b>Browse all</b>. Selects finds every photoshoot in it: the same scene, taken ten or twenty times, grouped together.</p>
           </div>
         </div>
 
         <!-- 2 · review -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/review-v2.webp" width="640" height="1338" loading="lazy" alt="A photoshoot open for review: four near-identical frames of one person, two ticked as keepers and two set to clear"></div></div>
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/review-v3.webp" width="640" height="1338" loading="lazy" alt="A photoshoot open for review: four portraits from one series, two ticked as keepers and two set to clear"></div></div>
           <div class="flow-copy">
             <span class="flow-num">2</span>
-            <h3>It pre-picks the keepers. You just correct.</h3>
-            <p>Selects groups each photoshoot (the same scene shot ten or twenty times) and pre&#8209;picks the keepers: the sharpest, plus the one that's genuinely different so you don't lose the moment. <b>Tap a circle to flip any shot between keep and clear</b>, or tap Compare to put two frames side by side. Your choices are saved as you go.</p>
+            <h3>It pre&#8209;picks the keepers. You just correct.</h3>
+            <p>In each photoshoot, Selects pre&#8209;picks the keepers: the sharpest photo, plus the one that's genuinely different, so you don't lose the moment. <b>Tap a circle to switch any photo between keep and clear</b>, or tap Compare to put two side by side. Your choices are saved as you go.</p>
           </div>
         </div>
 
         <!-- 3 · done -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/done-v2.webp" width="640" height="1338" loading="lazy" alt="The Done screen: your best 32 kept, 2.1 GB back, 480 photos cleared, and a note that deletions wait 30 days in Recently Deleted"></div></div>
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/done-v3.webp" width="640" height="1338" loading="lazy" alt="The Done screen: your best 96 kept, 3.1 GB back, and a note that removed photos wait 30 days in Recently Deleted"></div></div>
           <div class="flow-copy">
             <span class="flow-num">3</span>
             <h3>Your best few, and the space back.</h3>
-            <p>A 40&#8209;photo shoot becomes its best handful. Selects hands off to iPhone's own delete to confirm, so nothing goes without your tap, and everything cleared waits in <b>Recently Deleted for 30 days</b>. Then it tallies what you kept and what you got back, and rolls you into the next shoot.</p>
+            <p>A photoshoot of 40 becomes its best handful. Nothing is removed until you confirm, through your iPhone's own delete, and removed photos stay in <b>Recently Deleted for 30 days</b>. Then Selects tallies what you kept and what you got back, and takes you to the next photoshoot.</p>
           </div>
         </div>
 
-        <!-- 4 · compress -->
+        <!-- 4 · tidy up -->
         <div class="flow-row">
-          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/compress-v2.webp" width="640" height="1338" loading="lazy" alt="A video in Selects with an Original and Compressed toggle, the compressed version saving about 253 MB"></div></div>
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/tidy-v3.webp" width="640" height="1338" loading="lazy" alt="Tidy up: 48.2 GB in the library, with lists for large videos, exact copies, compressed videos beside their originals, and bursts"></div></div>
+          <div class="flow-copy">
+            <span class="tag">Biggest first</span>
+            <h3>See what takes the most space.</h3>
+            <p><b>Tidy up</b> sorts your whole library into lists. First what's worth a look: large videos, exact copies, bursts, and videos you've compressed whose original is still there. Then lists for any time: screenshots, screen recordings, all videos, blurry and low&#8209;light photos, and utility photos like receipts.</p>
+          </div>
+        </div>
+
+        <!-- 6 · compress -->
+        <div class="flow-row">
+          <div class="flow-phone"><div class="device d-flow"><img src="/selects/img/compress-v3.webp" width="640" height="1338" loading="lazy" alt="A compressed copy of a video in preview, saving about 876 MB, with a switch to compare it with the original"></div></div>
           <div class="flow-copy">
             <span class="tag">Smaller, not gone</span>
             <h3>A big video doesn't have to go.</h3>
-            <p>Selects makes a <b>smaller copy</b> and never touches your original. You see a real preview first, encoded from the hardest seconds of that clip, so you judge the quality yourself instead of trusting a number. Both sit in your library until you decide. The space comes back when you remove the original, which is its own confirmed step.</p>
+            <p>Selects makes a <b>smaller copy</b> and never touches your original. You see a real preview first, encoded from the hardest seconds of that clip, so you judge the quality yourself instead of trusting a number. Videos stored in iCloud work too. Both sit in your library until you decide, and the space comes back when you remove the original, which is its own confirmed step.</p>
           </div>
         </div>
       </div>
@@ -291,26 +309,8 @@
         <div class="pcard">
           <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>
           <h3>Free, no strings</h3>
-          <p>No account, no subscription, no ads. Selects is free. There's an optional tip jar, and it unlocks nothing, because there's nothing to unlock.</p>
+          <p>No account, no subscription, no ads. Selects is free, with an optional tip jar if you'd like to support it.</p>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ COMPANION APP ============ -->
-  <section class="band band-tight">
-    <div class="wrap">
-      <div class="companion">
-        <img class="cic" src="/library-cleanup/app-icon.png" width="160" height="160" alt="Library Cleanup icon">
-        <div class="ctxt">
-          <small>Its companion on the Mac</small>
-          <h3>Freeing up space on your Mac too?</h3>
-          <p>Library Cleanup is the deep&#8209;clean tier of the same family: it sweeps your whole Mac photo library for duplicate photoshoots and repeat videos. In my own 27,518-photo library, it found 33.4 GB to clear. Same on&#8209;device promise, same safety.</p>
-        </div>
-        <a class="cbtn" href="https://vaclavtrnka.cz/library-cleanup" data-evt="cta_library_cleanup">
-          Get Library Cleanup
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </a>
       </div>
     </div>
   </section>
@@ -320,28 +320,29 @@
     <div class="wrap">
       <div class="sec-head"><h2>Questions</h2></div>
       <div class="faq-list">
-        <div class="faq"><h3>Is it really free?</h3><p>Yes. No account, no subscription, no ads, and nothing locked behind a paywall. There's an optional tip jar if you'd like to support it, and it unlocks nothing, because there's nothing to unlock. I built it for my own photo library and decided to share it.</p></div>
-        <div class="faq"><h3>Do I have to delete my big videos?</h3><p>No. Selects makes a smaller copy of a long clip and leaves your original exactly as it was. You get a real preview first, encoded from the hardest seconds, so you judge the quality yourself. Both sit in your library until you decide, and the space comes back when you remove the original, which is its own confirmed step. HDR stays HDR, and slow motion and Cinematic clips are left alone.</p></div>
-        <div class="faq"><h3>Do my photos ever leave my iPhone?</h3><p>Never. Selects reads your library on&#8209;device using the Vision framework already on your iPhone, so your photos are never uploaded. No account, and no copy of your photos in the cloud.</p></div>
-        <div class="faq"><h3>Can it delete a photo I want to keep?</h3><p>No. Selects only suggests, and it never suggests clearing a photo you have marked as a favorite. You confirm the removal, and it goes through iPhone's own delete, so cleared photos sit in <b>Recently Deleted for 30 days</b> and can be restored any time in that window.</p></div>
-        <div class="faq"><h3>Do I have to finish in one go?</h3><p>No. Your keep and clear choices are saved as you go, so you can put the phone down mid&#8209;photoshoot and pick up exactly where you were. Nothing is removed until you confirm, so a half&#8209;finished review leaves your library exactly as it was. Selects remembers where you got to.</p></div>
-        <div class="faq"><h3>What if I'd rather choose everything myself?</h3><p>Tap <b>Browse all photos</b> to skip the grouping and go through your library by hand, newest first or largest first. Same safe removal at the end. You can also tell Selects how bold to be: <b>Keep more</b>, <b>Balanced</b>, or <b>Clear more</b>.</p></div>
-        <div class="faq"><h3>Can I clean up just one album?</h3><p>Yes. <b>Albums</b> is one of the ways in: pick any album you have and Selects looks only there. You can also narrow by <b>dates</b>, a single year or a range, or skip the grouping entirely and browse everything in a plain grid. Whatever you pick, the review and the safe removal work the same way.</p></div>
-        <div class="faq"><h3>What if my photos are in iCloud?</h3><p>That works. If your library is optimized for storage, Selects fetches what it needs to look properly at a photo. Whether it does that over mobile data is your choice, not an assumption, and anything still in iCloud is never deleted by a failed fetch.</p></div>
-        <div class="faq"><h3>Why did a whole burst disappear?</h3><p>iOS won't let an app delete single frames inside a burst stack, so keeping one works differently: Selects saves your chosen frame as a new photo, then removes the stack. You end up with the frame you wanted and one fewer pile. Because the keeper is a new photo, it leaves any album the burst was in, and everything removed waits in <b>Recently Deleted for 30 days</b>.</p></div>
-        <div class="faq"><h3>Which iPhones does it support?</h3><p>Any iPhone running iOS&nbsp;26 or later.</p></div>
-        <div class="faq"><h3>How is it different from Library Cleanup?</h3><p>Same family, different job. Selects is the on&#8209;the&#8209;go tier: photoshoots, bursts, screenshots and videos, sorted on your iPhone in a few taps. <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a> is the deep&#8209;clean tier for your whole Mac library, focused on reclaiming storage from duplicate photoshoots and repeat videos.</p></div>
+        <details class="faq" open><summary><h3>Is it really free?</h3></summary><p>Yes. No account, no subscription, no ads, and nothing locked behind a paywall. There's an optional tip jar if you'd like to support it. I built it for my own photo library and decided to share it.</p></details>
+        <details class="faq"><summary><h3>Do I have to delete my big videos?</h3></summary><p>No. Selects makes a smaller copy of a long clip and leaves your original exactly as it was. You get a real preview first, encoded from the hardest seconds, so you judge the quality yourself. Both sit in your library until you decide, and the space comes back when you remove the original, which is its own confirmed step. Videos stored in iCloud work too: Selects downloads the original first. HDR stays HDR, and slow motion, Cinematic and spatial videos are never compressed.</p></details>
+        <details class="faq"><summary><h3>Do my photos ever leave my iPhone?</h3></summary><p>Never. Selects reads your library on&#8209;device using the Vision framework already on your iPhone, so your photos are never uploaded. No account, and no copy of your photos in the cloud.</p></details>
+        <details class="faq"><summary><h3>Can it delete a photo I want to keep?</h3></summary><p>No. Selects only suggests, and it never suggests clearing a photo you have marked as a favorite. Nothing is removed until you confirm, and it goes through your iPhone's own delete, so removed photos stay in <b>Recently Deleted for 30 days</b> and can be restored any time in that window.</p></details>
+        <details class="faq"><summary><h3>Do I have to finish in one go?</h3></summary><p>No. Your keep and clear choices are saved as you go, so you can put the phone down mid&#8209;photoshoot and pick up exactly where you were. Nothing is removed until you confirm, so a half&#8209;finished review leaves your library exactly as it was. Selects remembers where you got to.</p></details>
+        <details class="faq"><summary><h3>What if I'd rather choose everything myself?</h3></summary><p>Use the <b>Swipe</b> tab to go through your photos one at a time, or tap <b>Browse all</b> to see your library as a plain grid, newest first or largest first. Same safe removal at the end. And when Selects does pick, you can tell it how bold to be: <b>Keep more</b>, <b>Balanced</b>, or <b>Clear more</b>.</p></details>
+        <details class="faq"><summary><h3>Can I clean up just one album?</h3></summary><p>Yes. <b>Albums</b> is one of the ways in: pick any album you have and Selects looks only there. You can also narrow by <b>dates</b>, a single year or a range, or skip the grouping entirely and browse everything in a plain grid. Whatever you pick, the review and the safe removal work the same way.</p></details>
+        <details class="faq"><summary><h3>What if my photos are in iCloud?</h3></summary><p>That works. If your library is optimized for storage, Selects fetches what it needs to look properly at a photo. Whether it does that over mobile data is your choice, not an assumption, and anything still in iCloud is never deleted by a failed fetch.</p></details>
+        <details class="faq"><summary><h3>Why did a whole burst disappear?</h3></summary><p>iOS won't let an app delete single frames inside a burst stack, so keeping one works differently: Selects saves your chosen frame as a new photo, then removes the stack. You end up with the frame you wanted and one fewer pile. Because the keeper is a new photo, it leaves any album the burst was in, and removed photos stay in <b>Recently Deleted for 30 days</b>.</p></details>
+        <details class="faq"><summary><h3>What's in Tidy up?</h3></summary><p>Your whole library, sorted into lists. Worth a look: <b>large videos</b>, <b>exact copies</b>, <b>bursts</b>, and <b>compressed videos whose original is still there</b>. Any time: <b>screenshots</b>, <b>screen recordings</b>, <b>all videos</b>, <b>blurry and low&#8209;light photos</b>, and <b>utility photos</b> like receipts and signs. Open any list, pick what goes, and the removal works the same safe way. A blurry photo is only ever listed, never marked for you: every one starts kept, because a soft photo can still be the only one of that moment.</p></details>
+        <details class="faq"><summary><h3>Which iPhones does it support?</h3></summary><p>Any iPhone running iOS&nbsp;26 or later.</p></details>
       </div>
+      <p class="faq-more">Another question? Write to me at <a href="mailto:selects@vaclavtrnka.cz?subject=Selects%20support" data-evt="faq_support">selects@vaclavtrnka.cz</a>.</p>
     </div>
   </section>
 
   <!-- ============ FINAL CTA ============ -->
   <section class="band band-tight">
     <div class="wrap final">
-      <img class="ic" src="/selects/app-icon.png" width="160" height="160" alt="Selects icon">
-      <h2>Turn a 40-photo shoot into its best few.</h2>
+      <img class="ic" src="/selects/app-icon-v2.png" width="160" height="160" alt="Selects icon">
+      <h2>Your photo library, minus the clutter.</h2>
       <p>On&#8209;device cleanup for your iPhone photos and videos. Free, private, and quietly good at its one job.</p>
-      <div class="cta-row">
+      <div class="cta-row" data-cta-anchor>
         <a class="appstore" href="https://apps.apple.com/app/apple-store/id6790501172?pt=129161497&amp;ct=website&amp;mt=8" target="_blank" rel="noopener" data-evt="cta_appstore_footer"><img src="/selects/img/app-store-badge.svg" width="162" height="54" alt="Download on the App Store"></a>
       </div>
       <p class="req"><b>iPhone</b><span class="sep">&middot;</span><b>iOS&nbsp;26 or later</b><span class="sep">&middot;</span><b>Free</b></p>
@@ -351,21 +352,15 @@
   <!-- ============ FOOTER ============ -->
   <footer class="foot">
     <div class="wrap">
-      <div class="fl"><img src="/selects/app-icon.png" width="160" height="160" alt="">Selects &middot; On-device photo and video cleanup for iPhone</div>
+      <div class="fl"><img src="/selects/app-icon-v2.png" width="160" height="160" alt="">Selects &middot; On-device photo and video cleanup for iPhone</div>
       <nav>
-        <a href="https://vaclavtrnka.cz/library-cleanup">Library Cleanup</a>
-        <a href="https://vaclavtrnka.cz">More projects</a>
-        <a href="mailto:vaclavtrnkaproductsupport@gmail.com?subject=Selects%20support" data-evt="nav_support">Contact support</a>
+        <a href="mailto:selects@vaclavtrnka.cz?subject=Selects%20support" data-evt="nav_support">Contact support</a>
         <a href="/selects/privacy/" data-evt="nav_privacy">Privacy</a>
         <a href="/selects/terms/" data-evt="nav_terms">Terms</a>
-        <a href="https://www.linkedin.com/in/vaclav-trnka/">LinkedIn</a>
+        <a href="/selects/press/" data-evt="nav_press">Press kit</a>
+        <a href="https://www.linkedin.com/in/vaclav-trnka/" data-evt="linkedin">LinkedIn</a>
       </nav>
+      <!--#include operator-->
     </div>
   </footer>
 </div>
-<script>
-  document.addEventListener('click', function (e) {
-    var el = e.target.closest('[data-evt]');
-    if (el && window.clarity) { try { clarity('event', el.getAttribute('data-evt')); } catch (_) {} }
-  }, true);
-</script>

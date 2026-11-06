@@ -35,9 +35,12 @@
 # page itself has updated. No header fixes that, because the browser is not
 # asking. Only a new URL does.
 #
-# So those two filenames carry a version: favicon-v2.png,
-# apple-touch-icon-v2.png. When the art changes, bump the suffix and update
-# heads/selects.html and heads/selects-privacy.html rather than overwriting.
+# So those two filenames carry a version: favicon-v3.png,
+# apple-touch-icon-v3.png (Selects; v3 since the 2026-11-06 icon). When the
+# art changes, bump the suffix and update every heads/selects*.html rather
+# than overwriting. The in-page /selects/app-icon-v2.png is versioned too:
+# under the 7-day cache below, a replaced <img> can also show old art to a
+# returning visitor for up to a week.
 #
 # Learned the hard way: the Selects favicon kept serving the old Library Cleanup
 # art after the icon was replaced in place, while every <img> on the page had
