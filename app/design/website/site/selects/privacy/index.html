@@ -117,6 +117,15 @@
   @media (prefers-reduced-transparency:reduce){ .site[data-theme=light] .vt-top{background:#f4f4f6;} .site[data-theme=dark] .vt-top{background:#0f1114;} }
   .vt-top-in{display:flex; align-items:center; justify-content:space-between; gap:16px; height:60px;}
   .vt-mark{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; letter-spacing:-.01em; color:var(--vt-ink) !important; text-decoration:none !important; white-space:nowrap;}
+  /* On a project page the bar says where you are: "VT Václav Trnka / Library
+     Cleanup". The product name links to its page, so the child pages (Selects'
+     privacy, terms, press kit) get one more way back. One line per product in
+     the markup, so build.sh keeps each on its own pages only. */
+  .vt-left{display:flex; align-items:center; gap:12px; min-width:0;}
+  .vt-prod{display:inline-flex; align-items:center; gap:12px; font-weight:600; font-size:15px; letter-spacing:-.01em; color:var(--vt-ink) !important; text-decoration:none !important; white-space:nowrap; min-height:44px;}
+  .vt-prod::before{content:"/"; color:var(--vt-ink-2); font-weight:400; opacity:.55;}
+  .vt-prod:hover{opacity:.75;}
+  @media (max-width:760px){ .site:is([data-page=selects],[data-page=library-cleanup]) .vt-mark > span:last-child{display:none;} }
   .vt-badge{width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#e6a93a,#f2c469); color:#2a1d05; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; letter-spacing:0;}
   .vt-right{display:flex; align-items:center; gap:6px;}
   .vt-nav{display:flex; align-items:center; gap:2px;}
@@ -132,7 +141,7 @@
   .vt-burger:hover{background:var(--vt-hover);}
   .vt-burger .x{display:none;}
   .vt-top.open .vt-burger .x{display:block;} .vt-top.open .vt-burger .b{display:none;}
-  .vt-nav a:focus-visible,.vt-cta:focus-visible,.vt-burger:focus-visible,.vt-mark:focus-visible,.vt-bar a:focus-visible{outline:2px solid var(--vt-cta); outline-offset:2px;}
+  .vt-prod:focus-visible,.vt-nav a:focus-visible,.vt-cta:focus-visible,.vt-burger:focus-visible,.vt-mark:focus-visible,.vt-bar a:focus-visible{outline:2px solid var(--vt-cta); outline-offset:2px;}
 
   /* Hub pages (home, site privacy) carry the project links, folded into a menu
      on phones. App pages carry only Contact, so it stays inline and there is
@@ -168,7 +177,10 @@
 
 <header class="vt-top">
   <div class="wrap vt-top-in">
+    <div class="vt-left">
     <a class="vt-mark" href="/" aria-label="Václav Trnka, home" data-evt="nav_home"><span class="vt-badge" aria-hidden="true">VT</span><span aria-hidden="true">Václav Trnka</span></a>
+    <a class="vt-prod" href="/selects/" data-only="selects" data-evt="nav_product">Selects</a>
+    </div>
     <div class="vt-right">
       <nav class="vt-nav" id="vt-nav" aria-label="Main">
         <a href="mailto:info@vaclavtrnka.cz" data-evt="nav_contact">Contact</a>
